@@ -36,10 +36,16 @@ function mockMessaging(response: unknown = report) {
   return { execute, send }
 }
 
-function mockPermissionRequest(granted: boolean) {
-  const request = vi.fn<(p: unknown) => Promise<boolean>>(async () => granted)
+function mockPermissionRequest(granted: boolean | Promise<boolean>) {
+  const request = vi.fn<(p: unknown) => Promise<boolean>>(() => Promise.resolve(granted))
   vi.spyOn(fakeBrowser.permissions, 'request').mockImplementation(request as unknown as typeof fakeBrowser.permissions.request)
   return request
+}
+
+function mockPermissionContains(granted: boolean) {
+  const contains = vi.fn<(p: unknown) => Promise<boolean>>(async () => granted)
+  vi.spyOn(fakeBrowser.permissions, 'contains').mockImplementation(contains as unknown as typeof fakeBrowser.permissions.contains)
+  return contains
 }
 
 beforeEach(async () => {
@@ -222,5 +228,80 @@ describe('usePopup', () => {
     await p.load()
     await p.openManage()
     expect(create.mock.calls[0]?.[0].url).toMatch(/\/manage\.html$/)
+  })
+
+  it('reports a failing load in German instead of staying empty', async () => {
+    vi.spyOn(fakeBrowser.tabs, 'query').mockRejectedValue(new Error('boom'))
+    const p = usePopup()
+    await p.load()
+    expect(p.error.value).toEqual({ message: 'Popup konnte nicht geladen werden.', detail: 'boom' })
+  })
+
+  it('newTemplate reports a storage error instead of rejecting', async () => {
+    mockActiveTab('https://crm.example.com/')
+    const { send } = mockMessaging(undefined)
+    const p = usePopup()
+    await p.load()
+    vi.spyOn(fakeBrowser.storage.local, 'set').mockRejectedValue(new Error('QUOTA_BYTES quota exceeded'))
+    await expect(p.newTemplate('Neu')).resolves.toBe(false)
+    expect(p.error.value?.message).toBe('Vorlage konnte nicht gespeichert werden.')
+    expect(send).not.toHaveBeenCalled()
+    expect(p.busy.value).toBe(false)
+  })
+
+  it('newTemplate does nothing while another action runs', async () => {
+    mockActiveTab('https://crm.example.com/')
+    const { send } = mockMessaging()
+    const p = usePopup()
+    await p.load()
+    const filling = p.fill('t1')
+    await expect(p.newTemplate('Neu')).resolves.toBe(false)
+    await filling
+    expect((await listTemplates('crm')).map((t) => t.name)).toEqual(['Kunde'])
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+
+  it('saves the app before the permission prompt settles (the popup may close meanwhile)', async () => {
+    mockActiveTab('https://neu.example.org/start')
+    const request = mockPermissionRequest(new Promise<boolean>(() => undefined))
+    const p = usePopup()
+    await p.load()
+    void p.createAppForCurrentPage('Neu', 'https://neu.example.org/*')
+    void p.createAppForCurrentPage('Neu', 'https://neu.example.org/*')
+    await vi.waitFor(async () => expect((await listApps()).map((a) => a.name)).toContain('Neu'))
+    expect(request).toHaveBeenCalledTimes(1)
+    expect((await listApps()).filter((a) => a.name === 'Neu')).toHaveLength(1)
+  })
+
+  it('removes the app again when the pattern is rejected by the browser', async () => {
+    mockActiveTab('https://neu.example.org/start')
+    vi.spyOn(fakeBrowser.permissions, 'request').mockRejectedValue(new Error("Invalid value for origin pattern 'x'"))
+    const p = usePopup()
+    await p.load()
+    await expect(p.createAppForCurrentPage('Neu', 'x')).resolves.toBe(false)
+    expect(await listApps()).toHaveLength(2)
+    expect(p.error.value?.message).toMatch(/URL-Muster ist ungültig/)
+  })
+
+  it('flags a detected app without granted host permission and re-requests it', async () => {
+    mockActiveTab('https://crm.example.com/')
+    const contains = mockPermissionContains(false)
+    const request = mockPermissionRequest(true)
+    const p = usePopup()
+    await p.load()
+    expect(contains).toHaveBeenCalledWith({ origins: ['https://crm.example.com/*'] })
+    expect(p.permissionMissing.value).toBe(true)
+    await p.grantPermission()
+    expect(request).toHaveBeenCalledWith({ origins: ['https://crm.example.com/*'] })
+    expect(p.permissionMissing.value).toBe(false)
+  })
+
+  it('does not flag a manually chosen app', async () => {
+    mockActiveTab('https://crm.example.com/')
+    mockPermissionContains(false)
+    const p = usePopup()
+    await p.load()
+    await p.chooseApp('shop')
+    expect(p.permissionMissing.value).toBe(false)
   })
 })
