@@ -72,7 +72,13 @@ function rawLabel(el: Element): string {
   }
   const wrapping = el.closest('label')
   if (wrapping) return labelText(wrapping)
-  return textOfIds(doc, el.getAttribute('aria-labelledby'))
+  const labelledBy = textOfIds(doc, el.getAttribute('aria-labelledby'))
+  if (labelledBy) return labelledBy
+  // ARIA widget hosts (custom radio groups, comboboxes) cannot have a <label>; their
+  // aria-label is their visible group label, so it must count like one for re-finding.
+  const role = el.getAttribute('role')
+  if (role === 'radiogroup' || role === 'combobox') return el.getAttribute('aria-label') ?? ''
+  return ''
 }
 
 function attr(el: Element, name: string): string {

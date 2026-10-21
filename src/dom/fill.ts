@@ -11,6 +11,8 @@ interface Option<T extends Element> {
   el: T
   text: string
   value: string
+  /** Further names the option answers to, e.g. the full card text besides its title. */
+  aliases?: string[]
 }
 
 const LISTBOX_TIMEOUT_MS = 500
@@ -56,7 +58,8 @@ function asChoice(v: Exclude<FieldValue, { kind: 'skip' | 'checkbox' }>): Choice
 /** Returns the chosen option, or a German failure reason. */
 function choose<T extends Element>(options: Option<T>[], c: Choice, rand: Rand): Option<T> | string {
   if (options.length === 0) return 'Keine auswählbaren Optionen vorhanden'
-  const matches = (o: Option<T>, wanted: string) => norm(o.text) === norm(wanted) || norm(o.value) === norm(wanted)
+  const matches = (o: Option<T>, wanted: string) =>
+    [o.text, o.value, ...(o.aliases ?? [])].some((name) => norm(name) === norm(wanted))
   if (c.mode === 'random') return pick(options, rand) ?? 'Keine auswählbaren Optionen vorhanden'
   if (c.mode === 'fixed') {
     const wanted = c.values[0]
@@ -155,6 +158,24 @@ function radioLabel(r: HTMLInputElement): string {
   return ids ? ids.split(/\s+/).map((id) => doc.getElementById(id)?.textContent ?? '').join(' ').trim() : ''
 }
 
+/** First non-empty text node, e.g. the title of a card that also carries a description. */
+function firstText(el: Element): string {
+  const walker = el.ownerDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node.textContent?.trim()
+    if (text) return text
+  }
+  return ''
+}
+
+/** Value of a custom radio: `value`, `data-value` or any `data-*-value` (e.g. data-radio-value). */
+function radioValue(el: Element): string | null {
+  const direct = el.getAttribute('value') ?? el.getAttribute('data-value')
+  if (direct !== null) return direct
+  const attr = Array.from(el.attributes).find((a) => /^data-[\w-]+-value$/.test(a.name))
+  return attr?.value ?? null
+}
+
 function nativeGroup(first: HTMLInputElement): HTMLInputElement[] {
   if (!first.name) return [first]
   const scope: ParentNode = first.form ?? first.ownerDocument
@@ -178,8 +199,10 @@ async function fillRadio(el: FormControl, choice: Choice, rand: Rand): Promise<F
   const options = Array.from(el.querySelectorAll<HTMLElement>('[role="radio"]'))
     .filter((r) => r.getAttribute('aria-disabled') !== 'true')
     .map((r) => {
-      const text = (r.getAttribute('aria-label') ?? r.textContent ?? '').trim()
-      return { el: r, text, value: r.getAttribute('data-value') ?? text }
+      const full = (r.getAttribute('aria-label') ?? r.textContent ?? '').trim()
+      // Card radios render a title plus a description; users name the option by its title.
+      const text = r.hasAttribute('aria-label') ? full : (firstText(r) || full)
+      return { el: r, text, value: radioValue(r) ?? text, aliases: [full] }
     })
   const chosen = choose(options, choice, rand)
   if (typeof chosen === 'string') return failed(chosen)
