@@ -2,11 +2,11 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { slotKindFor } from '../generators/catalog'
 import ConfigEditor from '../ui/ConfigEditor.vue'
+import { finalizeConfig, slotOptions } from '../ui/configOptions'
 import type { DataTypeConfig, FieldRule } from '../model/types'
 import {
   clone,
   configFor,
-  slotChoices,
   slotFor,
   typeGroups,
   validateConfig,
@@ -44,20 +44,7 @@ watch(
 
 const groups = computed(() => typeGroups(draft.value.locator.kind, draft.value.config.type))
 const slotKind = computed(() => slotKindFor(draft.value.config))
-const slots = computed(() => {
-  const kind = slotKind.value
-  if (kind === null) return []
-  // The edited field itself must not count as "in use" under its old slot.
-  const others = props.fields.filter((f) => f.id !== draft.value.id)
-  const { existing, next } = slotChoices(others, kind)
-  const prefix = kind === 'person' ? 'Person' : 'Adresse'
-  const options = existing.map((slot) => ({ value: slot, label: `${prefix} ${slot}` }))
-  if (draft.value.slot !== null && !existing.includes(draft.value.slot) && draft.value.slot !== next) {
-    options.push({ value: draft.value.slot, label: `${prefix} ${draft.value.slot}` })
-  }
-  options.push({ value: next, label: `${prefix} ${next} (neu)` })
-  return options
-})
+const slots = computed(() => slotOptions(props.fields, draft.value.config, draft.value.slot, draft.value.id))
 
 const type = computed({
   get: () => draft.value.config.type,
@@ -72,17 +59,8 @@ const type = computed({
 
 const requiredDetected = computed(() => props.pending.isNew && props.pending.rule.required)
 
-function finalConfig(): DataTypeConfig {
-  const config = clone(draft.value.config)
-  if (config.type === 'date' && config.range !== 'between') {
-    delete config.from
-    delete config.to
-  }
-  return config
-}
-
 function accept(): void {
-  const config = finalConfig()
+  const config = finalizeConfig(draft.value.config)
   const problem = validateConfig(config)
   error.value = problem
   if (problem) {

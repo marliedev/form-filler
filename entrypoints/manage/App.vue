@@ -15,7 +15,8 @@ const conflict = useDialog<ConflictChoice>()
 
 // The recorder and fills in other tabs write to storage; mirror that here.
 function onStorageChanged(_changes: unknown, area: string): void {
-  if (area === 'local') void manage.refresh()
+  // load() is refresh() with the error shown in the alert region instead of an unhandled rejection.
+  if (area === 'local') void manage.load()
 }
 
 onMounted(() => {

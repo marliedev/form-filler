@@ -114,6 +114,22 @@ describe('TemplateTable', () => {
     expect(w.find('form[role="group"]').exists()).toBe(false)
   })
 
+  it.each([
+    { from: 0, to: 2, expected: ['b', 'a', 'c'] },
+    { from: 0, to: 1, expected: ['a', 'b', 'c'] },
+    { from: 2, to: 0, expected: ['c', 'a', 'b'] },
+    { from: 2, to: 1, expected: ['a', 'c', 'b'] },
+  ])('dragging row $from onto row $to inserts it before that row', async ({ from, to, expected }) => {
+    const { w } = await mountTable()
+    const handles = w.findAll('[draggable="true"]')
+    const rows = w.findAll('tbody tr')
+    await handles[from]!.trigger('dragstart')
+    await rows[to]!.trigger('dragover')
+    await rows[to]!.trigger('drop')
+    await flushPromises()
+    expect((await getTemplate('t1'))?.fields.map((f) => f.id)).toEqual(expected)
+  })
+
   it('keeps an unsaved template name while fields are saved meanwhile', async () => {
     const { w, manage } = await mountTable()
     const name = w.get('input[required]')
