@@ -39,9 +39,10 @@ function firstMessage(send: ReturnType<typeof mockMessaging>['send']): [number, 
   return call
 }
 
-function mockActiveTab(id: number) {
-  const query = vi.fn<(info: unknown) => Promise<{ id: number }[]>>(async () => [{ id }])
+function mockActiveTab(id?: number) {
+  const query = vi.fn<(info: unknown) => Promise<{ id: number }[]>>(async () => (id === undefined ? [] : [{ id }]))
   vi.spyOn(fakeBrowser.tabs, 'query').mockImplementation(query as unknown as typeof fakeBrowser.tabs.query)
+  return query
 }
 
 beforeEach(() => {
@@ -71,6 +72,36 @@ describe('dispatchFill', () => {
     await dispatchFill(3, 't1', 'all')
     expect((await getPrefs()).lastTemplateId).toBe('t1')
     expect((await getTemplate('t1'))?.lastMissing).toEqual(['b', 'c', 'd'])
+  })
+
+  it('only patches lastMissing so template edits made during the run survive', async () => {
+    await saveTemplate(tpl)
+    const { send } = mockMessaging()
+    send.mockImplementation(async () => {
+      await saveTemplate({ ...tpl, name: 'Umbenannt' })
+      return report
+    })
+    await dispatchFill(3, 't1', 'all')
+    const saved = await getTemplate('t1')
+    expect(saved?.name).toBe('Umbenannt')
+    expect(saved?.lastMissing).toEqual(['b', 'c', 'd'])
+  })
+
+  it('in mode required keeps the markers of optional fields that were not tried', async () => {
+    const rule = (id: string, required: boolean) => ({
+      id, label: id, locator: { kind: 'text' as const, name: id }, config: { type: 'text' as const }, slot: null, required, appendRunId: false,
+    })
+    await saveTemplate({ ...tpl, fields: [rule('a', true), rule('b', true), rule('opt', false)], lastMissing: ['a', 'opt'] })
+    mockMessaging({
+      templateId: 't1', filled: 1, total: 2,
+      fields: [
+        { fieldId: 'a', label: 'a', status: 'filled' },
+        { fieldId: 'b', label: 'b', status: 'missing' },
+        { fieldId: 'opt', label: 'opt', status: 'skipped', detail: 'Optional' },
+      ],
+    })
+    await dispatchFill(3, 't1', 'required')
+    expect((await getTemplate('t1'))?.lastMissing).toEqual(['opt', 'b'])
   })
 
   it('keeps lastMissing when the content side reports an error', async () => {
@@ -142,17 +173,40 @@ describe('fillLastUsed', () => {
     expect(message).toMatchObject({ type: 'fill', mode: 'required' })
   })
 
-  it('does nothing when the last template was deleted', async () => {
+  it('queries the active tab of the last focused window', async () => {
+    await saveTemplate(tpl)
+    await setPrefs({ lastTemplateId: 't1' })
+    const query = mockActiveTab(5)
+    mockMessaging()
+    await fillLastUsed()
+    expect(query).toHaveBeenCalledWith({ active: true, lastFocusedWindow: true })
+  })
+
+  it('reports an error on the tab when the last template was deleted', async () => {
     await setPrefs({ lastTemplateId: 'deleted' })
+    mockActiveTab(5)
+    const { execute } = mockMessaging()
+    expect(await fillLastUsed()).toBeNull()
+    expect(execute).not.toHaveBeenCalled()
+    expect((await getLastReport(5))?.error).toBe('Noch keine Vorlage genutzt – zuerst im Popup füllen.')
+    expect(await fakeBrowser.action.getBadgeText({ tabId: 5 })).toBe('!')
+  })
+
+  it('reports an error on the tab without a last template', async () => {
     mockActiveTab(5)
     const { execute } = mockMessaging()
     await fillLastUsed()
     expect(execute).not.toHaveBeenCalled()
+    expect(await getLastReport(5)).toEqual({
+      templateId: '', filled: 0, total: 0, fields: [], error: 'Noch keine Vorlage genutzt – zuerst im Popup füllen.',
+    })
+    expect(await fakeBrowser.action.getBadgeText({ tabId: 5 })).toBe('!')
   })
 
-  it('does nothing without a last template', async () => {
+  it('does nothing without an active tab', async () => {
+    mockActiveTab()
     const { execute } = mockMessaging()
-    await fillLastUsed()
+    expect(await fillLastUsed()).toBeNull()
     expect(execute).not.toHaveBeenCalled()
   })
 })

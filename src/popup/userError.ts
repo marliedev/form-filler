@@ -17,7 +17,7 @@ const RULES: { test: RegExp; message: string }[] = [
 ]
 
 /** German errors produced by the extension itself are shown as they are. */
-const OWN_MESSAGES = [/^Vorlage nicht gefunden/, /^Ungültige Vorlage/, /^Auf der Seite läuft noch eine Aufnahme/]
+const OWN_MESSAGES = [/^Vorlage nicht gefunden/, /^Ungültige Vorlage/, /^Auf der Seite läuft noch eine Aufnahme/, /^Noch keine Vorlage genutzt/]
 
 function withPeriod(text: string): string {
   return /[.!?…]$/.test(text) ? text : `${text}.`
