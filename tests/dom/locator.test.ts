@@ -71,7 +71,7 @@ describe('describeElement', () => {
       <div role="radiogroup" aria-labelledby="g"><input type="radio" name="ship" value="a"></div>
     `)
     expect(describeElement(q('[value=a]')).label).toBe('versand')
-    expect(describeElement(q('[role=radiogroup]'))).toEqual({ kind: 'radiogroup', label: 'versand' })
+    expect(describeElement(q('[role=radiogroup]'))).toEqual({ kind: 'radiogroup', name: 'ship', label: 'versand' })
   })
 })
 
@@ -118,10 +118,39 @@ describe('findElement', () => {
     expect(findElement(root, { kind: 'radiogroup', name: 'g' })).toEqual({ status: 'found', el: q('#second') })
   })
 
-  it('finds an ARIA radiogroup element', () => {
+  it('finds an empty ARIA radiogroup by id but not by a differing aria-label', () => {
     const root = setup('<div role="radiogroup" aria-label="Zahlart" id="rg"></div>')
     expect(findElement(root, { kind: 'radiogroup', ariaLabel: 'zahlart' })).toEqual({ status: 'missing' })
     expect(findElement(root, { kind: 'radiogroup', id: 'rg' })).toEqual({ status: 'found', el: q('#rg') })
+  })
+})
+
+describe('findElement radio groups', () => {
+  it('keeps same-named radio groups of different forms apart', () => {
+    const root = setup(`
+      <form><input type="radio" name="g" value="1"></form>
+      <form><input type="radio" name="g" value="2"></form>
+    `)
+    expect(findElement(root, { kind: 'radiogroup', name: 'g' })).toEqual({ status: 'ambiguous', count: 2 })
+  })
+
+  it('treats an ARIA radiogroup wrapping native radios as one group', () => {
+    const root = setup(`
+      <span id="g">Versand</span>
+      <div role="radiogroup" aria-labelledby="g" id="rg">
+        <input type="radio" name="ship" value="a"><input type="radio" name="ship" value="b">
+      </div>
+    `)
+    expect(findElement(root, { kind: 'radiogroup', label: 'versand' })).toEqual({ status: 'found', el: q('#rg') })
+    expect(findElement(root, { kind: 'radiogroup', name: 'ship' })).toEqual({ status: 'found', el: q('#rg') })
+  })
+})
+
+describe('describeElement errors', () => {
+  it('throws for unsupported elements', () => {
+    setup('<button id="b">x</button><input type="hidden" id="h">')
+    expect(() => describeElement(q('#b'))).toThrow()
+    expect(() => describeElement(q('#h'))).toThrow()
   })
 })
 
