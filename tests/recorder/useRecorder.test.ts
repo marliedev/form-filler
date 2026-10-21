@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeBrowser } from 'wxt/testing/fake-browser'
 import type { FieldRule, Template } from '../../src/model/types'
 import {
@@ -42,6 +42,18 @@ beforeEach(async () => {
 })
 
 describe('capture', () => {
+  it('captures on plain-http pages where crypto.randomUUID is unavailable', () => {
+    const real = globalThis.crypto
+    vi.stubGlobal('crypto', { getRandomValues: real.getRandomValues.bind(real) })
+    try {
+      const r = useRecorder(base)
+      expect(r.capture(q('#company'))).toBe(true)
+      expect(r.pending.value?.rule.id).toMatch(/^[0-9a-f-]{36}$/)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('fills pending.rule with the suggestion, the required flag and a default label', () => {
     const r = useRecorder(base)
     expect(r.capture(q('#company'))).toBe(true)

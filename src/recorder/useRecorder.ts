@@ -3,6 +3,7 @@ import { describeElement, displayLabel, findElement, isRequired, type FormContro
 import { suggestDataType } from '../dom/suggest'
 import { DATA_TYPES, slotKindFor, type DataTypeGroup, type DataTypeMeta, type SlotKind } from '../generators/catalog'
 import type { ControlKind, DataTypeConfig, FieldLocator, FieldRule, Template } from '../model/types'
+import { createId } from '../model/id'
 import { getTemplate, saveTemplate } from '../storage/repository'
 
 export interface PendingCapture {
@@ -175,7 +176,7 @@ export function useRecorder(template: Template, root: ParentNode = document): Re
       return true
     }
     const rule: FieldRule = {
-      id: crypto.randomUUID(),
+      id: createId(),
       label: displayLabel(el) || locator.id || 'Feld',
       locator,
       config: suggestion,

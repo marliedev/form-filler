@@ -6,6 +6,7 @@ import { clearBadge, getLastReport } from '../fill/lastReport'
 import type { FillMode } from '../fill/messages'
 import type { FillReport } from '../fill/runFill'
 import type { AppDef, Template } from '../model/types'
+import { createId } from '../model/id'
 import { clearDatasetsForTab } from '../storage/datasetStore'
 import { deleteApp, getPrefs, listApps, listTemplates, saveApp, saveTemplate, setPrefs } from '../storage/repository'
 import { toUserError, type UserError } from './userError'
@@ -194,7 +195,7 @@ export function usePopup(): PopupState {
       error.value = toUserError(e, INVALID_PATTERN)
       return false
     }
-    const created: AppDef = { id: crypto.randomUUID(), name: trimmed, urlPatterns: [origin] }
+    const created: AppDef = { id: createId(), name: trimmed, urlPatterns: [origin] }
     try {
       await saveApp(created)
       let granted: boolean
@@ -265,7 +266,7 @@ export function usePopup(): PopupState {
     if (current === null || tab === null) return false
     let saved = false
     await run('Aufnahme konnte nicht gestartet werden.', async () => {
-      const template: Template = { id: crypto.randomUUID(), appId: current.id, name: trimmed, process: null, fields: [], lastMissing: [] }
+      const template: Template = { id: createId(), appId: current.id, name: trimmed, process: null, fields: [], lastMissing: [] }
       try {
         await saveTemplate(template)
         templates.value = await listTemplates(current.id)
