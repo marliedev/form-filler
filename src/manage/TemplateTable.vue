@@ -467,8 +467,8 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
                     v-if="missing.has(field.id)"
                     :id="`${uid}-missing-${field.id}`"
                     class="font-medium text-amber-800"
-                    title="Beim letzten Füllen nicht gefunden"
-                  ><span aria-hidden="true">⚠ </span>Beim letzten Füllen nicht gefunden</span>
+                    title="Beim letzten Füllen problematisch"
+                  ><span aria-hidden="true">⚠ </span>Beim letzten Füllen problematisch</span>
                   <span
                     v-if="locatorHint(field)"
                     class="truncate text-zinc-600"
