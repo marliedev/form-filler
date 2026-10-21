@@ -2,6 +2,7 @@ import { fakerDE } from '@faker-js/faker'
 import { browser } from 'wxt/browser'
 import { getOrCreateDataset } from '../storage/datasetStore'
 import { getPrefs, getTemplate, saveTemplate, setPrefs } from '../storage/repository'
+import { recordFillResult } from './lastReport'
 import type { ContentMessage, FillMode } from './messages'
 import type { FillReport } from './runFill'
 
@@ -17,7 +18,26 @@ function isFillReport(value: unknown): value is FillReport {
   return typeof value === 'object' && value !== null && Array.isArray((value as FillReport).fields)
 }
 
+/** Every run (popup or shortcut) leaves its result in the tab's last report and badge, failures included. */
 export async function dispatchFill(tabId: number, templateId: string, mode: FillMode): Promise<FillReport> {
+  let report: FillReport
+  try {
+    report = await runDispatch(tabId, templateId, mode)
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e)
+    await remember(tabId, { templateId, filled: 0, total: 0, fields: [], error })
+    throw e
+  }
+  await remember(tabId, report)
+  return report
+}
+
+/** Bookkeeping only (e.g. the tab may be gone by now); must not turn a finished run into a failure. */
+async function remember(tabId: number, report: FillReport): Promise<void> {
+  await recordFillResult(tabId, report).catch((e: unknown) => console.warn('Form Filler: Ergebnis nicht gespeichert', e))
+}
+
+async function runDispatch(tabId: number, templateId: string, mode: FillMode): Promise<FillReport> {
   const template = await getTemplate(templateId)
   if (!template) throw new Error('Vorlage nicht gefunden')
 
