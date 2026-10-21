@@ -178,6 +178,17 @@ describe('Recorder overlay', () => {
     expect(second.w.get('[role="alert"]').text()).toContain('keine eindeutigen Merkmale')
   })
 
+  it('disables "Kennung anhängen" for types that do not produce text', async () => {
+    const { w } = await mountOverlay()
+    page('#company').focus()
+    await flushPromises()
+    const runId = () => w.findAll<HTMLInputElement>('input[type="checkbox"]')[1]
+    expect(runId()?.element.disabled).toBe(false)
+    await w.get('#ff-type').setValue('empty')
+    expect(runId()?.element.disabled).toBe(true)
+    expect(w.get('#ff-runid-hint').text()).toContain('Nur bei Textwerten möglich')
+  })
+
   it('validates type options before accepting', async () => {
     const { w, recorder } = await mountOverlay()
     page('#company').focus()

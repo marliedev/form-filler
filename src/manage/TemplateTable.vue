@@ -5,7 +5,7 @@ import { validateConfig, type ConfigError } from '../model/validateConfig'
 import { clone, configFor, typeGroups } from '../recorder/useRecorder'
 import ConfigEditor from '../ui/ConfigEditor.vue'
 import ConfirmDialog from '../ui/ConfirmDialog.vue'
-import { finalizeConfig, hasOptions, slotOptions } from '../ui/configOptions'
+import { finalizeConfig, hasOptions, RUN_ID_NOT_APPLICABLE, runIdApplies, slotOptions } from '../ui/configOptions'
 import { useDialog } from '../ui/dialog'
 import { TEMPLATES_HEADING_ID } from './ids'
 import { count, type ManageState } from './useManage'
@@ -232,7 +232,7 @@ const iconButton =
 const control =
   'block w-full rounded-md border border-zinc-500 bg-white px-2 py-1 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600'
 const switchClass =
-  "relative h-5 w-9 cursor-pointer appearance-none rounded-full bg-zinc-500 transition-colors before:absolute before:top-0.5 before:left-0.5 before:size-4 before:rounded-full before:bg-white before:shadow before:transition-transform before:content-[''] checked:bg-blue-700 checked:before:translate-x-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+  "relative h-5 w-9 cursor-pointer appearance-none rounded-full bg-zinc-500 transition-colors before:absolute before:top-0.5 before:left-0.5 before:size-4 before:rounded-full before:bg-white before:shadow before:transition-transform before:content-[''] checked:bg-blue-700 checked:before:translate-x-4 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
 const secondaryButton =
   'rounded-md border border-zinc-500 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 hover:bg-zinc-100 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
 const primaryButton =
@@ -541,6 +541,9 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
                   type="checkbox"
                   role="switch"
                   :checked="field.appendRunId"
+                  :disabled="!runIdApplies(field.locator.kind, field.config)"
+                  :title="runIdApplies(field.locator.kind, field.config) ? undefined : RUN_ID_NOT_APPLICABLE"
+                  :aria-describedby="runIdApplies(field.locator.kind, field.config) ? undefined : `${uid}-runid-na`"
                   :aria-label="`Kennung an „${displayName(field)}“ anhängen`"
                   :class="switchClass"
                   @change="onToggle(field, 'appendRunId', $event)"
@@ -622,6 +625,13 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
           </template>
         </tbody>
       </table>
+      <!-- Description target for disabled "Kennung" switches; aria-describedby may point to hidden text. -->
+      <p
+        :id="`${uid}-runid-na`"
+        hidden
+      >
+        {{ RUN_ID_NOT_APPLICABLE }}
+      </p>
     </div>
 
     <ConfirmDialog

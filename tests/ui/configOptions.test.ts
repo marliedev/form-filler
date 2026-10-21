@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FieldRule } from '../../src/model/types'
-import { finalizeConfig, hasOptions, slotOptions } from '../../src/ui/configOptions'
+import { finalizeConfig, hasOptions, runIdApplies, slotOptions } from '../../src/ui/configOptions'
 
 function field(id: string, patch: Partial<FieldRule>): FieldRule {
   return { id, label: id, locator: { kind: 'text' }, config: { type: 'text' }, slot: null, required: false, appendRunId: false, ...patch }
@@ -50,5 +50,19 @@ describe('hasOptions', () => {
   it('knows which types have inputs', () => {
     expect(hasOptions('list')).toBe(true)
     expect(hasOptions('companyName')).toBe(false)
+  })
+})
+
+describe('runIdApplies', () => {
+  it('only allows the run id for text-producing configs on text-like controls', () => {
+    expect(runIdApplies('text', { type: 'companyName' })).toBe(true)
+    expect(runIdApplies('textarea', { type: 'fixed', value: 'x' })).toBe(true)
+    for (const kind of ['select', 'radiogroup', 'checkbox', 'combobox'] as const) {
+      expect(runIdApplies(kind, { type: 'fixed', value: 'x' })).toBe(false)
+    }
+    expect(runIdApplies('text', { type: 'salutation' })).toBe(false)
+    expect(runIdApplies('text', { type: 'choice', mode: 'random', values: [] })).toBe(false)
+    expect(runIdApplies('text', { type: 'date', range: 'past' })).toBe(false)
+    expect(runIdApplies('text', { type: 'empty' })).toBe(false)
   })
 })

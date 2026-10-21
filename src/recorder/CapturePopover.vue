@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { slotKindFor } from '../generators/catalog'
 import ConfigEditor from '../ui/ConfigEditor.vue'
-import { finalizeConfig, slotOptions } from '../ui/configOptions'
+import { finalizeConfig, RUN_ID_NOT_APPLICABLE, runIdApplies, slotOptions } from '../ui/configOptions'
 import type { DataTypeConfig, FieldRule } from '../model/types'
 import { validateConfig, type ConfigError } from '../model/validateConfig'
 import {
@@ -55,6 +55,8 @@ const type = computed({
     error.value = null
   },
 })
+
+const runIdEnabled = computed(() => runIdApplies(draft.value.locator.kind, draft.value.config))
 
 const requiredDetected = computed(() => props.pending.isNew && props.pending.rule.required)
 
@@ -201,12 +203,16 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
             class="text-xs text-zinc-600"
           >(auf der Seite erkannt)</span></span>
         </label>
-        <label class="flex items-center gap-2">
+        <label
+          class="flex items-center gap-2"
+          :class="{ 'text-zinc-600': !runIdEnabled }"
+        >
           <input
             v-model="draft.appendRunId"
             type="checkbox"
+            :disabled="!runIdEnabled"
             aria-describedby="ff-runid-hint"
-            class="size-4 accent-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            class="size-4 accent-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed"
           >
           <span>Kennung anhängen</span>
         </label>
@@ -214,7 +220,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
           id="ff-runid-hint"
           class="pl-6 text-xs text-zinc-600"
         >
-          Hängt die Kennung des Testlaufs an den Wert an.
+          {{ runIdEnabled ? 'Hängt die Kennung des Testlaufs an den Wert an.' : RUN_ID_NOT_APPLICABLE }}
         </p>
       </fieldset>
 
