@@ -50,10 +50,53 @@ describe('Recorder overlay', () => {
     page('#company').focus()
     await flushPromises()
     const dialog = w.get('[role="dialog"]')
-    expect(dialog.text()).toContain('Feld „firmenname“')
+    expect(dialog.text()).toContain('Feld „Firmenname“')
     expect(w.get<HTMLSelectElement>('#ff-type').element.value).toBe('companyName')
     expect(w.get<HTMLInputElement>('input[type="checkbox"]').element.checked).toBe(true)
     expect(document.activeElement).toBe(w.get('#ff-type').element)
+  })
+
+  it('keeps Tab and Shift+Tab inside the open popover', async () => {
+    const { w } = await mountOverlay()
+    page('#company').focus()
+    await flushPromises()
+    const typeSelect = w.get('#ff-type').element as HTMLElement
+    const acceptButton = w.findAll('button').find((b) => b.text() === 'Übernehmen')?.element
+    const shiftTab = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true })
+    typeSelect.dispatchEvent(shiftTab)
+    expect(shiftTab.defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(acceptButton)
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    acceptButton?.dispatchEvent(tab)
+    expect(document.activeElement).toBe(typeSelect)
+  })
+
+  it('does not replace an open draft when another page field gets focus', async () => {
+    const { w } = await mountOverlay()
+    page('#company').focus()
+    await flushPromises()
+    await w.get('#ff-type').setValue('fixed')
+    page('#zip').focus()
+    await flushPromises()
+    expect(w.get('[role="dialog"]').text()).toContain('Feld „Firmenname“')
+    expect(w.get<HTMLSelectElement>('#ff-type').element.value).toBe('fixed')
+    expect(w.get('[role="status"]').text()).toContain('zuerst übernehmen oder abbrechen')
+  })
+
+  it('shows a save error and the discard question without overlap', async () => {
+    const { w, recorder } = await mountOverlay()
+    page('#zip').focus()
+    await flushPromises()
+    await w.get('form').trigger('submit')
+    recorder.save = () => Promise.reject(new Error('quota'))
+    await w.findAll('button').find((b) => b.text() === 'Speichern')?.trigger('click')
+    await flushPromises()
+    key(document.body, 'Escape')
+    await flushPromises()
+    const alert = w.get('[role="alert"]')
+    const confirm = w.get('[role="alertdialog"]')
+    expect(alert.text()).toContain('Speichern fehlgeschlagen: quota')
+    expect(alert.element.parentElement).toBe(confirm.element.parentElement)
   })
 
   it('ignores focus on unsupported page elements', async () => {

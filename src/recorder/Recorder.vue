@@ -205,6 +205,11 @@ function onPageFocusIn(event: FocusEvent): void {
   if (!(target instanceof Element)) return
   if (target === skipFocusOf) return
   if (confirming.value || saved.value) return
+  if (pending.value) {
+    // An open draft is never replaced implicitly; the user finishes it first.
+    if (resolveControl(target)) announce('Bitte das offene Feld zuerst übernehmen oder abbrechen.')
+    return
+  }
   props.recorder.capture(target)
 }
 
@@ -312,41 +317,54 @@ defineExpose({ focusBar })
       />
     </div>
 
+    <!-- Stacked so a save error and the discard question never overlap. -->
     <div
-      v-if="confirming"
-      role="alertdialog"
-      aria-labelledby="ff-confirm-title"
-      aria-describedby="ff-confirm-text"
-      class="fixed bottom-20 left-1/2 z-[2147483647] w-80 max-w-[calc(100vw-16px)] -translate-x-1/2 rounded-xl border border-zinc-300 bg-white p-4 shadow-xl"
+      v-if="confirming || error"
+      class="pointer-events-none fixed bottom-20 left-1/2 z-[2147483647] flex w-80 max-w-[calc(100vw-16px)] -translate-x-1/2 flex-col gap-2"
     >
-      <h2
-        id="ff-confirm-title"
-        class="font-semibold"
-      >
-        Ungespeicherte Änderungen verwerfen?
-      </h2>
       <p
-        id="ff-confirm-text"
-        class="mt-1 text-zinc-700"
+        v-if="error"
+        role="alert"
+        class="pointer-events-auto rounded-md bg-red-700 px-3 py-2 text-white"
       >
-        Die Aufnahme wird ohne Speichern beendet.
+        {{ error }}
       </p>
-      <div class="mt-3 flex justify-end gap-2">
-        <button
-          ref="keepRecordingButton"
-          type="button"
-          class="rounded-md border border-zinc-500 px-3 py-1.5 font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600"
-          @click="keepRecording"
+      <div
+        v-if="confirming"
+        role="alertdialog"
+        aria-labelledby="ff-confirm-title"
+        aria-describedby="ff-confirm-text"
+        class="pointer-events-auto rounded-xl border border-zinc-300 bg-white p-4 shadow-xl"
+      >
+        <h2
+          id="ff-confirm-title"
+          class="font-semibold"
         >
-          Weiter aufnehmen
-        </button>
-        <button
-          type="button"
-          class="rounded-md bg-red-700 px-3 py-1.5 font-semibold text-white hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-          @click="discard"
+          Ungespeicherte Änderungen verwerfen?
+        </h2>
+        <p
+          id="ff-confirm-text"
+          class="mt-1 text-zinc-700"
         >
-          Verwerfen
-        </button>
+          Die Aufnahme wird ohne Speichern beendet.
+        </p>
+        <div class="mt-3 flex justify-end gap-2">
+          <button
+            ref="keepRecordingButton"
+            type="button"
+            class="rounded-md border border-zinc-500 px-3 py-1.5 font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600"
+            @click="keepRecording"
+          >
+            Weiter aufnehmen
+          </button>
+          <button
+            type="button"
+            class="rounded-md bg-red-700 px-3 py-1.5 font-semibold text-white hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            @click="discard"
+          >
+            Verwerfen
+          </button>
+        </div>
       </div>
     </div>
 
@@ -387,13 +405,6 @@ defineExpose({ focusBar })
       </template>
     </div>
 
-    <p
-      v-if="error"
-      role="alert"
-      class="fixed bottom-20 left-1/2 z-[2147483647] max-w-[calc(100vw-16px)] -translate-x-1/2 rounded-md bg-red-700 px-3 py-2 text-white"
-    >
-      {{ error }}
-    </p>
 
     <div
       role="status"

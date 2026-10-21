@@ -109,6 +109,31 @@ function accept(): void {
   emit('accept', { ...clone(draft.value), config })
 }
 
+const FOCUSABLE = 'select, input, textarea, button'
+
+/** Keeps Tab inside the open popover so focus cannot drift to the page and lose the draft. */
+function trapTab(event: KeyboardEvent): void {
+  if (event.key !== 'Tab') return
+  const items = Array.from(root.value?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).filter(
+    (el) => !(el as HTMLInputElement).disabled,
+  )
+  const first = items[0]
+  const last = items.at(-1)
+  if (!first || !last) return
+  // Inside the overlay's shadow root the document only sees the host as active element.
+  const active = (root.value?.getRootNode() as Document | ShadowRoot | undefined)?.activeElement ?? null
+  if (event.shiftKey && active === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault()
+    first.focus()
+  } else if (!items.some((el) => el === active)) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
 function invalid(input: ConfigError['input']): boolean {
   return error.value?.input === input
 }
@@ -124,6 +149,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
     role="dialog"
     aria-labelledby="ff-pop-title"
     class="w-76 rounded-xl border border-zinc-300 bg-white p-3 text-sm text-zinc-900 shadow-xl"
+    @keydown="trapTab"
   >
     <form
       class="space-y-3"

@@ -3,7 +3,6 @@ import { fakeBrowser } from 'wxt/testing/fake-browser'
 import type { FieldRule, Template } from '../../src/model/types'
 import {
   configFor,
-  defaultLabel,
   nextSlot,
   parseLines,
   resolveControl,
@@ -51,7 +50,7 @@ describe('capture', () => {
     expect(pending?.el).toBe(q('#company'))
     expect(pending?.isNew).toBe(true)
     expect(pending?.rule).toMatchObject({
-      label: 'firmenname',
+      label: 'Firmenname',
       locator: { kind: 'text', id: 'company', name: 'company', label: 'firmenname' },
       config: { type: 'companyName' },
       slot: null,
@@ -129,6 +128,27 @@ describe('accept / remove', () => {
     expect(r.dirty.value).toBe(true)
   })
 
+  it('is only dirty while the field list differs from the saved state', async () => {
+    const existing = field({ id: 'f1', locator: { kind: 'text', name: 'company' } })
+    const r = useRecorder({ ...base, fields: [existing] })
+    r.capture(q('#company'))
+    const unchanged = r.pending.value?.rule
+    if (!unchanged) throw new Error('no pending rule')
+    r.accept(unchanged)
+    expect(r.dirty.value).toBe(false)
+    r.accept({ ...unchanged, required: true })
+    expect(r.dirty.value).toBe(true)
+    r.accept({ ...unchanged, required: false })
+    expect(r.dirty.value).toBe(false)
+    r.capture(q('#first'))
+    const added = r.pending.value?.rule
+    if (!added) throw new Error('no pending rule')
+    r.accept(added)
+    expect(r.dirty.value).toBe(true)
+    await r.save()
+    expect(r.dirty.value).toBe(false)
+  })
+
   it('dismiss closes the popover without changing fields', () => {
     const r = useRecorder(base)
     r.capture(q('#company'))
@@ -189,14 +209,6 @@ describe('helpers', () => {
     expect(resolveControl(q('input[value="a"]'))).toBe(q('input[value="a"]'))
     expect(resolveControl(q('button'))).toBeNull()
     expect(resolveControl(q('legend'))).toBeNull()
-  })
-
-  it('defaultLabel prefers label, then aria-label, placeholder, name', () => {
-    expect(defaultLabel({ kind: 'text', label: 'plz', ariaLabel: 'x', name: 'n' })).toBe('plz')
-    expect(defaultLabel({ kind: 'text', ariaLabel: 'x', placeholder: 'p' })).toBe('x')
-    expect(defaultLabel({ kind: 'text', placeholder: 'p', name: 'n' })).toBe('p')
-    expect(defaultLabel({ kind: 'text', name: 'n' })).toBe('n')
-    expect(defaultLabel({ kind: 'text', id: 'i' })).toBe('i')
   })
 
   it('nextSlot returns the first free person number or address letter', () => {
