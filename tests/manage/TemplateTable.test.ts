@@ -63,6 +63,20 @@ describe('TemplateTable', () => {
     expect(plz?.attributes('aria-describedby')).toBeTruthy()
   })
 
+  it('disables the run id switch where it has no effect and explains why', async () => {
+    await saveTemplate({
+      ...template,
+      fields: [field('a', 'Firma'), { ...field('s', 'Land'), locator: { kind: 'select', name: 's' }, config: { type: 'country' } }],
+    })
+    const { w } = await mountTable()
+    const text = w.get<HTMLInputElement>('input[aria-label="Kennung an „Firma“ anhängen"]')
+    const select = w.get<HTMLInputElement>('input[aria-label="Kennung an „Land“ anhängen"]')
+    expect(text.element.disabled).toBe(false)
+    expect(select.element.disabled).toBe(true)
+    const hint = document.getElementById(select.attributes('aria-describedby') ?? '')
+    expect(hint?.textContent).toContain('Nur bei Textwerten möglich')
+  })
+
   it('moves a field with the keyboard buttons, keeps focus on the row and announces it', async () => {
     const { w, manage } = await mountTable()
     await button(w, '„Firma“ nach unten').trigger('click')

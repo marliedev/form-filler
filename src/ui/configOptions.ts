@@ -1,5 +1,5 @@
 import { slotKindFor } from '../generators/catalog'
-import type { DataTypeConfig, FieldRule } from '../model/types'
+import type { ControlKind, DataTypeConfig, FieldRule } from '../model/types'
 import { clone, slotChoices } from '../recorder/useRecorder'
 
 const WITH_OPTIONS: ReadonlySet<DataTypeConfig['type']> = new Set([
@@ -10,6 +10,19 @@ const WITH_OPTIONS: ReadonlySet<DataTypeConfig['type']> = new Set([
 export function hasOptions(type: DataTypeConfig['type']): boolean {
   return WITH_OPTIONS.has(type)
 }
+
+const NON_TEXT_KINDS: ReadonlySet<ControlKind> = new Set(['select', 'radiogroup', 'checkbox', 'combobox'])
+/** Types resolving to a date, choice, checkbox state or nothing, never to text. */
+const NON_TEXT_TYPES: ReadonlySet<DataTypeConfig['type']> = new Set([
+  'salutation', 'birthDate', 'date', 'choice', 'checkbox', 'empty',
+])
+
+/** Whether "Kennung anhängen" can have an effect: the run id is only appended to text values. */
+export function runIdApplies(kind: ControlKind, config: DataTypeConfig): boolean {
+  return !NON_TEXT_KINDS.has(kind) && !NON_TEXT_TYPES.has(config.type)
+}
+
+export const RUN_ID_NOT_APPLICABLE = 'Nur bei Textwerten möglich – hier ohne Wirkung.'
 
 export interface SlotOption {
   value: string
