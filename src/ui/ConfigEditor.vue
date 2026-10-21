@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { DataTypeConfig } from '../model/types'
-import { clone, parseLines, type ConfigError } from '../recorder/useRecorder'
+import type { ConfigError } from '../model/validateConfig'
+import { clone, parseLines } from '../recorder/useRecorder'
 
 defineOptions({ name: 'ConfigEditor' })
 
@@ -76,7 +77,9 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
     <input
       :id="id('fixed')"
       v-model="draft.value"
+      data-input="value"
       type="text"
+      :aria-invalid="invalid('value') || undefined"
       :class="inputClass"
     >
   </div>

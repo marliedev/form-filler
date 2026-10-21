@@ -81,16 +81,27 @@ describe('runFill', () => {
     expect(report.total).toBe(2)
   })
 
-  it('reports empty and empty-list rules as skipped with a reason', async () => {
-    document.body.innerHTML = '<input name="e" value="x"><input name="l" value="y">'
-    const t = template([rule('e', { type: 'empty' }), rule('l', { type: 'list', values: [] })])
-    const report = await runFill(document.body, t, ds, 'all', fakerDE)
-    expect(report.fields).toEqual([
-      { fieldId: 'e', label: 'Feld e', status: 'skipped', detail: 'Leer lassen' },
-      { fieldId: 'l', label: 'Feld l', status: 'skipped', detail: 'Liste ist leer' },
-    ])
+  it('reports empty rules as skipped with a reason', async () => {
+    document.body.innerHTML = '<input name="e" value="x">'
+    const report = await runFill(document.body, template([rule('e', { type: 'empty' })]), ds, 'all', fakerDE)
+    expect(report.fields).toEqual([{ fieldId: 'e', label: 'Feld e', status: 'skipped', detail: 'Leer lassen' }])
     expect(input('e').value).toBe('x')
     expect(report.total).toBe(0)
+  })
+
+  it('reports rules with incomplete options as failed without touching the field', async () => {
+    document.body.innerHTML = '<input name="l" value="y"><input name="p" value="y"><input name="f" value="y">'
+    const t = template([
+      rule('l', { type: 'list', values: [] }),
+      rule('p', { type: 'pattern', pattern: '' }),
+      rule('f', { type: 'fixed', value: '' }),
+    ])
+    const report = await runFill(document.body, t, ds, 'all', fakerDE)
+    expect(report.fields.map((f) => f.status)).toEqual(['failed', 'failed', 'failed'])
+    expect(report.fields[0]?.detail).toMatch(/^Optionen unvollständig: /)
+    expect(['l', 'p', 'f'].map((n) => input(n).value)).toEqual(['y', 'y', 'y'])
+    expect(report.filled).toBe(0)
+    expect(report.total).toBe(3)
   })
 
   it('reports ambiguous fields', async () => {

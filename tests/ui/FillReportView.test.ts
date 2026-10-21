@@ -22,7 +22,7 @@ describe('FillReportView', () => {
     expect(rows).toEqual([
       'Rechtsform: ⚠ nicht gefunden Feld nicht gefunden',
       'Firmenname: ✓ befüllt',
-      'Notiz: – übersprungen',
+      'Notiz: – übersprungen Optional',
     ])
   })
 })

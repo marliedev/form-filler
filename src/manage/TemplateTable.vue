@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useId, watch } from 'vue'
 import type { AppDef, DataTypeConfig, FieldRule, Template } from '../model/types'
-import { clone, configFor, typeGroups, validateConfig, type ConfigError } from '../recorder/useRecorder'
+import { validateConfig, type ConfigError } from '../model/validateConfig'
+import { clone, configFor, typeGroups } from '../recorder/useRecorder'
 import ConfigEditor from '../ui/ConfigEditor.vue'
 import ConfirmDialog from '../ui/ConfirmDialog.vue'
 import { finalizeConfig, hasOptions, slotOptions } from '../ui/configOptions'

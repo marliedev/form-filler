@@ -130,44 +130,9 @@ export function typeGroups(kind: ControlKind, current?: DataTypeConfig['type']):
   return groups
 }
 
-export interface ConfigError {
-  message: string
-  /** Which option input the message refers to, so the UI can mark and focus it. */
-  input: 'values' | 'pattern' | 'min' | 'max' | 'from' | 'to' | 'minAge'
-}
-
 /** One value per line; blank lines and surrounding whitespace are dropped. */
 export function parseLines(text: string): string[] {
   return text.split('\n').map((line) => line.trim()).filter((line) => line !== '')
-}
-
-/** Rejects options the generators cannot sensibly produce a value from. */
-export function validateConfig(config: DataTypeConfig): ConfigError | null {
-  switch (config.type) {
-    case 'list':
-      return config.values.length === 0 ? { message: 'Bitte mindestens einen Wert eingeben (ein Wert pro Zeile).', input: 'values' } : null
-    case 'choice':
-      return config.mode === 'fixed' && config.values.length === 0
-        ? { message: 'Für „Fest“ bitte mindestens einen Wert eingeben.', input: 'values' }
-        : null
-    case 'pattern':
-      return config.pattern.trim() === '' ? { message: 'Bitte ein Muster eingeben, z. B. TEST-{zahl:6}.', input: 'pattern' } : null
-    case 'number':
-      if (!Number.isFinite(config.min)) return { message: 'Bitte ein Minimum als Zahl angeben.', input: 'min' }
-      if (!Number.isFinite(config.max)) return { message: 'Bitte ein Maximum als Zahl angeben.', input: 'max' }
-      return config.min > config.max ? { message: 'Das Minimum darf nicht größer als das Maximum sein.', input: 'min' } : null
-    case 'birthDate':
-      return Number.isInteger(config.minAge) && config.minAge >= 0 && config.minAge <= 120
-        ? null
-        : { message: 'Bitte ein Mindestalter zwischen 0 und 120 angeben.', input: 'minAge' }
-    case 'date':
-      if (config.range !== 'between') return null
-      if (!config.from) return { message: 'Bitte ein Startdatum angeben.', input: 'from' }
-      if (!config.to) return { message: 'Bitte ein Enddatum angeben.', input: 'to' }
-      return config.from > config.to ? { message: 'Das Startdatum muss vor dem Enddatum liegen.', input: 'from' } : null
-    default:
-      return null
-  }
 }
 
 export function useRecorder(template: Template, root: ParentNode = document): Recorder {
