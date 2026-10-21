@@ -133,6 +133,13 @@ describe('applyRunId', () => {
   it('drops the run id when it cannot fit', () => {
     expect(applyRunId('Abc', 'T1342', 5)).toBe('Abc')
   })
+
+  it('never exceeds maxLength when the suffix cannot fit', () => {
+    const v = applyRunId('Brandt Logistik GmbH', 'T1342', 5)
+    expect(v.length).toBeLessThanOrEqual(5)
+    expect(v).not.toContain('T1342')
+    expect(applyRunId('Brandt Logistik GmbH', 'T1342', 8).length).toBeLessThanOrEqual(8)
+  })
 })
 
 describe('DATA_TYPES', () => {

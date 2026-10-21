@@ -12,12 +12,14 @@ export type FieldValue =
 
 const RUN_ID_SEPARATOR = ' · '
 
-/** Appends the run id; shortens the base value (never the id) to honor maxLength, dropping the id if it cannot fit. */
+/** Appends the run id; shortens the base value (never the id) to honor maxLength, dropping the id (and clipping the value) if it cannot fit. */
 export function applyRunId(value: string, runId: string, maxLength: number | null): string {
   const suffix = `${RUN_ID_SEPARATOR}${runId}`
   if (maxLength === null || value.length + suffix.length <= maxLength) return `${value}${suffix}`
-  const base = value.slice(0, maxLength - suffix.length).trimEnd()
-  return base.length > 0 ? `${base}${suffix}` : value
+  const room = maxLength - suffix.length
+  if (room <= 0) return value.slice(0, maxLength)
+  const base = value.slice(0, room).trimEnd()
+  return base.length > 0 ? `${base}${suffix}` : value.slice(0, maxLength)
 }
 
 const text = (value: string): FieldValue => ({ kind: 'text', value })
