@@ -125,6 +125,13 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
         >
           Bereits erfasst – Änderungen ersetzen das Feld.
         </p>
+        <p
+          v-if="pending.unlocatable"
+          role="alert"
+          class="mt-1 rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900"
+        >
+          Dieses Feld hat keine eindeutigen Merkmale und wird beim Füllen voraussichtlich nicht wiedergefunden.
+        </p>
       </div>
 
       <div>
