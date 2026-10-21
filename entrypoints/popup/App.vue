@@ -10,7 +10,7 @@ import Segmented from '../../src/ui/Segmented.vue'
 import type { SegmentedOption } from '../../src/ui/segmented'
 
 const popup = usePopup()
-const { app, detected, apps, templates, mode, report, busy, error, notice, pageSupported, suggestedPattern, tabId } = popup
+const { app, detected, apps, templates, mode, report, busy, error, notice, pageSupported, suggestedPattern, tabId, permissionMissing } = popup
 
 const loaded = ref(false)
 const modeOptions: SegmentedOption<FillMode>[] = [
@@ -29,7 +29,14 @@ const shortcut = ref('')
 
 const newTemplateInput = ref<HTMLInputElement | null>(null)
 const appPicker = ref<HTMLSelectElement | null>(null)
-const appPickerToggle = ref<HTMLButtonElement | null>(null)
+const pickedAppId = ref('')
+const heading = ref<HTMLHeadingElement | null>(null)
+
+/** The heading survives every view switch, so focus never falls back to <body>. */
+async function focusHeading(): Promise<void> {
+  await nextTick()
+  heading.value?.focus()
+}
 
 onMounted(async () => {
   await popup.load()
@@ -92,10 +99,8 @@ async function toggleNewTemplate(): Promise<void> {
 }
 
 async function submitNewTemplate(): Promise<void> {
-  const name = newTemplateName.value
-  await popup.newTemplate(name)
-  // Only an empty name keeps the form open; a failing recording start is reported separately.
-  if (name.trim() !== '') {
+  // A failing recording start is reported in the status area; the saved template stays in the list.
+  if (await popup.newTemplate(newTemplateName.value)) {
     newTemplateName.value = ''
     showNewTemplate.value = false
   }
@@ -109,17 +114,21 @@ async function toggleAppPicker(): Promise<void> {
   }
 }
 
-async function onPickApp(event: Event): Promise<void> {
-  const id = (event.target as HTMLSelectElement).value
-  if (!id) return
+// Switching only on explicit confirmation: arrow keys fire `change` on some platforms (WCAG 3.2.2).
+async function confirmAppPick(): Promise<void> {
+  if (!pickedAppId.value) return
+  const id = pickedAppId.value
+  pickedAppId.value = ''
   showAppPicker.value = false
   await popup.chooseApp(id)
-  appPickerToggle.value?.focus()
+  await focusHeading()
 }
 
 function submitNewApp(): void {
   // Called straight from the submit event: the permission prompt needs the user gesture.
-  void popup.createAppForCurrentPage(newAppName.value, newAppPattern.value)
+  void popup.createAppForCurrentPage(newAppName.value, newAppPattern.value).then(async (created) => {
+    if (created) await focusHeading()
+  })
 }
 
 const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
@@ -132,7 +141,11 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
 <template>
   <div class="w-[360px] bg-white text-[13px] leading-snug text-zinc-900">
     <header class="flex items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2.5">
-      <h1 class="flex min-w-0 items-center gap-2 text-sm font-semibold">
+      <h1
+        ref="heading"
+        tabindex="-1"
+        class="flex min-w-0 items-center gap-2 rounded text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+      >
         <span class="truncate">{{ app?.name ?? 'Form Filler' }}</span>
         <span
           v-if="app"
@@ -175,6 +188,23 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
       </p>
 
       <template v-else-if="loaded && app">
+        <div
+          v-if="permissionMissing"
+          class="grid gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900"
+        >
+          <p>
+            <strong class="font-semibold">Berechtigung fehlt.</strong>
+            Ohne Freigabe für diese Adresse kann das Tastenkürzel hier nicht befüllen.
+          </p>
+          <button
+            type="button"
+            :class="`justify-self-start ${secondaryButton}`"
+            @click="popup.grantPermission()"
+          >
+            Berechtigung erteilen
+          </button>
+        </div>
+
         <Segmented
           :model-value="mode"
           :options="modeOptions"
@@ -233,6 +263,7 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
                   :aria-expanded="openMenuId === t.id"
                   :aria-controls="`menu-${t.id}`"
                   @click="toggleMenu(t.id)"
+                  @keydown.esc="openMenuId === t.id && closeMenu(t.id)"
                 >
                   <span aria-hidden="true">⋯</span>
                 </button>
@@ -428,7 +459,6 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
     >
       <div v-if="otherApps.length > 0">
         <button
-          ref="appPickerToggle"
           type="button"
           :class="`rounded-md py-1 font-medium text-zinc-700 hover:underline ${focusRing}`"
           :aria-expanded="showAppPicker"
@@ -437,10 +467,11 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
         >
           {{ app ? 'Andere App wählen' : 'Vorhandene App wählen' }}
         </button>
-        <div
+        <form
           v-if="showAppPicker"
           id="app-picker"
-          class="mt-1.5"
+          class="mt-1.5 flex gap-2"
+          @submit.prevent="confirmAppPick()"
         >
           <label
             for="app-picker-select"
@@ -449,8 +480,8 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
           <select
             id="app-picker-select"
             ref="appPicker"
-            :class="`${textInput} text-[13px]`"
-            @change="onPickApp"
+            v-model="pickedAppId"
+            :class="`${textInput} min-w-0 flex-1 text-[13px]`"
           >
             <option value="">
               App auswählen …
@@ -463,7 +494,13 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
               {{ a.name }}
             </option>
           </select>
-        </div>
+          <button
+            type="submit"
+            :class="`shrink-0 text-[13px] ${secondaryButton}`"
+          >
+            Wechseln
+          </button>
+        </form>
       </div>
       <p v-if="app">
         <template v-if="shortcut">

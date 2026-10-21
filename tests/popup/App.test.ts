@@ -21,6 +21,13 @@ function mockActiveTab(url: string, id = 7) {
   vi.spyOn(fakeBrowser.tabs, 'query').mockImplementation(query as unknown as typeof fakeBrowser.tabs.query)
 }
 
+// The browser APIs are overloaded (promise + callback), so the mocks are typed separately and cast once.
+function mockPermission(api: 'request' | 'contains', granted: boolean) {
+  const fn = vi.fn<(p: unknown) => Promise<boolean>>(async () => granted)
+  vi.spyOn(fakeBrowser.permissions, api).mockImplementation(fn as unknown as typeof fakeBrowser.permissions.request)
+  return fn
+}
+
 async function mountApp() {
   const w = mount(App, { attachTo: document.body })
   await flushPromises()
@@ -82,6 +89,64 @@ describe('popup App', () => {
     expect(w.text()).toContain('Neue App für diese Seite')
     expect((w.get('#new-app-pattern').element as HTMLInputElement).value).toBe('https://neu.example.org/*')
     expect(w.get('label[for="new-app-name"]').text()).toBe('Name')
+    w.unmount()
+  })
+
+  it('shows an alert when loading fails', async () => {
+    vi.spyOn(fakeBrowser.tabs, 'query').mockRejectedValue(new Error('boom'))
+    const w = await mountApp()
+    expect(w.get('[role="alert"]').text()).toContain('Popup konnte nicht geladen werden.')
+    w.unmount()
+  })
+
+  it('switches the app only after confirming and then focuses the heading', async () => {
+    await saveApp({ id: 'shop', name: 'Shop', urlPatterns: ['https://shop.example.com/*'] })
+    mockActiveTab('https://crm.example.com/x')
+    const w = await mountApp()
+    await w.get('button[aria-controls="app-picker"]').trigger('click')
+    await w.get('#app-picker-select').setValue('shop')
+    expect(w.get('h1').text()).toContain('CRM')
+    await w.get('#app-picker').trigger('submit')
+    await flushPromises()
+    expect(w.get('h1').text()).toBe('Shopmanuell gewählt')
+    expect(document.activeElement).toBe(w.get('h1').element)
+    w.unmount()
+  })
+
+  it('closes the template menu with Escape on its toggle', async () => {
+    mockActiveTab('https://crm.example.com/x')
+    const w = await mountApp()
+    const more = w.get('button[aria-label="Weitere Aktionen: Kunde"]')
+    await more.trigger('click')
+    await more.trigger('keydown', { key: 'Escape' })
+    expect(more.attributes('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(more.element)
+    w.unmount()
+  })
+
+  it('focuses the heading after creating an app', async () => {
+    mockActiveTab('https://neu.example.org/start')
+    mockPermission('request', true)
+    const w = await mountApp()
+    await w.get('#new-app-name').setValue('Neu')
+    await w.get('form[aria-labelledby="new-app-heading"]').trigger('submit')
+    await flushPromises()
+    expect(w.get('h1').text()).toBe('Neuerkannt')
+    expect(document.activeElement).toBe(w.get('h1').element)
+    w.unmount()
+  })
+
+  it('offers to grant a missing host permission', async () => {
+    mockActiveTab('https://crm.example.com/x')
+    mockPermission('contains', false)
+    const request = mockPermission('request', true)
+    const w = await mountApp()
+    expect(w.text()).toContain('Berechtigung fehlt.')
+    const grant = w.findAll('button').find((b) => b.text() === 'Berechtigung erteilen')
+    await grant?.trigger('click')
+    await flushPromises()
+    expect(request).toHaveBeenCalled()
+    expect(w.text()).not.toContain('Berechtigung fehlt.')
     w.unmount()
   })
 })
