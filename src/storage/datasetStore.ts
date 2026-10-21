@@ -1,5 +1,6 @@
 import type { Faker } from '@faker-js/faker'
 import { browser } from 'wxt/browser'
+import { reportKey } from '../fill/lastReport'
 import { createDataset, ensureSlots, type Dataset } from '../generators/dataset'
 import type { Template } from '../model/types'
 
@@ -22,8 +23,10 @@ export async function getOrCreateDataset(tabId: number, t: Template, f: Faker): 
   return dataset
 }
 
+/** Also drops the tab's last fill report, which belongs to the discarded dataset. */
 export async function clearDatasetsForTab(tabId: number): Promise<void> {
   const prefix = tabPrefix(tabId)
-  const keys = Object.keys(await browser.storage.session.get(null)).filter((key) => key.startsWith(prefix))
+  const report = reportKey(tabId)
+  const keys = Object.keys(await browser.storage.session.get(null)).filter((key) => key.startsWith(prefix) || key === report)
   if (keys.length > 0) await browser.storage.session.remove(keys)
 }

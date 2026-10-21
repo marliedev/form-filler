@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeBrowser } from 'wxt/testing/fake-browser'
 import { dispatchFill, fillLastUsed, startRecording } from '../../src/fill/dispatch'
+import { getLastReport } from '../../src/fill/lastReport'
 import type { FillReport } from '../../src/fill/runFill'
 import type { ContentMessage } from '../../src/fill/messages'
 import type { Template } from '../../src/model/types'
@@ -90,6 +91,23 @@ describe('dispatchFill', () => {
     await saveTemplate(tpl)
     mockMessaging(null)
     await expect(dispatchFill(3, 't1', 'all')).rejects.toThrow()
+  })
+
+  it('remembers the report for the tab and sets the badge', async () => {
+    await saveTemplate(tpl)
+    mockMessaging()
+    await dispatchFill(3, 't1', 'all')
+    expect(await getLastReport(3)).toEqual(report)
+    expect(await fakeBrowser.action.getBadgeText({ tabId: 3 })).toBe('3')
+  })
+
+  it('remembers a failed run as an error report so shortcut runs are not silent', async () => {
+    await saveTemplate(tpl)
+    const { execute } = mockMessaging()
+    execute.mockRejectedValue(new Error('Cannot access a chrome:// URL'))
+    await expect(dispatchFill(3, 't1', 'all')).rejects.toThrow('Cannot access a chrome:// URL')
+    expect(await getLastReport(3)).toEqual({ templateId: 't1', filled: 0, total: 0, fields: [], error: 'Cannot access a chrome:// URL' })
+    expect(await fakeBrowser.action.getBadgeText({ tabId: 3 })).toBe('!')
   })
 })
 
