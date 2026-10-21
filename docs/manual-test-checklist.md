@@ -34,6 +34,7 @@ Voraussetzung: `npm ci && npm run build`, Erweiterung aus `.output/chrome-mv3` g
 - [ ] „Übernehmen“ gibt Fokus ans Seitenfeld zurück; Tab springt zum nächsten Feld.
 - [ ] Esc im Popover → Popover zu, Fokus auf „Speichern“; Esc ohne Popover → Beenden, bei Änderungen mit Rückfrage.
 - [ ] Zweites Radio einer Gruppe anklicken → bearbeitet vorhandenes Feld statt Duplikat.
+- [ ] Freitext-Combobox (Autocomplete) mit Texttyp aufnehmen und füllen → wird als „nicht in der Auswahl“ gemeldet; ggf. Typ „Auswahl“ nutzen.
 
 ## 4. Pflege-Tab
 
@@ -55,3 +56,13 @@ Voraussetzung: `npm ci && npm run build`, Erweiterung aus `.output/chrome-mv3` g
 - [ ] Installation als entpackte Erweiterung in Arc und Dia unter Windows.
 - [ ] Alt+Shift+F funktioniert bzw. lässt sich auf der Kürzel-Seite des Browsers belegen (kein Konflikt mit Sprachwechsel).
 - [ ] Punkte aus Abschnitt 1 bis 4 stichprobenartig wiederholen.
+
+## 7. Abnahme in der Ziel-App (Ergebnis notieren)
+
+Abschnitt 1 mit einem echten Formular der Ziel-App durchspielen (Aufnahme, Füllen „Alle“ und „Nur Pflicht“, mehrstufiger Prozess, Absenden ohne Validierungsfehler). Keine App-spezifischen Vorlagen oder Exporte ins Repository übernehmen.
+
+- Datum:
+- Browser und Version:
+- Geprüfte Formulare/Schritte:
+- Ergebnis (bestanden / mit Einschränkungen / nicht bestanden):
+- Auffälligkeiten und Folgeaufgaben:
