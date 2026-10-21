@@ -113,10 +113,20 @@ describe('dispatchFill', () => {
 
 describe('startRecording', () => {
   it('injects the content script and sends record:start', async () => {
-    const { execute, send } = mockMessaging(undefined)
+    const { execute, send } = mockMessaging({ ok: true })
     await startRecording(4, 't9')
     expect(execute).toHaveBeenCalledWith({ target: { tabId: 4 }, files: ['/content-scripts/content.js'] })
     expect(send).toHaveBeenCalledWith(4, { type: 'record:start', templateId: 't9' })
+  })
+
+  it('throws the German error the content script answers with', async () => {
+    mockMessaging({ ok: false, error: 'Vorlage nicht gefunden' })
+    await expect(startRecording(4, 't9')).rejects.toThrow('Vorlage nicht gefunden')
+  })
+
+  it('throws when the page does not answer', async () => {
+    mockMessaging(undefined)
+    await expect(startRecording(4, 't9')).rejects.toThrow('Die Seite hat nicht geantwortet')
   })
 })
 
