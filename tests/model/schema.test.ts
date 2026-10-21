@@ -1,0 +1,77 @@
+import { describe, expect, it } from 'vitest';
+import { buildExport, parseExport } from '../../src/model/schema';
+import type { AppDef, Template } from '../../src/model/types';
+
+const app: AppDef = { id: 'app1', name: 'Demo', urlPatterns: ['https://example.com/*'] };
+const template: Template = {
+  id: 't1',
+  appId: 'app1',
+  name: 'Registrierung',
+  process: { name: 'Onboarding', step: 1 },
+  fields: [
+    {
+      id: 'f1',
+      label: 'Firma',
+      locator: { kind: 'text', name: 'company' },
+      config: { type: 'companyName' },
+      slot: null,
+      required: true,
+      appendRunId: false,
+    },
+    {
+      id: 'f2',
+      label: 'Alter',
+      locator: { kind: 'text', inputType: 'number' },
+      config: { type: 'number', min: 1, max: 9 },
+      slot: '1',
+      required: false,
+      appendRunId: true,
+    },
+  ],
+  lastMissing: ['f2'],
+};
+
+describe('parseExport', () => {
+  it('round-trips the output of buildExport', () => {
+    const result = parseExport(buildExport([app], [template]));
+    expect(result).toEqual({
+      ok: true,
+      data: { format: 'form-filler', version: 1, apps: [app], templates: [template] },
+    });
+  });
+
+  it('rejects text that is not JSON', () => {
+    const result = parseExport('nicht json');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('kein gültiges JSON');
+  });
+
+  it('rejects a wrong format marker and names the field', () => {
+    const json = JSON.stringify({ format: 'other', version: 1, apps: [], templates: [] });
+    const result = parseExport(json);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('format');
+  });
+
+  it('rejects an unsupported version and names the field', () => {
+    const json = JSON.stringify({ format: 'form-filler', version: 2, apps: [], templates: [] });
+    const result = parseExport(json);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('version');
+  });
+
+  it('rejects a template without fields', () => {
+    const broken: Partial<Template> = { ...template };
+    delete broken.fields;
+    const json = JSON.stringify({ format: 'form-filler', version: 1, apps: [app], templates: [broken] });
+    const result = parseExport(json);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('fields');
+  });
+
+  it('rejects an unknown data type config', () => {
+    const bad = { ...template, fields: [{ ...template.fields[0], config: { type: 'bogus' } }] };
+    const json = JSON.stringify({ format: 'form-filler', version: 1, apps: [app], templates: [bad] });
+    expect(parseExport(json).ok).toBe(false);
+  });
+});
