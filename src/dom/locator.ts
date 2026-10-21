@@ -108,7 +108,7 @@ export function describeElement(el: FormControl): FieldLocator {
   return locator
 }
 
-function isVisible(el: Element): boolean {
+export function isVisible(el: Element): boolean {
   if (el.closest('[hidden]')) return false
   const view = el.ownerDocument.defaultView
   if (!view) return true
