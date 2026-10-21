@@ -4,13 +4,12 @@ import { slotKindFor } from '../generators/catalog'
 import ConfigEditor from '../ui/ConfigEditor.vue'
 import { finalizeConfig, slotOptions } from '../ui/configOptions'
 import type { DataTypeConfig, FieldRule } from '../model/types'
+import { validateConfig, type ConfigError } from '../model/validateConfig'
 import {
   clone,
   configFor,
   slotFor,
   typeGroups,
-  validateConfig,
-  type ConfigError,
   type PendingCapture,
 } from './useRecorder'
 

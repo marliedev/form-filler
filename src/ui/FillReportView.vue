@@ -38,7 +38,7 @@ function tone(status: FieldReport['status']): string {
         <span aria-hidden="true">{{ icon(field.status) }}</span>
         {{ STATUS_TEXT[field.status] }}
         <span
-          v-if="field.detail && isProblem(field.status)"
+          v-if="field.detail && field.status !== 'filled'"
           class="block text-xs text-zinc-600"
         >{{ field.detail }}</span>
       </span>

@@ -4,6 +4,7 @@ import { findElement, type FormControl } from '../dom/locator'
 import type { Dataset } from '../generators/dataset'
 import { applyRunId, resolveValue, type FieldValue } from '../generators/resolve'
 import type { FieldRule, Template } from '../model/types'
+import { validateConfig } from '../model/validateConfig'
 import type { FillMode } from './messages'
 
 export type { ContentMessage, FillMode } from './messages'
@@ -28,10 +29,6 @@ function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
-function skipReason(rule: FieldRule): string {
-  return rule.config.type === 'list' ? 'Liste ist leer' : 'Leer lassen'
-}
-
 /** -1 (the DOM default) means no limit. */
 function maxLengthOf(el: FormControl): number | null {
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
@@ -42,10 +39,13 @@ function maxLengthOf(el: FormControl): number | null {
 
 async function fillField(root: ParentNode, rule: FieldRule, ds: Dataset, f: Faker): Promise<FieldReport> {
   const base = { fieldId: rule.id, label: rule.label }
+  // Incomplete options (e.g. an empty list or fixed value) must surface as a problem, not as filled/skipped.
+  const invalid = validateConfig(rule.config)
+  if (invalid) return { ...base, status: 'failed', detail: `Optionen unvollständig: ${invalid.message}` }
   try {
     // The run id is appended here, not in resolveValue, so it can honor the element's maxlength.
     let value: FieldValue = resolveValue({ ...rule, appendRunId: false }, ds, f)
-    if (value.kind === 'skip') return { ...base, status: 'skipped', detail: skipReason(rule) }
+    if (value.kind === 'skip') return { ...base, status: 'skipped', detail: 'Leer lassen' }
 
     const found = findElement(root, rule.locator)
     if (found.status === 'missing') return { ...base, status: 'missing', detail: 'Feld nicht gefunden' }
