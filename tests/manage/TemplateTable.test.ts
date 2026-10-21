@@ -58,7 +58,7 @@ afterEach(() => {
 describe('TemplateTable', () => {
   it('marks fields missing on the last fill with visible text', async () => {
     const { w } = await mountTable()
-    expect(w.text()).toContain('Beim letzten Füllen nicht gefunden')
+    expect(w.text()).toContain('Beim letzten Füllen problematisch')
     const plz = w.findAll('input[type="text"]').find((i) => (i.element as HTMLInputElement).value === 'PLZ')
     expect(plz?.attributes('aria-describedby')).toBeTruthy()
   })
