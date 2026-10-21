@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { slotKindFor } from '../generators/catalog'
+import ConfigEditor from '../ui/ConfigEditor.vue'
 import type { DataTypeConfig, FieldRule } from '../model/types'
 import {
   clone,
   configFor,
-  parseLines,
   slotChoices,
   slotFor,
   typeGroups,
@@ -28,21 +28,14 @@ const emit = defineEmits<{
 }>()
 
 const draft = ref<FieldRule>(clone(props.pending.rule))
-/** Raw textarea content; parsed on accept so blank lines can be typed without being swallowed. */
-const valuesText = ref('')
 const error = ref<ConfigError | null>(null)
 const typeSelect = ref<HTMLSelectElement | null>(null)
 const root = ref<HTMLElement | null>(null)
-
-function valuesOf(config: DataTypeConfig): string {
-  return config.type === 'list' || config.type === 'choice' ? config.values.join('\n') : ''
-}
 
 watch(
   () => props.pending,
   (pending) => {
     draft.value = clone(pending.rule)
-    valuesText.value = valuesOf(pending.rule.config)
     error.value = null
     void nextTick(() => typeSelect.value?.focus())
   },
@@ -73,16 +66,7 @@ const type = computed({
     const config = configFor(value, candidates)
     draft.value.config = config
     draft.value.slot = slotFor(config, props.fields.filter((f) => f.id !== draft.value.id), draft.value.slot)
-    valuesText.value = valuesOf(config)
     error.value = null
-  },
-})
-
-const checkboxState = computed({
-  get: () => (draft.value.config.type === 'checkbox' ? String(draft.value.config.checked) : 'true'),
-  set: (value: string) => {
-    if (draft.value.config.type !== 'checkbox') return
-    draft.value.config.checked = value === 'random' ? 'random' : value === 'true'
   },
 })
 
@@ -90,7 +74,6 @@ const requiredDetected = computed(() => props.pending.isNew && props.pending.rul
 
 function finalConfig(): DataTypeConfig {
   const config = clone(draft.value.config)
-  if (config.type === 'list' || config.type === 'choice') config.values = parseLines(valuesText.value)
   if (config.type === 'date' && config.range !== 'between') {
     delete config.from
     delete config.to
@@ -132,10 +115,6 @@ function trapTab(event: KeyboardEvent): void {
     event.preventDefault()
     first.focus()
   }
-}
-
-function invalid(input: ConfigError['input']): boolean {
-  return error.value?.input === input
 }
 
 const inputClass =
@@ -218,231 +197,10 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
         </select>
       </div>
 
-      <!-- Options of the chosen data type -->
-      <div v-if="draft.config.type === 'fixed'">
-        <label
-          for="ff-fixed"
-          :class="labelClass"
-        >Wert</label>
-        <input
-          id="ff-fixed"
-          v-model="draft.config.value"
-          type="text"
-          :class="inputClass"
-        >
-      </div>
-
-      <template v-else-if="draft.config.type === 'choice'">
-        <div>
-          <label
-            for="ff-mode"
-            :class="labelClass"
-          >Auswahl</label>
-          <select
-            id="ff-mode"
-            v-model="draft.config.mode"
-            :class="inputClass"
-          >
-            <option value="random">
-              Zufällig eine Option
-            </option>
-            <option value="subset">
-              Zufällig mehrere Optionen
-            </option>
-            <option value="fixed">
-              Feste Werte
-            </option>
-          </select>
-        </div>
-        <div>
-          <label
-            for="ff-values"
-            :class="labelClass"
-          >Werte (einer pro Zeile)</label>
-          <textarea
-            id="ff-values"
-            v-model="valuesText"
-            data-input="values"
-            rows="3"
-            aria-describedby="ff-values-hint"
-            :aria-invalid="invalid('values') || undefined"
-            :class="inputClass"
-          />
-          <p
-            id="ff-values-hint"
-            class="mt-1 text-xs text-zinc-600"
-          >
-            Leer lassen = aus allen Optionen des Felds wählen.
-          </p>
-        </div>
-      </template>
-
-      <div v-else-if="draft.config.type === 'list'">
-        <label
-          for="ff-list"
-          :class="labelClass"
-        >Werte (einer pro Zeile)</label>
-        <textarea
-          id="ff-list"
-          v-model="valuesText"
-          data-input="values"
-          rows="3"
-          :aria-invalid="invalid('values') || undefined"
-          :class="inputClass"
-        />
-      </div>
-
-      <div v-else-if="draft.config.type === 'pattern'">
-        <label
-          for="ff-pattern"
-          :class="labelClass"
-        >Muster</label>
-        <input
-          id="ff-pattern"
-          v-model="draft.config.pattern"
-          data-input="pattern"
-          type="text"
-          aria-describedby="ff-pattern-hint"
-          :aria-invalid="invalid('pattern') || undefined"
-          :class="inputClass"
-        >
-        <p
-          id="ff-pattern-hint"
-          class="mt-1 text-xs text-zinc-600"
-        >
-          Platzhalter: {zahl:6}, {buchstabe:2}, {kennung}, {datum}
-        </p>
-      </div>
-
-      <template v-else-if="draft.config.type === 'date'">
-        <div>
-          <label
-            for="ff-range"
-            :class="labelClass"
-          >Zeitraum</label>
-          <select
-            id="ff-range"
-            v-model="draft.config.range"
-            :class="inputClass"
-          >
-            <option value="past">
-              In der Vergangenheit
-            </option>
-            <option value="future">
-              In der Zukunft
-            </option>
-            <option value="between">
-              Zwischen zwei Daten
-            </option>
-          </select>
-        </div>
-        <div
-          v-if="draft.config.range === 'between'"
-          class="grid grid-cols-2 gap-2"
-        >
-          <div>
-            <label
-              for="ff-from"
-              :class="labelClass"
-            >Von</label>
-            <input
-              id="ff-from"
-              v-model="draft.config.from"
-              data-input="from"
-              type="date"
-              :aria-invalid="invalid('from') || undefined"
-              :class="inputClass"
-            >
-          </div>
-          <div>
-            <label
-              for="ff-to"
-              :class="labelClass"
-            >Bis</label>
-            <input
-              id="ff-to"
-              v-model="draft.config.to"
-              data-input="to"
-              type="date"
-              :aria-invalid="invalid('to') || undefined"
-              :class="inputClass"
-            >
-          </div>
-        </div>
-      </template>
-
-      <div
-        v-else-if="draft.config.type === 'number'"
-        class="grid grid-cols-2 gap-2"
-      >
-        <div>
-          <label
-            for="ff-min"
-            :class="labelClass"
-          >Minimum</label>
-          <input
-            id="ff-min"
-            v-model.number="draft.config.min"
-            data-input="min"
-            type="number"
-            :aria-invalid="invalid('min') || undefined"
-            :class="inputClass"
-          >
-        </div>
-        <div>
-          <label
-            for="ff-max"
-            :class="labelClass"
-          >Maximum</label>
-          <input
-            id="ff-max"
-            v-model.number="draft.config.max"
-            data-input="max"
-            type="number"
-            :aria-invalid="invalid('max') || undefined"
-            :class="inputClass"
-          >
-        </div>
-      </div>
-
-      <div v-else-if="draft.config.type === 'birthDate'">
-        <label
-          for="ff-age"
-          :class="labelClass"
-        >Mindestalter (Jahre)</label>
-        <input
-          id="ff-age"
-          v-model.number="draft.config.minAge"
-          data-input="minAge"
-          type="number"
-          min="0"
-          max="120"
-          :aria-invalid="invalid('minAge') || undefined"
-          :class="inputClass"
-        >
-      </div>
-
-      <div v-else-if="draft.config.type === 'checkbox'">
-        <label
-          for="ff-checked"
-          :class="labelClass"
-        >Zustand</label>
-        <select
-          id="ff-checked"
-          v-model="checkboxState"
-          :class="inputClass"
-        >
-          <option value="true">
-            Angehakt
-          </option>
-          <option value="false">
-            Nicht angehakt
-          </option>
-          <option value="random">
-            Zufällig
-          </option>
-        </select>
-      </div>
+      <ConfigEditor
+        v-model="draft.config"
+        :error="error"
+      />
 
       <fieldset class="space-y-1.5">
         <legend class="sr-only">
