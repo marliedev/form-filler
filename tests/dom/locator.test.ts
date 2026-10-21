@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { describeElement, findElement, isRequired, normalizeLabel, type FormControl } from '../../src/dom/locator'
+import { describeElement, displayLabel, findElement, isRequired, normalizeLabel, type FormControl } from '../../src/dom/locator'
 
 function setup(html: string): HTMLElement {
   document.body.innerHTML = html
@@ -164,5 +164,24 @@ describe('isRequired', () => {
     expect(isRequired(q('#b'))).toBe(true)
     expect(isRequired(q('#c'))).toBe(true)
     expect(isRequired(q('#d'))).toBe(false)
+  })
+})
+
+describe('displayLabel', () => {
+  it('keeps the original case and strips required markers', () => {
+    setup(`
+      <label for="a">  Firmen Name *: </label><input id="a" name="company">
+      <fieldset><legend>Anrede *</legend><input type="radio" name="s" value="m"></fieldset>
+      <input aria-label="USt-IdNr." name="vat">
+      <input placeholder="Z. B. Musterstraße" name="street">
+      <input name="kostenStelle">
+      <input>
+    `)
+    expect(displayLabel(q('#a'))).toBe('Firmen Name')
+    expect(displayLabel(q('[name=s]'))).toBe('Anrede')
+    expect(displayLabel(q('[name=vat]'))).toBe('USt-IdNr.')
+    expect(displayLabel(q('[name=street]'))).toBe('Z. B. Musterstraße')
+    expect(displayLabel(q('[name=kostenStelle]'))).toBe('kostenStelle')
+    expect(displayLabel(q('input:not([name])'))).toBe('')
   })
 })

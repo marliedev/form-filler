@@ -108,6 +108,26 @@ export function describeElement(el: FormControl): FieldLocator {
   return locator
 }
 
+function displayText(text: string): string {
+  return text
+    .replace(/[\s\u00a0]+/g, ' ')
+    .trim()
+    .replace(/[\s*:]+$/, '')
+}
+
+/**
+ * Human-readable name of a control in its original case (label, aria-label, placeholder, name),
+ * unlike the normalized locator values which only serve as matching keys. '' if there is none.
+ */
+export function displayLabel(el: FormControl): string {
+  const sources = [rawLabel(el), attr(el, 'aria-label'), attr(el, 'placeholder'), nameOf(el)]
+  for (const source of sources) {
+    const text = displayText(source)
+    if (text) return text
+  }
+  return ''
+}
+
 export function isVisible(el: Element): boolean {
   if (el.closest('[hidden]')) return false
   const view = el.ownerDocument.defaultView

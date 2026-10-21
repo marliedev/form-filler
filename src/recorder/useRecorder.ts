@@ -1,5 +1,5 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import { describeElement, findElement, isRequired, type FormControl } from '../dom/locator'
+import { describeElement, displayLabel, findElement, isRequired, type FormControl } from '../dom/locator'
 import { suggestDataType } from '../dom/suggest'
 import { DATA_TYPES, slotKindFor, type DataTypeGroup, type DataTypeMeta, type SlotKind } from '../generators/catalog'
 import type { ControlKind, DataTypeConfig, FieldLocator, FieldRule, Template } from '../model/types'
@@ -63,10 +63,6 @@ export function resolveControl(target: Element): FormControl | null {
   const host = target.closest('[role="radiogroup"], [role="combobox"]')
   if (host && host !== target && isSupported(host)) return host
   return isSupported(target) ? target : null
-}
-
-export function defaultLabel(loc: FieldLocator): string {
-  return loc.label ?? loc.ariaLabel ?? loc.placeholder ?? loc.name ?? loc.id ?? 'Feld'
 }
 
 function slotSequence(kind: SlotKind, index: number): string {
@@ -177,7 +173,9 @@ export function validateConfig(config: DataTypeConfig): ConfigError | null {
 export function useRecorder(template: Template, root: ParentNode = document): Recorder {
   const fields = ref<FieldRule[]>(clone(template.fields))
   const pending = ref<PendingCapture | null>(null)
-  const changed = ref(false)
+  /** Serialized field list as last saved; dirty means the current list differs from it. */
+  const savedState = ref(JSON.stringify(template.fields))
+  const dirty = computed(() => JSON.stringify(fields.value) !== savedState.value)
 
   function existingFor(el: FormControl, loc: FieldLocator): FieldRule | undefined {
     return fields.value.find((f) => {
@@ -199,7 +197,7 @@ export function useRecorder(template: Template, root: ParentNode = document): Re
     }
     const rule: FieldRule = {
       id: crypto.randomUUID(),
-      label: defaultLabel(locator),
+      label: displayLabel(el) || locator.id || 'Feld',
       locator,
       config: suggestion,
       slot: slotFor(suggestion, fields.value),
@@ -215,7 +213,6 @@ export function useRecorder(template: Template, root: ParentNode = document): Re
     const index = fields.value.findIndex((f) => f.id === copy.id)
     fields.value = index === -1 ? [...fields.value, copy] : fields.value.map((f, i) => (i === index ? copy : f))
     pending.value = null
-    changed.value = true
   }
 
   function dismiss(): void {
@@ -226,7 +223,6 @@ export function useRecorder(template: Template, root: ParentNode = document): Re
     const next = fields.value.filter((f) => f.id !== fieldId)
     if (next.length === fields.value.length) return
     fields.value = next
-    changed.value = true
   }
 
   async function save(): Promise<void> {
@@ -238,14 +234,13 @@ export function useRecorder(template: Template, root: ParentNode = document): Re
       fields: clone(fields.value),
       lastMissing: latest.lastMissing.filter((id) => ids.has(id)),
     })
-    changed.value = false
+    savedState.value = JSON.stringify(fields.value)
   }
 
   function cancel(): void {
     fields.value = clone(template.fields)
     pending.value = null
-    changed.value = false
   }
 
-  return { fields, pending, dirty: computed(() => changed.value), capture, accept, dismiss, remove, save, cancel }
+  return { fields, pending, dirty, capture, accept, dismiss, remove, save, cancel }
 }
