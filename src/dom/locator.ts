@@ -1,0 +1,157 @@
+import type { ControlKind, FieldLocator } from '../model/types'
+
+/** HTMLElement covers `[role=combobox]` and `[role=radiogroup]` hosts. */
+export type FormControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLElement
+
+export type FindResult =
+  | { status: 'found'; el: FormControl }
+  | { status: 'missing' }
+  | { status: 'ambiguous'; count: number }
+
+const CANDIDATE_SELECTOR = 'input, select, textarea, [role="combobox"], [role="radiogroup"]'
+const IGNORED_INPUT_TYPES = new Set(['button', 'submit', 'reset', 'hidden', 'file', 'image'])
+const MIN_SCORE = 3
+
+export function normalizeLabel(text: string): string {
+  return text
+    .replace(/[\s ]+/g, ' ')
+    .trim()
+    .replace(/[\s*:]+$/, '')
+    .toLowerCase()
+}
+
+function kindOf(el: Element): ControlKind | null {
+  const role = el.getAttribute('role')
+  if (role === 'combobox') return 'combobox'
+  if (role === 'radiogroup') return 'radiogroup'
+  const tag = el.tagName.toLowerCase()
+  if (tag === 'select') return 'select'
+  if (tag === 'textarea') return 'textarea'
+  if (tag !== 'input') return null
+  const type = (el.getAttribute('type') ?? 'text').toLowerCase()
+  if (IGNORED_INPUT_TYPES.has(type)) return null
+  if (type === 'checkbox') return 'checkbox'
+  if (type === 'radio') return 'radiogroup'
+  if (type === 'date') return 'date'
+  return 'text'
+}
+
+function isNativeRadio(el: Element): el is HTMLInputElement {
+  return el.tagName.toLowerCase() === 'input' && (el.getAttribute('type') ?? '').toLowerCase() === 'radio'
+}
+
+function textOfIds(doc: Document, ids: string | null): string {
+  if (!ids) return ''
+  return ids
+    .split(/\s+/)
+    .map((id) => doc.getElementById(id)?.textContent ?? '')
+    .join(' ')
+}
+
+/** Text of a `<label>` without the text of controls nested inside it (e.g. select options). */
+function labelText(label: Element): string {
+  const clone = label.cloneNode(true) as Element
+  clone.querySelectorAll('input, select, textarea, button').forEach((n) => n.remove())
+  return clone.textContent ?? ''
+}
+
+/** Raw (not normalized) label text, so `isRequired` can still see a trailing '*'. */
+function rawLabel(el: Element): string {
+  const doc = el.ownerDocument
+  if (isNativeRadio(el)) {
+    const legend = el.closest('fieldset')?.querySelector(':scope > legend')
+    if (legend?.textContent?.trim()) return legend.textContent
+    const group = el.closest('[role="radiogroup"]')
+    if (group) return textOfIds(doc, group.getAttribute('aria-labelledby')) || (group.getAttribute('aria-label') ?? '')
+    return ''
+  }
+  const id = el.getAttribute('id')
+  if (id) {
+    const forLabel = Array.from(doc.querySelectorAll('label')).find((l) => l.getAttribute('for') === id)
+    if (forLabel) return labelText(forLabel)
+  }
+  const wrapping = el.closest('label')
+  if (wrapping) return labelText(wrapping)
+  return textOfIds(doc, el.getAttribute('aria-labelledby'))
+}
+
+function attr(el: Element, name: string): string {
+  return (el.getAttribute(name) ?? '').trim()
+}
+
+export function describeElement(el: FormControl): FieldLocator {
+  const kind = kindOf(el)
+  if (!kind) throw new Error(`Unsupported form control <${el.tagName.toLowerCase()}>`)
+  const locator: FieldLocator = { kind }
+  const name = attr(el, 'name')
+  const id = kind === 'radiogroup' && isNativeRadio(el) ? '' : attr(el, 'id')
+  const label = normalizeLabel(rawLabel(el))
+  const ariaLabel = normalizeLabel(attr(el, 'aria-label'))
+  const placeholder = normalizeLabel(attr(el, 'placeholder'))
+  if (name) locator.name = name
+  if (id) locator.id = id
+  if (label) locator.label = label
+  if (ariaLabel) locator.ariaLabel = ariaLabel
+  if (placeholder) locator.placeholder = placeholder
+  if (el.tagName.toLowerCase() === 'input' && kind !== 'radiogroup') {
+    locator.inputType = (el.getAttribute('type') ?? 'text').toLowerCase()
+  }
+  return locator
+}
+
+function isVisible(el: Element): boolean {
+  if (el.closest('[hidden]')) return false
+  const view = el.ownerDocument.defaultView
+  if (!view) return true
+  for (let node: Element | null = el; node; node = node.parentElement) {
+    if (view.getComputedStyle(node).display === 'none') return false
+  }
+  return view.getComputedStyle(el).visibility !== 'hidden'
+}
+
+function score(el: Element, loc: FieldLocator): number {
+  let total = 0
+  if (loc.name !== undefined && attr(el, 'name') === loc.name) total += 4
+  if (loc.id !== undefined && !(isNativeRadio(el)) && attr(el, 'id') === loc.id) total += 3
+  if (loc.label !== undefined && normalizeLabel(rawLabel(el)) === normalizeLabel(loc.label)) total += 3
+  if (loc.ariaLabel !== undefined && normalizeLabel(attr(el, 'aria-label')) === normalizeLabel(loc.ariaLabel)) total += 2
+  if (loc.placeholder !== undefined && normalizeLabel(attr(el, 'placeholder')) === normalizeLabel(loc.placeholder)) total += 1
+  return total
+}
+
+export function findElement(root: ParentNode, loc: FieldLocator): FindResult {
+  const seenRadioGroups = new Set<string>()
+  const candidates: FormControl[] = []
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>(CANDIDATE_SELECTOR))) {
+    if (kindOf(el) !== loc.kind || !isVisible(el)) continue
+    if (isNativeRadio(el) && el.name) {
+      // Only the first visible radio represents its group.
+      const key = `${el.form ? 'f' : ''}${el.name}`
+      if (seenRadioGroups.has(key)) continue
+      seenRadioGroups.add(key)
+    }
+    candidates.push(el)
+  }
+
+  let best = 0
+  let top: FormControl[] = []
+  for (const el of candidates) {
+    const s = score(el, loc)
+    if (s < MIN_SCORE || s < best) continue
+    if (s > best) {
+      best = s
+      top = []
+    }
+    top.push(el)
+  }
+  const [only] = top
+  if (!only) return { status: 'missing' }
+  if (top.length > 1) return { status: 'ambiguous', count: top.length }
+  return { status: 'found', el: only }
+}
+
+export function isRequired(el: FormControl): boolean {
+  if ('required' in el && (el as HTMLInputElement).required === true) return true
+  if (el.getAttribute('aria-required') === 'true') return true
+  return rawLabel(el).trim().endsWith('*')
+}
