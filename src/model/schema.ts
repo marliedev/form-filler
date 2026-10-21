@@ -57,7 +57,7 @@ const fieldRule = z.object({
   appendRunId: z.boolean(),
 });
 
-const template = z.object({
+export const templateSchema = z.object({
   id: z.string(),
   appId: z.string(),
   name: z.string(),
@@ -76,7 +76,7 @@ const exportFile = z.object({
   format: z.literal('form-filler'),
   version: z.literal(1),
   apps: z.array(appDef),
-  templates: z.array(template),
+  templates: z.array(templateSchema),
 }) satisfies z.ZodType<ExportFile>;
 
 export type ParseExportResult = { ok: true; data: ExportFile } | { ok: false; error: string };
