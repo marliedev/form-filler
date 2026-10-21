@@ -78,6 +78,24 @@ function rawLabel(el: Element): string {
   // aria-label is their visible group label, so it must count like one for re-finding.
   const role = el.getAttribute('role')
   if (role === 'radiogroup' || role === 'combobox') return el.getAttribute('aria-label') ?? ''
+  return componentLabel(el)
+}
+
+const COMPONENT_DEPTH = 4
+
+/**
+ * Component libraries often render `<label>` next to the input without `for`. Walk up the
+ * wrappers and take an unlinked label, but stop as soon as a wrapper holds another control,
+ * so a field never borrows the label of a neighbour.
+ */
+function componentLabel(el: Element): string {
+  let node = el.parentElement
+  for (let depth = 0; node && depth < COMPONENT_DEPTH; depth++, node = node.parentElement) {
+    const controls = Array.from(node.querySelectorAll(CANDIDATE_SELECTOR)).filter((c) => kindOf(c) !== null)
+    if (controls.some((c) => c !== el)) return ''
+    const label = Array.from(node.querySelectorAll('label')).find((l) => !l.hasAttribute('for'))
+    if (label) return labelText(label)
+  }
   return ''
 }
 
