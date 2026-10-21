@@ -4,10 +4,11 @@ import { getOrCreateDataset } from '../storage/datasetStore'
 import { getPrefs, getTemplate, saveTemplate, setPrefs } from '../storage/repository'
 import { recordFillResult } from './lastReport'
 import type { ContentMessage, FillMode, RecordStartResponse } from './messages'
+import { isProblem } from './reportSummary'
 import type { FillReport } from './runFill'
 
 const CONTENT_SCRIPT = '/content-scripts/content.js'
-const PROBLEM_STATUSES = new Set(['missing', 'ambiguous', 'failed'])
+export const NO_LAST_TEMPLATE = 'Noch keine Vorlage genutzt – zuerst im Popup füllen.'
 
 /** The content script guards itself against double registration, so injecting on every call is safe. */
 async function injectContentScript(tabId: number): Promise<void> {
@@ -54,11 +55,21 @@ async function runDispatch(tabId: number, templateId: string, mode: FillMode): P
   if (!isFillReport(report)) throw new Error('Die Seite hat nicht geantwortet')
 
   await setPrefs({ lastTemplateId: template.id })
-  if (report.error === undefined) {
-    const lastMissing = report.fields.filter((f) => PROBLEM_STATUSES.has(f.status)).map((f) => f.fieldId)
-    await saveTemplate({ ...template, lastMissing })
-  }
+  if (report.error === undefined) await updateLastMissing(templateId, report, mode)
   return report
+}
+
+/**
+ * Re-reads the template so edits made during the run are kept and only `lastMissing` changes.
+ * Fields skipped as optional in mode 'required' were not tried, so their old marker stays.
+ */
+async function updateLastMissing(templateId: string, report: FillReport, mode: FillMode): Promise<void> {
+  const latest = await getTemplate(templateId)
+  if (!latest) return
+  const problems = report.fields.filter((f) => isProblem(f.status)).map((f) => f.fieldId)
+  const untried = new Set(mode === 'required' ? latest.fields.filter((f) => !f.required).map((f) => f.id) : [])
+  const kept = latest.lastMissing.filter((id) => untried.has(id) && !problems.includes(id))
+  await saveTemplate({ ...latest, lastMissing: [...kept, ...problems] })
 }
 
 export async function startRecording(tabId: number, templateId: string): Promise<void> {
@@ -69,11 +80,17 @@ export async function startRecording(tabId: number, templateId: string): Promise
   if (!response.ok) throw new Error(response.error)
 }
 
-/** Keyboard shortcut: refill the active tab with the last used template; no-op if there is none (anymore). */
+/**
+ * Keyboard shortcut: refill the active tab with the last used template. Without one (anymore)
+ * the tab gets an error report and badge instead, so the shortcut never fails silently.
+ */
 export async function fillLastUsed(): Promise<FillReport | null> {
   const { mode, lastTemplateId } = await getPrefs()
-  if (lastTemplateId === null || !(await getTemplate(lastTemplateId))) return null
-  const [tab] = await browser.tabs.query({ active: true, currentWindow: true })
+  const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true })
   if (tab?.id === undefined) return null
+  if (lastTemplateId === null || !(await getTemplate(lastTemplateId))) {
+    await remember(tab.id, { templateId: lastTemplateId ?? '', filled: 0, total: 0, fields: [], error: NO_LAST_TEMPLATE })
+    return null
+  }
   return dispatchFill(tab.id, lastTemplateId, mode)
 }

@@ -33,6 +33,9 @@ describe('toUserError', () => {
 
   it('keeps known German errors from the extension', () => {
     expect(toUserError(new Error('Vorlage nicht gefunden'))).toEqual({ message: 'Vorlage nicht gefunden.' })
+    expect(toUserError('Noch keine Vorlage genutzt – zuerst im Popup füllen.')).toEqual({
+      message: 'Noch keine Vorlage genutzt – zuerst im Popup füllen.',
+    })
   })
 
   it('maps a closed tab', () => {
