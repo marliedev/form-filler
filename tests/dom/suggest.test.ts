@@ -23,6 +23,23 @@ describe('suggestDataType', () => {
     expect(suggestDataType(el('<input name="postalCode">'))).toEqual({ type: 'zip' })
   })
 
+  it('prefers the label over name and orders specific rules before company', () => {
+    expect(suggestDataType(el('<label>Straße <input name="company_street"></label>'))).toEqual({ type: 'streetName' })
+    expect(suggestDataType(el('<input name="company_street">'))).toEqual({ type: 'streetName' })
+  })
+
+  it('suggests jobTitle, not salutation, for title-like fields', () => {
+    expect(suggestDataType(el('<label>Job title <input></label>'))).toEqual({ type: 'jobTitle' })
+    expect(suggestDataType(el('<input autocomplete="organization-title">'))).toEqual({ type: 'jobTitle' })
+  })
+
+  it('throws for unsupported elements', () => {
+    expect(() => {
+      document.body.innerHTML = '<button>x</button>'
+      return suggestDataType(document.body.querySelector('button') as HTMLElement)
+    }).toThrow('Unsupported')
+  })
+
   it('does not mistake an e-mail address for a street', () => {
     expect(suggestDataType(el('<label>E-Mail-Adresse <input></label>'))).toEqual({ type: 'email' })
   })

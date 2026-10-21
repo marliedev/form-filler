@@ -31,8 +31,7 @@ const RULES: SuggestRule[] = [
   { keywords: ['handelsregister', 'hrb'], config: { type: 'tradeRegister' } },
   { keywords: ['rechtsform', 'legal form'], config: { type: 'legalForm' } },
   { keywords: ['branche', 'industry'], config: { type: 'industry' } },
-  { keywords: ['firmenname', 'firma', 'unternehmen', 'company', 'organization', 'organisation'], config: { type: 'companyName' } },
-  { keywords: ['anrede', 'salutation', 'honorific prefix', 'title'], config: { type: 'salutation' } },
+  { keywords: ['anrede', 'salutation', 'honorific prefix'], config: { type: 'salutation' } },
   { keywords: ['vorname', 'first name', 'given name', 'firstname'], config: { type: 'firstName' } },
   { keywords: ['nachname', 'familienname', 'last name', 'family name', 'surname', 'lastname'], config: { type: 'lastName' } },
   { keywords: ['position', 'job title', 'jobtitle', 'funktion', 'organization title'], config: { type: 'jobTitle' } },
@@ -47,6 +46,7 @@ const RULES: SuggestRule[] = [
   { keywords: ['plz', 'postleitzahl', 'zip', 'postal', 'postcode'], config: { type: 'zip' } },
   { keywords: ['ort', 'stadt', 'city', 'town', 'address level2'], config: { type: 'city' } },
   { keywords: ['land', 'country'], config: { type: 'country' } },
+  { keywords: ['firmenname', 'firma', 'unternehmen', 'company', 'organization', 'organisation'], config: { type: 'companyName' } },
   { keywords: ['mobil', 'handy', 'mobile', 'cell'], config: { type: 'mobile' } },
   { keywords: ['telefon', 'phone', 'tel', 'fon'], config: { type: 'phone' } },
   { keywords: ['email', 'e mail', 'mail'], config: { type: 'email' } },
@@ -74,13 +74,19 @@ function clone(config: DataTypeConfig): DataTypeConfig {
   return structuredClone(config)
 }
 
+function findRule(sources: (string | null | undefined)[]): SuggestRule | undefined {
+  const haystack = fold(sources.filter((s): s is string => !!s).join(' '))
+  return haystack ? RULES.find((r) => r.keywords.some((k) => matches(haystack, k))) : undefined
+}
+
+/** Throws (via describeElement) for elements that are not a supported form control. */
 export function suggestDataType(el: FormControl): DataTypeConfig {
   const loc = describeElement(el)
   if (loc.kind === 'checkbox') return { type: 'checkbox', checked: true }
 
-  const sources = [loc.label, loc.ariaLabel, loc.name, el.getAttribute('autocomplete')]
-  const haystack = fold(sources.filter((s): s is string => !!s).join(' '))
-  const rule = haystack ? RULES.find((r) => r.keywords.some((k) => matches(haystack, k))) : undefined
+  // The visible label is the strongest signal; name/autocomplete only decide when it yields nothing.
+  const rule =
+    findRule([loc.label, loc.ariaLabel]) ?? findRule([loc.name, el.getAttribute('autocomplete')])
 
   if (loc.kind === 'date') return rule?.config.type === 'birthDate' ? clone(rule.config) : { type: 'date', range: 'past' }
   if (rule) return clone(rule.config)

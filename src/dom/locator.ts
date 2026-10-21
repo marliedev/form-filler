@@ -79,11 +79,20 @@ function attr(el: Element, name: string): string {
   return (el.getAttribute(name) ?? '').trim()
 }
 
+/** An ARIA radiogroup has no name of its own; it takes the one of the native radios it wraps. */
+function nameOf(el: Element): string {
+  const own = attr(el, 'name')
+  if (own || el.getAttribute('role') !== 'radiogroup') return own
+  const inner = el.querySelector('input[type="radio"][name]')
+  return inner ? attr(inner, 'name') : ''
+}
+
+/** Throws for elements that are not a supported form control. */
 export function describeElement(el: FormControl): FieldLocator {
   const kind = kindOf(el)
   if (!kind) throw new Error(`Unsupported form control <${el.tagName.toLowerCase()}>`)
   const locator: FieldLocator = { kind }
-  const name = attr(el, 'name')
+  const name = nameOf(el)
   const id = kind === 'radiogroup' && isNativeRadio(el) ? '' : attr(el, 'id')
   const label = normalizeLabel(rawLabel(el))
   const ariaLabel = normalizeLabel(attr(el, 'aria-label'))
@@ -111,7 +120,7 @@ function isVisible(el: Element): boolean {
 
 function score(el: Element, loc: FieldLocator): number {
   let total = 0
-  if (loc.name !== undefined && attr(el, 'name') === loc.name) total += 4
+  if (loc.name !== undefined && nameOf(el) === loc.name) total += 4
   if (loc.id !== undefined && !(isNativeRadio(el)) && attr(el, 'id') === loc.id) total += 3
   if (loc.label !== undefined && normalizeLabel(rawLabel(el)) === normalizeLabel(loc.label)) total += 3
   if (loc.ariaLabel !== undefined && normalizeLabel(attr(el, 'aria-label')) === normalizeLabel(loc.ariaLabel)) total += 2
@@ -120,15 +129,21 @@ function score(el: Element, loc: FieldLocator): number {
 }
 
 export function findElement(root: ParentNode, loc: FieldLocator): FindResult {
-  const seenRadioGroups = new Set<string>()
+  // Radio names are only unique per form, so groups are tracked per form owner.
+  const seenRadioGroups = new Map<HTMLFormElement | null, Set<string>>()
   const candidates: FormControl[] = []
   for (const el of Array.from(root.querySelectorAll<HTMLElement>(CANDIDATE_SELECTOR))) {
     if (kindOf(el) !== loc.kind || !isVisible(el)) continue
-    if (isNativeRadio(el) && el.name) {
-      // Only the first visible radio represents its group.
-      const key = `${el.form ? 'f' : ''}${el.name}`
-      if (seenRadioGroups.has(key)) continue
-      seenRadioGroups.add(key)
+    if (isNativeRadio(el)) {
+      // An ARIA radiogroup wrapper is the group; its inner radios are not candidates.
+      if (el.closest('[role="radiogroup"]')) continue
+      if (el.name) {
+        // Only the first visible radio represents its group.
+        const names = seenRadioGroups.get(el.form) ?? new Set<string>()
+        seenRadioGroups.set(el.form, names)
+        if (names.has(el.name)) continue
+        names.add(el.name)
+      }
     }
     candidates.push(el)
   }
