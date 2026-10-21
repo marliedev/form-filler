@@ -33,7 +33,7 @@ Bei mehrteiligen Prozessen bleibt die Kennung zwischen den Schritten gleich; **N
 
 ## Tastenkürzel
 
-Standard: **Alt+Shift+F** befüllt die aktuelle Seite. Ändern lässt sich das Kürzel auf der Kürzel-Seite der Erweiterungsverwaltung des Browsers (bei Chromium-Browsern meist `chrome://extensions/shortcuts`).
+Standard: **Alt+Shift+F** füllt die aktuelle Seite mit der zuletzt genutzten Vorlage. Ändern lässt sich das Kürzel auf der Kürzel-Seite der Erweiterungsverwaltung des Browsers (bei Chromium-Browsern meist `chrome://extensions/shortcuts`).
 
 ## Datenschutz
 
@@ -43,7 +43,9 @@ Alle Daten bleiben lokal im Browser: Apps und Vorlagen in `storage.local`, Füll
 
 Im Pflege-Tab („Vorlagen verwalten“, Zahnrad im Popup) lassen sich Apps und Vorlagen als JSON-Datei exportieren und wieder importieren. Bei Konflikten fragt der Import nach.
 
-**Regel:** App-spezifische Vorlagen und Exporte gehören nicht ins Repository. Sie bleiben lokal bzw. werden außerhalb des Repos weitergegeben.
+## Keine App-Vorlagen im Repository
+
+App-spezifische Vorlagen und Exporte gehören nicht ins Repository. Sie bleiben lokal bzw. werden außerhalb des Repos weitergegeben.
 
 ## Testseite
 
