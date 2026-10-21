@@ -70,13 +70,14 @@ export function slugify(name: string): string {
     .toLowerCase()
     .replace(/[äöüß]/g, (c) => UMLAUTS[c] ?? c)
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
   return slug || 'app'
 }
 
-function count(n: number, one: string, many: string): string {
+/** German count with singular/plural noun, e.g. „1 Vorlage“, „2 Vorlagen“. */
+export function count(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`
 }
 

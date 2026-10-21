@@ -4,7 +4,7 @@ import type { AppDef, Template } from '../model/types'
 import ConfirmDialog from '../ui/ConfirmDialog.vue'
 import { useDialog } from '../ui/dialog'
 import { TEMPLATES_HEADING_ID } from './ids'
-import type { ManageState } from './useManage'
+import { count, type ManageState } from './useManage'
 
 defineOptions({ name: 'AppList' })
 
@@ -57,7 +57,10 @@ async function remove(): Promise<void> {
   if (app === null) return
   const choice = await confirm.ask({
     title: 'App löschen?',
-    message: `Die App „${app.name}“ und ihre ${props.templates.length} Vorlagen werden endgültig gelöscht.`,
+    message:
+      props.templates.length === 0
+        ? `Die App „${app.name}“ wird endgültig gelöscht.`
+        : `Die App „${app.name}“ und ihre ${count(props.templates.length, 'Vorlage', 'Vorlagen')} werden endgültig gelöscht.`,
     choices: [{ value: 'delete', label: 'App löschen', tone: 'danger' }],
   })
   if (choice !== 'delete') return

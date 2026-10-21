@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useId, watch } from 'vue'
-import { slotKindFor } from '../generators/catalog'
 import type { AppDef, DataTypeConfig, FieldRule, Template } from '../model/types'
-import { clone, configFor, slotChoices, typeGroups, validateConfig, type ConfigError } from '../recorder/useRecorder'
+import { clone, configFor, typeGroups, validateConfig, type ConfigError } from '../recorder/useRecorder'
 import ConfigEditor from '../ui/ConfigEditor.vue'
 import ConfirmDialog from '../ui/ConfirmDialog.vue'
-import { hasOptions } from '../ui/configOptions'
+import { finalizeConfig, hasOptions, slotOptions } from '../ui/configOptions'
 import { useDialog } from '../ui/dialog'
 import { TEMPLATES_HEADING_ID } from './ids'
-import type { ManageState } from './useManage'
+import { count, type ManageState } from './useManage'
 
 defineOptions({ name: 'TemplateTable' })
 
@@ -56,7 +55,7 @@ async function saveMeta(): Promise<void> {
 async function removeTemplate(): Promise<void> {
   const choice = await confirm.ask({
     title: 'Vorlage löschen?',
-    message: `Die Vorlage „${props.template.name}“ mit ${props.template.fields.length} Feldern wird endgültig gelöscht.`,
+    message: `Die Vorlage „${props.template.name}“ mit ${count(props.template.fields.length, 'Feld', 'Feldern')} wird endgültig gelöscht.`,
     choices: [{ value: 'delete', label: 'Vorlage löschen', tone: 'danger' }],
   })
   if (choice !== 'delete') return
@@ -79,19 +78,13 @@ function locatorHint(field: FieldRule): string {
   return name ? `name=${name}` : id ? `id=${id}` : ''
 }
 
-function slotOptions(field: FieldRule): { value: string; label: string }[] {
-  const kind = slotKindFor(field.config)
-  if (kind === null) return []
-  const others = props.template.fields.filter((f) => f.id !== field.id)
-  const { existing, next } = slotChoices(others, kind)
-  const prefix = kind === 'person' ? 'Person' : 'Adresse'
-  const options = existing.map((slot) => ({ value: slot, label: `${prefix} ${slot}` }))
-  if (field.slot !== null && !existing.includes(field.slot) && field.slot !== next) {
-    options.push({ value: field.slot, label: `${prefix} ${field.slot}` })
-  }
-  options.push({ value: next, label: `${prefix} ${next} (neu)` })
-  return options
-}
+/** Slot choices computed once per row instead of on every template access. */
+const rows = computed(() =>
+  props.template.fields.map((field) => ({
+    field,
+    slots: slotOptions(props.template.fields, field.config, field.slot, field.id),
+  })),
+)
 
 function onLabelChange(field: FieldRule, event: Event): void {
   const input = event.target as HTMLInputElement
@@ -108,6 +101,8 @@ async function onTypeChange(field: FieldRule, event: Event): Promise<void> {
   const type = (event.target as HTMLSelectElement).value as DataTypeConfig['type']
   const config = configFor(type, [field.config])
   const ok = await props.actions.updateField(field.id, { config })
+  // On failure the stored type is unchanged; the select must not keep showing the rejected one.
+  if (!ok) (event.target as HTMLSelectElement).value = field.config.type
   if (ok && hasOptions(type)) openOptions(field.id, config)
   else if (expanded.value === field.id) closeOptions(false)
 }
@@ -180,11 +175,7 @@ function toggleOptions(field: FieldRule): void {
 async function applyOptions(field: FieldRule): Promise<void> {
   const draft = optionDraft.value
   if (draft === null) return
-  const config = clone(draft)
-  if (config.type === 'date' && config.range !== 'between') {
-    delete config.from
-    delete config.to
-  }
+  const config = finalizeConfig(draft)
   const problem = validateConfig(config)
   optionError.value = problem
   if (problem) {
@@ -223,7 +214,11 @@ async function onDrop(index: number, event: DragEvent): Promise<void> {
   const id = dragId.value
   event.preventDefault()
   onDragEnd()
-  if (id !== null) await props.actions.moveField(id, index)
+  if (id === null) return
+  // The marker sits on the target row's top edge (insert before it). moveField indexes the list
+  // without the dragged row, so a downward move lands one slot earlier.
+  const from = props.template.fields.findIndex((f) => f.id === id)
+  await props.actions.moveField(id, from !== -1 && from < index ? index - 1 : index)
 }
 
 function onDragEnd(): void {
@@ -412,7 +407,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
         </thead>
         <tbody>
           <template
-            v-for="(field, index) in template.fields"
+            v-for="({ field, slots }, index) in rows"
             :key="field.id"
           >
             <tr
@@ -511,14 +506,14 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
               </td>
               <td class="min-w-32 px-2 py-1.5">
                 <select
-                  v-if="slotOptions(field).length > 0"
+                  v-if="slots.length > 0"
                   :value="field.slot ?? ''"
                   :aria-label="`Slot für „${displayName(field)}“`"
                   :class="control"
                   @change="onSlotChange(field, $event)"
                 >
                   <option
-                    v-for="slot in slotOptions(field)"
+                    v-for="slot in slots"
                     :key="slot.value"
                     :value="slot.value"
                   >
