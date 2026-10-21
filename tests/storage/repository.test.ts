@@ -1,6 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { parseExport } from '../../src/model/schema';
 import type { AppDef, ExportFile, Template } from '../../src/model/types';
 import {
   deleteApp,
@@ -108,13 +107,20 @@ describe('repository', () => {
     expect((await getTemplate('t9'))?.name).toBe('Vorlage t9');
   });
 
-  it('leaves storage untouched when the export is invalid', async () => {
+  it('writes apps and templates in a single storage call on import', async () => {
     await saveApp(makeApp('app1'));
-    const before = await fakeBrowser.storage.local.get(null);
-    const parsed = parseExport('{"format":"form-filler","version":1,"apps":[],"templates":[{"id":"x"}]}');
-    expect(parsed.ok).toBe(false);
-    if (parsed.ok) await importExport(parsed.data, 'overwrite');
-    expect(await fakeBrowser.storage.local.get(null)).toEqual(before);
+    const data: ExportFile = {
+      format: 'form-filler',
+      version: 1,
+      apps: [makeApp('app2')],
+      templates: [makeTemplate('t2', 'app2')],
+    };
+    const setSpy = vi.spyOn(fakeBrowser.storage.local, 'set');
+    await importExport(data, 'overwrite');
+    expect(setSpy).toHaveBeenCalledTimes(1);
+    const written = setSpy.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(Object.keys(written).sort()).toEqual(['apps', 'templates']);
+    setSpy.mockRestore();
   });
 
   it('returns default prefs and merges partial updates', async () => {
