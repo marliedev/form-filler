@@ -60,6 +60,25 @@ describe('capture', () => {
     expect(r.pending.value?.rule).toMatchObject({ config: { type: 'zip' }, slot: 'A', required: true })
   })
 
+  it('flags fields the fill could not find again by their locator', () => {
+    document.body.insertAdjacentHTML('beforeend', '<input aria-label="Notiz"><input placeholder="Suche">')
+    const r = useRecorder(base)
+    r.capture(q('#company'))
+    expect(r.pending.value?.unlocatable).toBe(false)
+    r.capture(q('input[aria-label="Notiz"]'))
+    expect(r.pending.value?.unlocatable).toBe(true)
+    r.capture(q('input[placeholder="Suche"]'))
+    expect(r.pending.value?.unlocatable).toBe(true)
+    r.capture(q('[role="radiogroup"]'))
+    expect(r.pending.value?.unlocatable).toBe(true)
+  })
+
+  it('does not flag a native radio group captured via a later radio', () => {
+    const r = useRecorder(base)
+    r.capture(q('input[value="b"]'))
+    expect(r.pending.value?.unlocatable).toBe(false)
+  })
+
   it('ignores unsupported elements', () => {
     const r = useRecorder(base)
     expect(r.capture(q('button'))).toBe(false)

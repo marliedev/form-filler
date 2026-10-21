@@ -12,6 +12,8 @@ export interface PendingCapture {
   /** The suggestion for the element, so switching back to its type restores the suggested options. */
   suggestion: DataTypeConfig
   isNew: boolean
+  /** The rule's locator does not lead back to this element, so filling will most likely not find it. */
+  unlocatable: boolean
 }
 
 export interface Recorder {
@@ -44,6 +46,18 @@ export function clone<T>(value: T): T {
 
 function sameLocator(a: FieldLocator, b: FieldLocator): boolean {
   return LOCATOR_KEYS.every((key) => a[key] === b[key])
+}
+
+function isNativeRadio(el: Element): el is HTMLInputElement {
+  return el instanceof HTMLInputElement && el.type === 'radio'
+}
+
+/** Whether `locator` finds `el` again; for native radios any radio of the same group counts. */
+export function isLocatable(root: ParentNode, locator: FieldLocator, el: FormControl): boolean {
+  const found = findElement(root, locator)
+  if (found.status !== 'found') return false
+  if (found.el === el) return true
+  return isNativeRadio(el) && isNativeRadio(found.el) && el.name !== '' && found.el.name === el.name && found.el.form === el.form
 }
 
 function isSupported(el: Element): el is FormControl {
@@ -157,7 +171,7 @@ export function useRecorder(template: Template, root: ParentNode = document): Re
     const suggestion = suggestDataType(el)
     const existing = existingFor(el, locator)
     if (existing) {
-      pending.value = { el, rule: clone(existing), suggestion, isNew: false }
+      pending.value = { el, rule: clone(existing), suggestion, isNew: false, unlocatable: !isLocatable(root, existing.locator, el) }
       return true
     }
     const rule: FieldRule = {
@@ -169,7 +183,7 @@ export function useRecorder(template: Template, root: ParentNode = document): Re
       required: isRequired(el),
       appendRunId: false,
     }
-    pending.value = { el, rule, suggestion: clone(suggestion), isNew: true }
+    pending.value = { el, rule, suggestion: clone(suggestion), isNew: true, unlocatable: !isLocatable(root, locator, el) }
     return true
   }
 

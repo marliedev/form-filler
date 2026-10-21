@@ -164,6 +164,20 @@ describe('Recorder overlay', () => {
     expect(w.get('[role="status"]').text()).toBe('Vorlage gespeichert')
   })
 
+  it('warns in the popover when a field cannot be found again', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<input placeholder="Suche">')
+    const { w } = await mountOverlay()
+    page('#company').focus()
+    await flushPromises()
+    expect(w.find('[role="alert"]').exists()).toBe(false)
+    w.unmount()
+    wrapper = null
+    const second = await mountOverlay()
+    page('input[placeholder="Suche"]').focus()
+    await flushPromises()
+    expect(second.w.get('[role="alert"]').text()).toContain('keine eindeutigen Merkmale')
+  })
+
   it('validates type options before accepting', async () => {
     const { w, recorder } = await mountOverlay()
     page('#company').focus()
