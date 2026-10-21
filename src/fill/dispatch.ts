@@ -3,7 +3,7 @@ import { browser } from 'wxt/browser'
 import { getOrCreateDataset } from '../storage/datasetStore'
 import { getPrefs, getTemplate, saveTemplate, setPrefs } from '../storage/repository'
 import { recordFillResult } from './lastReport'
-import type { ContentMessage, FillMode } from './messages'
+import type { ContentMessage, FillMode, RecordStartResponse } from './messages'
 import type { FillReport } from './runFill'
 
 const CONTENT_SCRIPT = '/content-scripts/content.js'
@@ -16,6 +16,12 @@ async function injectContentScript(tabId: number): Promise<void> {
 
 function isFillReport(value: unknown): value is FillReport {
   return typeof value === 'object' && value !== null && Array.isArray((value as FillReport).fields)
+}
+
+function isRecordStartResponse(value: unknown): value is RecordStartResponse {
+  if (typeof value !== 'object' || value === null) return false
+  const { ok, error } = value as { ok?: unknown; error?: unknown }
+  return ok === true || (ok === false && typeof error === 'string')
 }
 
 /** Every run (popup or shortcut) leaves its result in the tab's last report and badge, failures included. */
@@ -58,7 +64,9 @@ async function runDispatch(tabId: number, templateId: string, mode: FillMode): P
 export async function startRecording(tabId: number, templateId: string): Promise<void> {
   await injectContentScript(tabId)
   const message: ContentMessage = { type: 'record:start', templateId }
-  await browser.tabs.sendMessage(tabId, message)
+  const response: unknown = await browser.tabs.sendMessage(tabId, message)
+  if (!isRecordStartResponse(response)) throw new Error('Die Seite hat nicht geantwortet')
+  if (!response.ok) throw new Error(response.error)
 }
 
 /** Keyboard shortcut: refill the active tab with the last used template; no-op if there is none (anymore). */

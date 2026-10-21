@@ -198,7 +198,7 @@ describe('usePopup', () => {
 
   it('newTemplate saves an empty template and starts recording', async () => {
     mockActiveTab('https://crm.example.com/')
-    const { send } = mockMessaging(undefined)
+    const { send } = mockMessaging({ ok: true })
     const p = usePopup()
     await p.load()
     await p.newTemplate('Ansprechpartner')
@@ -218,6 +218,17 @@ describe('usePopup', () => {
     await p.record('t1')
     expect(p.error.value?.message).toMatch(/^Die Seite hat nicht geantwortet/)
     expect(p.busy.value).toBe(false)
+  })
+
+  it('shows the content script refusal of a second recording in German', async () => {
+    mockActiveTab('https://crm.example.com/')
+    const error = 'Auf der Seite läuft noch eine Aufnahme mit ungespeicherten Änderungen. Bitte zuerst speichern oder beenden.'
+    mockMessaging({ ok: false, error })
+    const p = usePopup()
+    await p.load()
+    await p.record('t1')
+    expect(p.error.value).toEqual({ message: error })
+    expect(p.notice.value).toBe('')
   })
 
   it('openManage opens the manage page in a new tab', async () => {
