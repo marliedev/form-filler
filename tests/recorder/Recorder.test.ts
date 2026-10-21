@@ -56,6 +56,17 @@ describe('Recorder overlay', () => {
     expect(document.activeElement).toBe(w.get('#ff-type').element)
   })
 
+  it('shows an alert instead of failing silently when capturing throws', async () => {
+    const { w, recorder } = await mountOverlay()
+    recorder.capture = () => {
+      throw new Error('kaputt')
+    }
+    page('#company').focus()
+    await flushPromises()
+    expect(w.find('[role="dialog"]').exists()).toBe(false)
+    expect(w.get('[role="alert"]').text()).toContain('Feld konnte nicht erfasst werden: kaputt')
+  })
+
   it('keeps Tab and Shift+Tab inside the open popover', async () => {
     const { w } = await mountOverlay()
     page('#company').focus()

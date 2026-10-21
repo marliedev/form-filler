@@ -210,7 +210,12 @@ function onPageFocusIn(event: FocusEvent): void {
     if (resolveControl(target)) announce('Bitte das offene Feld zuerst übernehmen oder abbrechen.')
     return
   }
-  props.recorder.capture(target)
+  // A throw inside a page event listener would vanish in the console; show it in the overlay.
+  try {
+    if (props.recorder.capture(target)) error.value = ''
+  } catch (e) {
+    error.value = `Feld konnte nicht erfasst werden: ${e instanceof Error ? e.message : String(e)}`
+  }
 }
 
 function onPageMouseOver(event: MouseEvent): void {

@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import type { AppDef, ExportFile, Prefs, Template } from '../model/types';
+import { createId } from '../model/id';
 
 export type { Prefs };
 
@@ -66,7 +67,7 @@ export async function importExport(
   for (const app of data.apps) {
     const conflict = apps.some((a) => a.id === app.id);
     if (conflict && onConflict === 'copy') {
-      const id = crypto.randomUUID();
+      const id = createId();
       appIdMap.set(app.id, id);
       apps = [...apps, { ...app, id }];
     } else {
@@ -80,7 +81,7 @@ export async function importExport(
     if (conflict && onConflict === 'copy') {
       templates = [
         ...templates,
-        { ...template, appId, id: crypto.randomUUID(), name: `${template.name} (Kopie)` },
+        { ...template, appId, id: createId(), name: `${template.name} (Kopie)` },
       ];
     } else {
       templates = upsert(templates, { ...template, appId });
