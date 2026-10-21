@@ -81,8 +81,9 @@ describe('capture', () => {
     expect(r.pending.value?.unlocatable).toBe(true)
     r.capture(q('input[placeholder="Suche"]'))
     expect(r.pending.value?.unlocatable).toBe(true)
+    // An ARIA group's aria-label is its group label, so it is found again.
     r.capture(q('[role="radiogroup"]'))
-    expect(r.pending.value?.unlocatable).toBe(true)
+    expect(r.pending.value?.unlocatable).toBe(false)
   })
 
   it('does not flag a native radio group captured via a later radio', () => {
