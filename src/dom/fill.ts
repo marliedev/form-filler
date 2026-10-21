@@ -35,7 +35,7 @@ export function nextFrame(): Promise<void> {
 }
 
 function norm(s: string): string {
-  return s.replace(/[\s ]+/g, ' ').trim().toLowerCase()
+  return s.replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
 function germanDate(iso: string): string {
@@ -93,13 +93,15 @@ function textToWrite(v: Exclude<FieldValue, { kind: 'skip' | 'checkbox' }>, isoD
   return pick(v.values, rand) ?? null
 }
 
-function fillText(el: FormControl, v: Exclude<FieldValue, { kind: 'skip' | 'checkbox' }>, kind: ControlKind, rand: Rand): FillOutcome {
+function fillText(el: FormControl, v: Exclude<FieldValue, { kind: 'skip' | 'checkbox' }>, rand: Rand): FillOutcome {
   if (!isTag(el, 'input') && !isTag(el, 'textarea')) return failed('Feld ist kein Texteingabefeld')
   if (el.disabled) return failed('Feld ist deaktiviert')
   if (el.readOnly) return failed('Feld ist schreibgeschützt')
-  const isoDateInput = kind === 'date' || (isTag(el, 'input') && el.type === 'date')
+  const isoDateInput = isTag(el, 'input') && el.type === 'date'
   let value = textToWrite(v, isoDateInput, rand)
   if (value === null) return failed('Keine Werte zur Auswahl angegeben')
+  // Browsers store line breaks as LF, so CRLF would otherwise never read back equal.
+  value = value.replace(/\r\n?/g, '\n')
   // maxlength only limits typing, not programmatic writes; cut here so the page sees what a user could enter.
   if (el.maxLength >= 0) value = value.slice(0, el.maxLength)
 
@@ -113,7 +115,7 @@ function fillText(el: FormControl, v: Exclude<FieldValue, { kind: 'skip' | 'chec
   fire(el, 'input')
   fire(el, 'change')
   el.blur()
-  if (el.value !== value) return failed(`Wert „${value}“ wurde vom Feld nicht übernommen`)
+  if (el.value.replace(/\r\n?/g, '\n') !== value) return failed(`Wert „${value}“ wurde vom Feld nicht übernommen`)
   return filled(value)
 }
 
@@ -271,9 +273,12 @@ async function fillCombobox(el: FormControl, choice: Choice, rand: Rand): Promis
   if (typeof chosen === 'string') return failed(chosen)
   pointerPress(chosen.el)
   await nextFrame()
+  // Strict equality: a substring check would accept "Bitte wählen" for "IT" or a stale "Baustoffe" for "Bau".
   const shown = norm(displayedText(el))
-  const selected = chosen.el.isConnected && chosen.el.getAttribute('aria-selected') === 'true'
-  if (!shown.includes(norm(chosen.text)) && !selected) return failed(`Option „${chosen.text}“ wurde nicht übernommen`)
+  const ok = shown !== ''
+    ? shown === norm(chosen.text)
+    : chosen.el.isConnected && chosen.el.getAttribute('aria-selected') === 'true'
+  if (!ok) return failed(`Option „${chosen.text}“ wurde nicht übernommen`)
   return filled(chosen.text)
 }
 
@@ -289,7 +294,7 @@ export async function fillElement(el: FormControl, v: FieldValue, kind: ControlK
     case 'text':
     case 'textarea':
     case 'date':
-      return fillText(el, v, kind, rand)
+      return fillText(el, v, rand)
     case 'select': return fillSelect(el, asChoice(v), rand)
     case 'radiogroup': return fillRadio(el, asChoice(v), rand)
     case 'combobox': return fillCombobox(el, asChoice(v), rand)

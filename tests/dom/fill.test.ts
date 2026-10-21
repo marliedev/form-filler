@@ -67,6 +67,13 @@ describe('fillElement – text', () => {
     expect(el.value).toBe('abc')
   })
 
+  it('accepts CRLF values in a textarea (browser normalizes line breaks)', async () => {
+    setup('<textarea id="t"></textarea>')
+    const out = await fillElement(q('#t'), { kind: 'text', value: 'Zeile 1\r\nZeile 2' }, 'textarea')
+    expect(out.status).toBe('filled')
+    expect(q<HTMLTextAreaElement>('#t').value).toBe('Zeile 1\nZeile 2')
+  })
+
   it('cuts values to maxLength so the read-back matches', async () => {
     setup('<input id="t" maxlength="5">')
     const out = await fillElement(q('#t'), { kind: 'text', value: 'ABCDEFGH' }, 'text')
@@ -111,6 +118,12 @@ describe('fillElement – date', () => {
   it('writes DD.MM.YYYY into a text field', async () => {
     setup('<input id="d" type="text">')
     const out = await fillElement(q('#d'), { kind: 'date', iso: '2024-03-15' }, 'text')
+    expect(out).toEqual({ status: 'filled', shown: '15.03.2024' })
+  })
+
+  it('decides the format by the element type, not by kind', async () => {
+    setup('<input id="d" type="text">')
+    const out = await fillElement(q('#d'), { kind: 'date', iso: '2024-03-15' }, 'date')
     expect(out).toEqual({ status: 'filled', shown: '15.03.2024' })
   })
 
@@ -324,6 +337,24 @@ describe('fillElement – combobox', () => {
   it('never picks an aria-disabled option', async () => {
     combobox()
     const out = await fillElement(q('#cb'), { kind: 'choice', mode: 'fixed', values: ['Gesperrt'] }, 'combobox')
+    expect(out.status).toBe('failed')
+  })
+
+  it('fails when the combobox ignores the selection although its placeholder contains the option text', async () => {
+    setup(`
+      <div role="combobox" id="cb" tabindex="0" aria-controls="lb">Bitte wählen</div>
+      <ul role="listbox" id="lb" hidden><li role="option">IT</li></ul>`)
+    q('#cb').addEventListener('click', () => { q('#lb').hidden = false })
+    const out = await fillElement(q('#cb'), { kind: 'choice', mode: 'fixed', values: ['IT'] }, 'combobox')
+    expect(out.status).toBe('failed')
+  })
+
+  it('fails when a longer option that contains the wanted text is still shown', async () => {
+    setup(`
+      <div role="combobox" id="cb" tabindex="0" aria-controls="lb">Baustoffe</div>
+      <ul role="listbox" id="lb" hidden><li role="option">Bau</li><li role="option">Baustoffe</li></ul>`)
+    q('#cb').addEventListener('click', () => { q('#lb').hidden = false })
+    const out = await fillElement(q('#cb'), { kind: 'choice', mode: 'fixed', values: ['Bau'] }, 'combobox')
     expect(out.status).toBe('failed')
   })
 
