@@ -37,7 +37,7 @@ Die Erweiterung ist nicht im Chrome Web Store. Du baust sie einmal lokal und lä
 
 - [Git](https://git-scm.com)
 - [Node.js](https://nodejs.org) in einer aktuellen LTS-Version (getestet mit Node.js 22) samt npm
-- Ein Chromium-Browser, z. B. Dia, Arc, Chrome, Edge oder Brave, oder Firefox ab 128
+- Ein Chromium-Browser, z. B. Dia, Arc, Chrome, Edge oder Brave, oder Firefox ab 140
 
 ### 1. Herunterladen und bauen
 
@@ -61,7 +61,20 @@ Der Ablauf ist bei allen Chromium-Browsern gleich:
 
 Die genauen Menü- und Schaltflächennamen können je nach Browser und Version abweichen.
 
-**Firefox** (ab Version 128): mit `npm run build:firefox` bauen, dann `about:debugging#/runtime/this-firefox` öffnen, **„Temporäres Add-on laden“** wählen und die Datei `.output/firefox-mv3/manifest.json` auswählen. Ein temporäres Add-on verschwindet beim Beenden von Firefox. Dauerhaft installieren lässt sich nur ein von Mozilla signiertes Paket: `npm run zip:firefox` erzeugt die Datei für die Signierung als selbst verteiltes Add-on (ohne Eintrag im Add-on-Store).
+**Firefox** (ab Version 140): mit `npm run build:firefox` bauen, dann `about:debugging#/runtime/this-firefox` öffnen, **„Temporäres Add-on laden“** wählen und die Datei `.output/firefox-mv3/manifest.json` auswählen. Ein temporäres Add-on verschwindet beim Beenden von Firefox. Dauerhaft installieren lässt sich nur ein von Mozilla signiertes Paket, siehe „Firefox: signieren und verteilen“.
+
+#### Firefox: signieren und verteilen
+
+Mozilla signiert selbst verteilte Add-ons kostenlos und automatisch, ohne Eintrag im Add-on-Store. Einmalig einrichten:
+
+1. Ein [Mozilla-Entwicklerkonto](https://addons.mozilla.org/developers/) anlegen und unter [API-Schlüssel](https://addons.mozilla.org/developers/addon/api/key/) ein Schlüsselpaar erzeugen.
+2. `.env.example` nach `.env` kopieren und beide Werte eintragen. Die Datei bleibt lokal (gitignored).
+
+Je Version:
+
+1. Die `version` in `package.json` erhöhen; Mozilla signiert jede Versionsnummer nur einmal.
+2. `npm run sign:firefox` baut, prüft das Paket mit Mozillas Linter, lädt es zur Signierung hoch und legt die signierte Datei unter `.output/firefox-signed/` ab (dauert meist wenige Minuten).
+3. Die `.xpi`-Datei weitergeben. Installation: Datei in ein Firefox-Fenster ziehen oder über `about:addons` → Zahnrad → „Add-on aus Datei installieren“. Das Add-on bleibt dauerhaft installiert; Updates werden ebenfalls per Datei verteilt.
 
 ### 3. Aktualisieren
 
