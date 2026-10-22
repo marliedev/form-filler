@@ -58,6 +58,30 @@ describe('scenes', () => {
     expect(parseFloat(claim.style.opacity)).toBe(0)
   })
 
+  it('opens the no-app popup over a dimmed page while the app is created', () => {
+    const root = mountStage()
+    const tl = buildTimeline(root, 'full')
+    tl.seek(sceneStart('detect') + 2.5)
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=popup]')!.style.opacity)).toBe(1)
+    expect(root.querySelector<HTMLElement>('[data-el=popup-noapp]')!.style.display).not.toBe('none')
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=veil]')!.style.opacity)).toBeCloseTo(0.55, 2)
+    tl.seek(sceneStart('detect') + 6)
+    expect(root.querySelector<HTMLElement>('[data-el=popup-app]')!.style.display).not.toBe('none')
+    expect(root.querySelector<HTMLElement>('[data-el=newapp-name]')!.textContent).toBe('Kundenportal')
+  })
+
+  it('records all twelve fields with their green boxes before saving', () => {
+    const root = mountStage()
+    const tl = buildTimeline(root, 'full')
+    tl.seek(sceneStart('record') + 5)
+    expect(root.querySelector('[data-el=bar-count]')!.textContent).toBe('1 Feld')
+    tl.seek(sceneStart('record') + 11.1)
+    expect(root.querySelector('[data-el=bar-count]')!.textContent).toBe('12 Felder')
+    for (const box of root.querySelectorAll<HTMLElement>('[data-captured]')) expect(parseFloat(box.style.opacity)).toBe(1)
+    tl.seek(sceneStart('record') + 12.5)
+    expect(root.querySelector<HTMLElement>('[data-el=saved]')!.style.display).not.toBe('none')
+  })
+
   it('types into the company field and wipes it again during the problem scene', () => {
     const root = mountStage()
     const tl = buildTimeline(root, 'full')

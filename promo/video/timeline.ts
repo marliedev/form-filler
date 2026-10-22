@@ -1,9 +1,11 @@
 import { gsap } from 'gsap'
 import { FIELDS } from './data'
-import { measure, type Geometry } from './geometry'
+import { measure, type Geometry, type MeasurePass } from './geometry'
 import { SCENES, sceneStart, TEASER_DURATION, TOTAL } from './schedule'
 import { intro } from './scenes/intro'
 import { problem } from './scenes/problem'
+import { detect } from './scenes/detect'
+import { record } from './scenes/record'
 import type { Mode } from './video-api'
 
 /** What every scene function receives: the shared timeline, the stage root, its absolute start and measured geometry. */
@@ -14,14 +16,33 @@ export interface SceneContext {
   geo: Geometry
 }
 
-/** Everything the cursor visits, measured before the first tween touches the DOM. */
-const MEASURED = [
-  '[data-el=icon]', '[data-el=toolbar-icon]', '[data-el=newapp-name]', '[data-el=newapp-submit]', '[data-el=allow]',
-  '[data-el=new-template]', '[data-el=newtpl-name]', '[data-el=newtpl-submit]', '[data-el=fill-button]',
-  '[data-el=bar-save]', '[data-el=popover]', '[data-el=popover-accept]', '[data-el=export]', '[data-el=export-one]',
-  '[data-el=browser]', '[data-el=popup]',
-  ...FIELDS.map((f) => `[data-field=${f.key}]`),
-  ...FIELDS.map((f) => `[data-row=${f.key}]`),
+/**
+ * Everything the cursor visits, measured before the first tween touches the DOM. Two layout
+ * states of the popup differ in height (empty list vs. one template row), so each is measured
+ * in the state the scenes will show it in.
+ */
+const MEASURED: readonly MeasurePass[] = [
+  {
+    selectors: [
+      '[data-el=icon]', '[data-el=toolbar-icon]', '[data-el=browser]', '[data-el=popup]',
+      '[data-el=newapp-name]', '[data-el=newapp-submit]', '[data-el=allow]',
+      '[data-el=bar-save]', '[data-el=popover]', '[data-el=popover-accept]', '[data-el=export]', '[data-el=export-one]',
+      ...FIELDS.map((f) => `[data-field=${f.key}]`),
+      ...FIELDS.map((f) => `[data-row=${f.key}]`),
+    ],
+  },
+  {
+    // Recording scene: the app exists, the template list is still empty.
+    show: [['[data-el=popup-app]', 'block'], ['[data-el=new-template-form]', 'grid']],
+    hide: ['[data-el=popup-noapp]'],
+    selectors: ['[data-el=new-template]', '[data-el=newtpl-name]', '[data-el=newtpl-submit]'],
+  },
+  {
+    // Fill scene: one template row, no empty-list hint.
+    show: [['[data-el=popup-app]', 'block'], ['[data-el=template-row]', 'block'], ['[data-el=status]', 'flex']],
+    hide: ['[data-el=popup-noapp]', '[data-el=no-templates]'],
+    selectors: ['[data-el=fill-button]', '[data-el=template-row]'],
+  },
 ]
 
 /**
@@ -36,6 +57,8 @@ export function buildTimeline(root: HTMLElement, mode: Mode): gsap.core.Timeline
     const ctx = (id: (typeof SCENES)[number]['id']): SceneContext => ({ tl, root, at: sceneStart(id), geo })
     intro(ctx('intro'))
     problem(ctx('problem'))
+    detect(ctx('detect'))
+    record(ctx('record'))
     // Remaining scenes follow in later tasks; the no-op pins the total length until then.
     tl.set(root, {}, TOTAL)
   } else {

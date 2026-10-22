@@ -13,14 +13,12 @@ export interface Point {
   y: number
 }
 
-/** Elements hidden in the initial state are shown while measuring and restored afterwards. */
-const SHOW_WHILE_MEASURING: readonly [selector: string, display: string][] = [
-  ['[data-el=popup-app]', 'block'],
-  ['[data-el=template-row]', 'block'],
-  ['[data-el=new-template-form]', 'grid'],
-  ['[data-el=status]', 'flex'],
-]
-const HIDE_WHILE_MEASURING = ['[data-el=popup-noapp]', '[data-el=no-templates]']
+/** One layout state to measure in: which hidden elements to show (and how) and which to hide. */
+export interface MeasurePass {
+  show?: readonly [selector: string, display: string][]
+  hide?: readonly string[]
+  selectors: readonly string[]
+}
 
 export class Geometry {
   private readonly rects = new Map<string, Rect>()
@@ -52,25 +50,23 @@ export class Geometry {
   }
 }
 
-export function measure(root: HTMLElement, selectors: readonly string[]): Geometry {
-  const restore: (() => void)[] = []
-  for (const [selector, display] of SHOW_WHILE_MEASURING) {
-    const el = root.querySelector<HTMLElement>(selector)
-    if (!el) continue
-    const previous = el.style.display
-    el.style.display = display
-    restore.push(() => { el.style.display = previous })
-  }
-  for (const selector of HIDE_WHILE_MEASURING) {
-    const el = root.querySelector<HTMLElement>(selector)
-    if (!el) continue
-    const previous = el.style.display
-    el.style.display = 'none'
-    restore.push(() => { el.style.display = previous })
-  }
+/** Measures each pass in its own layout state and restores the DOM afterwards. */
+export function measure(root: HTMLElement, passes: readonly MeasurePass[]): Geometry {
   const geo = new Geometry(root)
-  for (const selector of selectors) geo.rect(selector)
-  for (const undo of restore.reverse()) undo()
+  for (const pass of passes) {
+    const restore: (() => void)[] = []
+    const toggle = (selector: string, display: string): void => {
+      const el = root.querySelector<HTMLElement>(selector)
+      if (!el) return
+      const previous = el.style.display
+      el.style.display = display
+      restore.push(() => { el.style.display = previous })
+    }
+    for (const [selector, display] of pass.show ?? []) toggle(selector, display)
+    for (const selector of pass.hide ?? []) toggle(selector, 'none')
+    for (const selector of pass.selectors) geo.rect(selector)
+    for (const undo of restore.reverse()) undo()
+  }
   return geo
 }
 

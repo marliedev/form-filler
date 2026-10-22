@@ -67,7 +67,10 @@ export function cursorTo(tl: Timeline, root: HTMLElement, p: Point, at: number, 
 export function click(tl: Timeline, root: HTMLElement, at: number): number {
   const p = lastTarget.get(root) ?? { x: 0, y: 0 }
   tl.to(el(root, 'cursor'), { scale: 0.9, duration: 0.08, yoyo: true, repeat: 1 }, at)
-  tl.fromTo(el(root, 'ripple'), { left: p.x - 28, top: p.y - 28, scale: 0.3, opacity: 0.6 }, { immediateRender: false, scale: 1.2, opacity: 0, duration: 0.3, ease: EASE.appear }, at)
+  // Position via set(): from-values that differ per click would leave path-dependent leftovers on backward seeks.
+  const ripple = el(root, 'ripple')
+  tl.set(ripple, { left: p.x - 28, top: p.y - 28 }, at)
+  tl.fromTo(ripple, { scale: 0.3, opacity: 0.6 }, { immediateRender: false, scale: 1.2, opacity: 0, duration: 0.3, ease: EASE.appear }, at)
   return at + 0.3
 }
 
