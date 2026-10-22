@@ -10,14 +10,26 @@ describe('promo data', () => {
     expect(FIELDS.filter((f) => !f.required).map((f) => f.key)).toEqual(['phone', 'billingEmail', 'iban'])
   })
 
-  it('second dataset differs from the first in every field', () => {
-    for (const f of FIELDS) expect(DATASETS[1][f.key]).not.toBe(DATASETS[0][f.key])
+  it('provides three datasets that differ from each other in every field', () => {
+    expect(DATASETS).toHaveLength(3)
+    // The salutation has only a handful of values and may legitimately repeat.
+    for (const f of FIELDS.filter((x) => x.key !== 'salutation')) {
+      expect(DATASETS[1][f.key]).not.toBe(DATASETS[0][f.key])
+      expect(DATASETS[2][f.key]).not.toBe(DATASETS[0][f.key])
+      expect(DATASETS[2][f.key]).not.toBe(DATASETS[1][f.key])
+    }
   })
 
   it('uses run ids in the real format and appends them with the real separator', () => {
     for (const id of RUN_IDS) expect(id).toMatch(/^T\d{4}$/)
     expect(DATASETS[0].customerNo).toBe('K-2041 · T4821')
     expect(DATASETS[1].customerNo).toBe('K-2041 · T7306')
+    expect(DATASETS[2].customerNo).toBe('K-2041 · T9152')
+  })
+
+  it('uses only phone numbers from the Bundesnetzagentur drama-number blocks', () => {
+    // Köln 0221 4710 xxx, Hamburg 040 66969 xxx, München 089 99998 xxx: never assigned to a subscriber.
+    for (const d of DATASETS) expect(d.phone).toMatch(/^(0221 4710 \d{3}|040 66969 \d{3}|089 99998 \d{3})$/)
   })
 
   it('carries the exact captions and app copy', () => {

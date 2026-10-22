@@ -15,7 +15,7 @@ Chromium-Erweiterung (Manifest V3), die Webformulare mit zusammenhängenden deut
 
 ## Video
 
-Das vollständige Produktvideo (knapp eine Minute, ohne Ton) zeigt App-Erkennung, Aufnahme, Ausfüllen, Tastenkürzel und Verwaltung:
+Das vollständige Produktvideo (knapp eine Minute, ohne Ton) zeigt App-Erkennung, Aufnahme, Ausfüllen, Tastenkürzel und Verwaltung. Es wird hier eingebettet, sobald es hochgeladen ist.
 
 <!-- Video-Link nach dem Upload hier eintragen -->
 

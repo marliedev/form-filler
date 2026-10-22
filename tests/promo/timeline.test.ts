@@ -41,6 +41,40 @@ describe('buildTimeline', () => {
     expect(parseFloat(root.querySelector<HTMLElement>('[data-el=cursor]')!.style.left)).toBeCloseTo(expectedX, 0)
   })
 
+  it('teaser: a fresh timeline shows the zoomed window, not the intro, at its very first frame', () => {
+    // The render script seeks 0 first on a fresh timeline; set() tweens at 0 were skipped there.
+    const root = mountRoot()
+    const tl = buildTimeline(root, 'teaser')
+    tl.seek(0)
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=intro]')!.style.opacity)).toBe(0)
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=window]')!.style.opacity)).toBe(1)
+    expect(gsap.getProperty(root.querySelector('[data-el=window]')!, 'scale')).toBeCloseTo(TEASER_FOCUS.scale, 3)
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=glow]')!.style.opacity)).toBeCloseTo(0.5, 3)
+  })
+
+  it('shows the real busy state while filling and clears a field before refilling it', () => {
+    const root = mountRoot()
+    const tl = buildTimeline(root, 'full')
+    const statusText = root.querySelector('[data-el=status-text]')!
+    tl.seek(sceneStart('fill') + 2.0)
+    expect(statusText.textContent).toBe('Bitte warten …')
+    expect(root.querySelector<HTMLElement>('[data-el=status]')!.style.display).not.toBe('none')
+    tl.seek(sceneStart('fill') + 4.0)
+    expect(statusText.textContent).toBe('Kundenanlage: 12 von 12 befüllt')
+    // Second fill: the value is retyped from empty, never a mix of old and new characters.
+    tl.seek(sceneStart('fill') + 6.55)
+    const partial = root.querySelector('[data-field=company] [data-el=value]')!.textContent ?? ''
+    expect(DATASETS[1].company.startsWith(partial)).toBe(true)
+  })
+
+  it('moves the cursor to the popover button where the popover actually is', () => {
+    const root = mountRoot()
+    const tl = buildTimeline(root, 'full')
+    tl.seek(sceneStart('record') + 4.9)
+    // happy-dom rects are 0/0: the popover sits at browser (-243, …), i.e. stage x −3; minus the tip offset.
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=cursor]')!.style.left)).toBeCloseTo(-6, 0)
+  })
+
   it('teaser: shows the zoomed window without the intro and fills the form', () => {
     const root = mountRoot()
     const tl = buildTimeline(root, 'teaser')
@@ -128,7 +162,7 @@ describe('scenes', () => {
     expect(gsap.getProperty(root.querySelector('[data-key=alt]')!, 'y')).toBeGreaterThan(0)
     expect(parseFloat(root.querySelector<HTMLElement>('[data-el=popup]')!.style.opacity)).toBe(0)
     tl.seek(sceneStart('shortcut') + 4)
-    expect(root.querySelector('[data-field=company] [data-el=value]')!.textContent).toBe(DATASETS[0].company)
+    expect(root.querySelector('[data-field=company] [data-el=value]')!.textContent).toBe(DATASETS[2].company)
   })
 
   it('cuts to the manage page and ends on the outro with the repository address', () => {

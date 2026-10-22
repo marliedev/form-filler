@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+/* The promo video page has its own stylesheet; its classes must not bloat the extension's CSS. */
+@source not '../../promo';
 @import '../theme/tokens.css';
 
 /* The overlay lives in a shadow root on foreign pages: rem would follow the page's root font size,

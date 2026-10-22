@@ -16,6 +16,6 @@ export function shortcut({ tl, root, at }: SceneContext): void {
   })
   tl.to(keys, { y: 0, borderBottomWidth: 5, duration: 0.15, ease: EASE.appear }, at + 2.2)
 
-  fillCascade(tl, root, 0, at + 1.9)
+  fillCascade(tl, root, 2, at + 1.9)
   tl.to(keys, { opacity: 0, duration: 0.3 }, at + 4.2)
 }

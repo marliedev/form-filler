@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ffmpegArgs, fontReport, frameTimes, hasEncoders, nextReduction, parseArgs, REDUCTIONS, sizeLimit,
+  ffmpegArgs, fontLoaded, fontReport, frameTimes, hasEncoders, nextReduction, parseArgs, REDUCTIONS, sizeLimit,
 } from '../../promo/video/render-lib'
 
 describe('parseArgs', () => {
@@ -66,6 +66,18 @@ describe('encoder and size checks', () => {
     expect(nextReduction([])).toBe('fps15')
     expect(nextReduction(['fps15'])).toBe('trim9s')
     expect(nextReduction(['fps15', 'trim9s', 'nodither'])).toBeNull()
+  })
+})
+
+describe('fontLoaded', () => {
+  it('only counts a face of that family whose status is loaded', () => {
+    const faces = [
+      { family: '"Bricolage Grotesque"', status: 'loaded' },
+      { family: 'Wotfard', status: 'unloaded' },
+    ]
+    expect(fontLoaded(faces, 'Bricolage Grotesque')).toBe(true)
+    expect(fontLoaded(faces, 'Wotfard')).toBe(false)
+    expect(fontLoaded([], 'Wotfard')).toBe(false)
   })
 })
 

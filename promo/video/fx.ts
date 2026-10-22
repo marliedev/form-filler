@@ -1,6 +1,6 @@
 import { gsap } from 'gsap'
 import { TextPlugin } from 'gsap/TextPlugin'
-import { CAPTIONS, DATASETS, FIELDS, type CaptionKey } from './data'
+import { CAPTIONS, DATASETS, FIELDS, type CaptionKey, type DatasetIndex } from './data'
 
 gsap.registerPlugin(TextPlugin)
 import type { Point } from './geometry'
@@ -148,16 +148,24 @@ export function splitRunId(value: string): [main: string, runId: string] {
   return i === -1 ? [value, ''] : [value.slice(0, i + 1), value.slice(i + 1)]
 }
 
-/** Fills the twelve fields top to bottom, each typed quickly with a teal pulse. Returns the end time. */
-export function fillCascade(tl: Timeline, root: HTMLElement, dataset: 0 | 1, at: number): number {
+/**
+ * Fills the twelve fields top to bottom, each typed quickly with a teal pulse. A field that still
+ * holds a previous value is cleared first, so no frame ever shows a mix of old and new characters.
+ * Returns the end time.
+ */
+export function fillCascade(tl: Timeline, root: HTMLElement, dataset: DatasetIndex, at: number): number {
   let end = at
   FIELDS.forEach((f, i) => {
     const field = root.querySelector<HTMLElement>(`[data-field=${f.key}]`)!
+    const valueMain = field.querySelector<HTMLElement>('[data-el=value-main]')!
+    const runIdEl = field.querySelector<HTMLElement>('[data-el=runid]')!
     const [main, runId] = splitRunId(DATASETS[dataset][f.key])
     const start = at + i * FILL_STAGGER
     const duration = Math.min(FILL_MAX_SECONDS, main.length * FILL_MS_PER_CHAR / 1000)
-    tl.to(field.querySelector('[data-el=value-main]')!, { text: { value: main }, duration, ease: 'none' }, start)
-    if (runId) tl.to(field.querySelector('[data-el=runid]')!, { text: { value: runId }, duration: 0.2, ease: 'none' }, start + duration)
+    setText(tl, valueMain, '', start)
+    setText(tl, runIdEl, '', start)
+    tl.to(valueMain, { text: { value: main }, duration, ease: 'none' }, start)
+    if (runId) tl.to(runIdEl, { text: { value: runId }, duration: 0.2, ease: 'none' }, start + duration)
     glow(tl, field, start)
     end = Math.max(end, start + duration + (runId ? 0.2 : 0))
   })

@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+/* The promo video page has its own stylesheet; its classes must not bloat the extension's CSS. */
+@source not '../../promo';
 @import './tokens.css';
 @import './fonts.css';
 

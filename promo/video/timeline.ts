@@ -33,7 +33,7 @@ const MEASURED: readonly MeasurePass[] = [
       '[data-el=icon]', '[data-el=toolbar-icon]', '[data-el=browser]', '[data-el=popup]',
       '[data-el=newapp-name]', '[data-el=newapp-submit]', '[data-el=allow]',
       '[data-el=bar-save]', '[data-el=popover]', '[data-el=popover-accept]', '[data-el=export]', '[data-el=export-one]',
-      '[data-row=phone] [data-el=switch-required]',
+      '[data-row=phone] [data-el=switch-required]', '[data-el=popover-slot]',
       ...FIELDS.map((f) => `[data-field=${f.key}]`),
       ...FIELDS.map((f) => `[data-row=${f.key}]`),
     ],
@@ -85,8 +85,10 @@ export function buildTimeline(root: HTMLElement, mode: Mode): gsap.core.Timeline
  */
 function teaser({ tl, root, geo }: SceneContext): void {
   tl.addLabel('teaser', 0)
-  tl.set(el(root, 'intro'), { opacity: 0 }, 0)
-  tl.set(el(root, 'window'), { opacity: 1, transformOrigin: `${TEASER_FOCUS.x}px ${TEASER_FOCUS.y}px`, scale: TEASER_FOCUS.scale }, 0)
-  tl.set(el(root, 'glow'), { opacity: 0.5 }, 0)
+  // Applied directly, not as timeline tweens: a fresh paused timeline skips set() tweens at 0 on its
+  // first seek(0), which would leave the intro on the teaser's very first frame.
+  gsap.set(el(root, 'intro'), { opacity: 0 })
+  gsap.set(el(root, 'window'), { opacity: 1, transformOrigin: `${TEASER_FOCUS.x}px ${TEASER_FOCUS.y}px`, scale: TEASER_FOCUS.scale })
+  gsap.set(el(root, 'glow'), { opacity: 0.5 })
   fill({ tl, root, at: 0.2, geo }, { caption: true, camera: 'teaser' })
 }

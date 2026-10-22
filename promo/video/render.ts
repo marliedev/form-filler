@@ -6,7 +6,7 @@ import { mkdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 import { createServer } from 'vite'
-import { ffmpegArgs, fontReport, frameTimes, hasEncoders, nextReduction, parseArgs, sizeLimit, type RenderArgs } from './render-lib'
+import { ffmpegArgs, fontLoaded, fontReport, frameTimes, hasEncoders, nextReduction, parseArgs, sizeLimit, type RenderArgs } from './render-lib'
 import type { VideoApi } from './video-api'
 
 const OUT = 'promo/video/out'
@@ -61,10 +61,11 @@ async function main(): Promise<void> {
     // Interval polling: the default rAF polling can stall in a page that is never painted.
     await page.waitForFunction(() => window.__video !== undefined, undefined, { polling: 100, timeout: 30_000 })
     await page.evaluate(() => (window.__video as VideoApi).ready)
-    for (const line of fontReport(await page.evaluate(() => ({
-      Wotfard: document.fonts.check('300 16px Wotfard'),
-      'Bricolage Grotesque': document.fonts.check('700 16px "Bricolage Grotesque"'),
-    })))) console.warn(line)
+    const faces = await page.evaluate(() => [...document.fonts].map((f) => ({ family: f.family, status: f.status })))
+    for (const line of fontReport({
+      Wotfard: fontLoaded(faces, 'Wotfard'),
+      'Bricolage Grotesque': fontLoaded(faces, 'Bricolage Grotesque'),
+    })) console.warn(line)
 
     let duration = await page.evaluate(() => (window.__video as VideoApi).duration)
     if (args.reduce.includes('trim9s')) duration = Math.min(duration, 9)

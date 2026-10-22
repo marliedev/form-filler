@@ -16,6 +16,8 @@ const TEXT_INPUT = 'rounded-sm border border-muted bg-surface px-2 py-1.5 text-s
 const LABEL = 'block text-xs font-medium text-muted'
 /** Token values GSAP needs as concrete colours when it animates the manage-page switches. */
 export const SWITCH_COLORS = { trackOn: '#94aefe', trackOff: '#3d3c45', knobOn: '#121116', knobOff: '#e5e5e9' } as const
+/** Token values of the popup's status dot: `info` while filling, `success` afterwards (entrypoints/popup/App.vue). */
+export const STATUS_COLORS = { info: '#5b8def', success: '#34d399' } as const
 export const SWITCH_TRAVEL = 16
 
 /** Track + knob, so a scene can slide the knob and recolour the track instead of swapping classes. */
@@ -231,7 +233,7 @@ function browser(): string {
       <p class="mt-1.5 mb-7 text-[17px] text-[#5f6775]">${APP.subtitle}</p>
       <div class="grid max-w-[1100px] grid-cols-2 gap-x-9 gap-y-4">${FIELDS.map(formField).join('')}</div>
     </div>
-    <div data-el="sweep" class="pointer-events-none absolute -top-[200px] -bottom-[200px] w-[220px] rotate-[20deg] bg-linear-to-r from-transparent via-[#fff]/12 to-transparent" style="left:-300px;opacity:0"></div>
+    <div data-el="sweep" class="pointer-events-none absolute -top-[200px] -bottom-[200px] w-[220px] rotate-[20deg] bg-linear-to-r from-transparent via-brand/10 to-transparent" style="left:-300px;opacity:0"></div>
     <div data-el="veil" class="absolute inset-x-0 bottom-0 bg-bg/55" style="top:${BROWSER.chrome}px;opacity:0"></div>
     ${FIELDS.map(capturedBox).join('')}
     <div data-el="pending" class="pointer-events-none absolute rounded-md border-2 border-brand-fg outline-1 outline-bg" style="opacity:0"></div>

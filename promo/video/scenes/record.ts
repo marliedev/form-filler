@@ -4,6 +4,8 @@ import { BROWSER } from '../stage'
 import type { SceneContext } from '../timeline'
 
 const BOX_INSET = 3
+/** Vertical gap between popover rows (Tailwind space-y-3). */
+const POPOVER_GAP = 12
 
 function count(n: number): string {
   return `${n} ${n === 1 ? 'Feld' : 'Felder'}`
@@ -21,6 +23,21 @@ export function record({ tl, root, at, geo }: SceneContext): void {
   const boxOf = (key: string) => {
     const r = geo.rect(`[data-field=${key}]`)
     return { left: r.x - BROWSER.left - BOX_INSET, top: r.y - BROWSER.top - BOX_INSET, width: r.width + 2 * BOX_INSET, height: r.height + 2 * BOX_INSET }
+  }
+
+  /**
+   * The popover is moved under each field at runtime, so its button cannot be measured in place:
+   * take the button's offset inside the popover (measured with the slot row visible) and add the
+   * runtime position; without the slot row the button sits one row higher.
+   */
+  const acceptTarget = (pos: { left: number; top: number }, slotHidden: boolean) => {
+    const popoverRect = geo.rect('[data-el=popover]')
+    const accept = geo.rect('[data-el=popover-accept]')
+    const slotBlock = geo.rect('[data-el=popover-slot]').height + POPOVER_GAP
+    return {
+      x: BROWSER.left + pos.left + (accept.x - popoverRect.x) + accept.width / 2,
+      y: BROWSER.top + pos.top + (accept.y - popoverRect.y) + accept.height / 2 - (slotHidden ? slotBlock : 0),
+    }
   }
 
   // Create the template from the popup.
@@ -49,9 +66,10 @@ export function record({ tl, root, at, geo }: SceneContext): void {
       setText(tl, el(root, 'popover-title'), `Feld „${field.label}“`, clicked)
       setText(tl, el(root, 'popover-type'), field.typeLabel, clicked)
       show(tl, el(root, 'popover-slot'), clicked, field.key === 'company' ? 'none' : 'block')
-      tl.set(popover, { left: box.left, top: box.top + box.height + 8 }, clicked)
+      const popoverPos = { left: box.left, top: box.top + box.height + 8 }
+      tl.set(popover, popoverPos, clicked)
       tl.fromTo(popover, { opacity: 0, y: -6 }, { immediateRender: false, opacity: 1, y: 0, duration: 0.25, ease: EASE.appear }, clicked + 0.1)
-      cursorTo(tl, root, geo.point('[data-el=popover-accept]'), clicked + 0.7, 0.4)
+      cursorTo(tl, root, acceptTarget(popoverPos, field.key === 'company'), clicked + 0.7, 0.4)
       accepted = clicked + 1.1
       click(tl, root, accepted)
       fade(tl, popover, accepted + 0.1, 0, 0.15)

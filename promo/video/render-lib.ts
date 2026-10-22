@@ -78,6 +78,11 @@ export function nextReduction(done: readonly string[]): Reduction | null {
   return REDUCTIONS.find((step) => !done.includes(step)) ?? null
 }
 
+/** `document.fonts.check()` answers true for unknown families, so loaded faces are inspected instead. */
+export function fontLoaded(faces: readonly { family: string; status: string }[], family: string): boolean {
+  return faces.some((f) => f.family.replace(/["']/g, '') === family && f.status === 'loaded')
+}
+
 export function fontReport(checks: Record<string, boolean>): string[] {
   return Object.entries(checks).filter(([, loaded]) => !loaded).map(([name]) => `Schrift nicht geladen: ${name}`)
 }

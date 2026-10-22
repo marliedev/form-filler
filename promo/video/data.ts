@@ -1,4 +1,5 @@
-/* Demo content of the promo video. Everything here is invented; the formats follow the extension. */
+/* Demo content of the promo video. Everything here is invented; the formats follow the extension.
+   Phone numbers come from the Bundesnetzagentur's drama-number blocks (never assigned to anyone). */
 
 export const APP = {
   name: 'Kundenportal',
@@ -37,16 +38,19 @@ export const FIELDS: readonly Field[] = [
   { key: 'iban', label: 'IBAN', required: false, typeLabel: 'IBAN', kind: 'text' },
 ]
 
-export const RUN_IDS = ['T4821', 'T7306'] as const
+export const RUN_IDS = ['T4821', 'T7306', 'T9152'] as const
 
-export const DATASETS: readonly [Record<FieldKey, string>, Record<FieldKey, string>] = [
+export type DatasetIndex = 0 | 1 | 2
+
+/** First fill, second fill ("new data every time") and the shortcut fill, each a different person. */
+export const DATASETS: readonly [Record<FieldKey, string>, Record<FieldKey, string>, Record<FieldKey, string>] = [
   {
     company: 'Nordlicht Medien GmbH',
     salutation: 'Frau',
     firstName: 'Lena',
     lastName: 'Hoffmann',
     email: 'lena.hoffmann@nordlicht-medien.example',
-    phone: '0221 2893817',
+    phone: '0221 4710 258',
     street: 'Hohenzollernring 42',
     zip: '50672',
     city: 'Köln',
@@ -60,13 +64,27 @@ export const DATASETS: readonly [Record<FieldKey, string>, Record<FieldKey, stri
     firstName: 'Jonas',
     lastName: 'Brandt',
     email: 'jonas.brandt@brandt-soehne.example',
-    phone: '0341 5587120',
-    street: 'Karl-Liebknecht-Straße 18',
-    zip: '04107',
-    city: 'Leipzig',
+    phone: '040 66969 312',
+    street: 'Mönckebergstraße 7',
+    zip: '20095',
+    city: 'Hamburg',
     customerNo: `K-2041 · ${RUN_IDS[1]}`,
     billingEmail: 'rechnung@brandt-soehne.example',
     iban: 'DE02 1203 0000 0000 2020 51',
+  },
+  {
+    company: 'Isartal Technik GmbH',
+    salutation: 'Frau',
+    firstName: 'Mara',
+    lastName: 'Keller',
+    email: 'mara.keller@isartal-technik.example',
+    phone: '089 99998 471',
+    street: 'Sendlinger Straße 12',
+    zip: '80331',
+    city: 'München',
+    customerNo: `K-2041 · ${RUN_IDS[2]}`,
+    billingEmail: 'rechnung@isartal-technik.example',
+    iban: 'DE75 5121 0800 1245 1261 99',
   },
 ]
 
