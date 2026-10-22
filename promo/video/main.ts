@@ -2,6 +2,7 @@ import './styles.css'
 import { registerPageFonts } from '../../src/theme/overlayFonts'
 import { fontsReady } from './fx'
 import { mountPreview } from './preview'
+import { renderStage } from './stage'
 import { buildTimeline } from './timeline'
 import type { Mode, VideoApi } from './video-api'
 
@@ -13,6 +14,7 @@ const render = params.has('render')
 registerPageFonts()
 
 const stage = document.getElementById('stage')!
+stage.innerHTML = renderStage()
 const tl = buildTimeline(stage, mode)
 
 const api: VideoApi = {

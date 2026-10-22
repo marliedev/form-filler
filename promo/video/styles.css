@@ -2,8 +2,8 @@
 @import '../../src/theme/tokens.css';
 @import '../../src/theme/fonts.css';
 
-/* No transitions or keyframes anywhere on this page: every frame is produced by seeking the
-   GSAP timeline, so time-dependent CSS would make the render non-deterministic. */
+/* Nothing on this page may move on its own: every frame is produced by seeking the GSAP
+   timeline, so any time-based CSS rule would make the render non-deterministic. */
 @layer base {
   body {
     margin: 0;
