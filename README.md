@@ -2,24 +2,62 @@
 
 Chromium-Erweiterung (Manifest V3), die Webformulare mit zusammenhängenden deutschen Testdaten befüllt. Die Felder einer Seite werden einmal als Vorlage aufgenommen; danach genügt ein Klick oder ein Tastenkürzel. Datensätze bleiben über mehrteilige Prozesse hinweg konsistent (gleiche Kennung, gleiche Person, gleiche Adresse).
 
-## Installation (entpackte Erweiterung)
+## Funktionen
 
-Voraussetzung: Node.js und npm.
+- **Vorlagen per Aufnahme:** Felder einer Seite anklicken, Datentyp prüfen, speichern. Kein Code, keine Selektoren von Hand.
+- **Realistische deutsche Testdaten:** Namen, Adressen mit passender PLZ und Ort, Telefon, E-Mail, IBAN, Datum, Firmen und mehr. Jeder Durchlauf erzeugt neue Werte.
+- **Stimmige Datensätze:** Zusammengehörige Felder passen zueinander, auch über mehrere Formularschritte hinweg.
+- **Viele Feldarten:** Textfelder, Selects, Radio-Buttons, Checkboxen, Datumsfelder sowie eigene, barrierefreie Komponenten (ARIA-Combobox, ARIA-Radiogroup).
+- **Pflegbar:** Felder ergänzen, entfernen, umsortieren und als Pflicht oder optional markieren. Export und Import als JSON.
+- **Lokal:** Keine Server, kein Tracking, keine Synchronisierung.
+
+## Installation
+
+Die Erweiterung ist nicht im Chrome Web Store. Du baust sie einmal lokal und lädst sie als entpackte Erweiterung.
+
+### Voraussetzungen
+
+- [Git](https://git-scm.com)
+- [Node.js](https://nodejs.org) in einer aktuellen LTS-Version (getestet mit Node.js 22) samt npm
+- Ein Chromium-Browser, z. B. Dia, Arc, Chrome, Edge oder Brave
+
+### 1. Herunterladen und bauen
 
 ```sh
+git clone https://github.com/marliedev/form-filler.git
+cd form-filler
 npm ci
 npm run build
 ```
 
-Das Ergebnis liegt in `.output/chrome-mv3`.
+Das Ergebnis liegt im Ordner `.output/chrome-mv3`.
 
-Laden in Dia (macOS) sowie Arc oder Dia (Windows) – der Ablauf ist bei allen Chromium-Browsern gleich:
+### 2. Im Browser laden
 
-1. Die Erweiterungsseite des Browsers öffnen (z. B. `chrome://extensions` bzw. über das Browsermenü „Erweiterungen verwalten“).
-2. Den **Entwicklermodus** aktivieren.
+Der Ablauf ist bei allen Chromium-Browsern gleich:
+
+1. Die Erweiterungsseite öffnen: `chrome://extensions` in die Adresszeile eingeben oder über das Browsermenü „Erweiterungen verwalten“.
+2. Den **Entwicklermodus** einschalten (meist ein Schalter oben rechts).
 3. **„Entpackte Erweiterung laden“** wählen und den Ordner `.output/chrome-mv3` auswählen.
+4. Die Erweiterung an die Symbolleiste anheften, damit das Popup mit einem Klick erreichbar ist.
 
-Die genauen Menü- und Schaltflächennamen können je nach Browser und Version abweichen. Nach einem neuen Build die Erweiterung auf der Erweiterungsseite neu laden.
+Die genauen Menü- und Schaltflächennamen können je nach Browser und Version abweichen.
+
+### 3. Aktualisieren
+
+```sh
+git pull
+npm ci
+npm run build
+```
+
+Danach auf der Erweiterungsseite bei Form Filler auf **Neu laden** klicken und offene Tabs der Zielseite neu laden. Apps und Vorlagen bleiben dabei erhalten.
+
+### Häufige Probleme
+
+- **Popup meldet fehlende Berechtigung:** Die Erweiterung fragt pro App einmal nach Zugriff auf die Seite. Ohne diese Freigabe kann sie dort weder aufnehmen noch füllen.
+- **Nach einem Update passiert auf der Seite nichts:** Den Tab neu laden. Bereits offene Seiten laufen sonst noch mit der alten Version.
+- **`npm ci` schlägt fehl:** Node.js-Version prüfen (`node -v`) und gegebenenfalls auf die aktuelle LTS-Version aktualisieren.
 
 ## Erste Schritte
 
