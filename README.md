@@ -1,5 +1,7 @@
 # Form Filler
 
+![Form Filler füllt ein Formular mit einem Klick](docs/media/teaser.gif)
+
 Chromium-Erweiterung (Manifest V3), die Webformulare mit zusammenhängenden deutschen Testdaten befüllt. Die Felder einer Seite werden einmal als Vorlage aufgenommen; danach genügt ein Klick oder ein Tastenkürzel. Datensätze bleiben über mehrteilige Prozesse hinweg konsistent (gleiche Kennung, gleiche Person, gleiche Adresse).
 
 ## Funktionen
@@ -10,6 +12,22 @@ Chromium-Erweiterung (Manifest V3), die Webformulare mit zusammenhängenden deut
 - **Viele Feldarten:** Textfelder, Selects, Radio-Buttons, Checkboxen, Datumsfelder sowie eigene, barrierefreie Komponenten (ARIA-Combobox, ARIA-Radiogroup).
 - **Pflegbar:** Felder ergänzen, entfernen, umsortieren und als Pflicht oder optional markieren. Export und Import als JSON.
 - **Lokal:** Keine Server, kein Tracking, keine Synchronisierung.
+
+## Video
+
+Das vollständige Produktvideo (knapp eine Minute, ohne Ton) zeigt App-Erkennung, Aufnahme, Ausfüllen, Tastenkürzel und Verwaltung:
+
+<!-- Video-Link nach dem Upload hier eintragen -->
+
+Beides wird aus dem Repository gerendert, die Animation liegt in `promo/video/`:
+
+```sh
+npm run video:preview   # Vorschau im Browser mit Play und Scrubber
+npm run video:render    # MP4 nach promo/video/out/form-filler.mp4
+npm run video:teaser    # GIF nach docs/media/teaser.gif
+```
+
+Voraussetzungen: Google Chrome und `ffmpeg` (`brew install ffmpeg`). Damit die Fließtexte im Video der Marke entsprechen, muss Wotfard lokal vorliegen (siehe „Schriften“); sonst rendert das Video mit der Systemschrift.
 
 ## Installation
 

@@ -1,4 +1,6 @@
+import { TEASER_FOCUS } from '../camera'
 import { caption, click, cursorJump, cursorShow, cursorTo, EASE, el, fade, fillCascade, setText, show, sweep, zoom } from '../fx'
+import { zoomed, type Point } from '../geometry'
 import type { SceneContext } from '../timeline'
 
 export interface FillOptions {
@@ -24,9 +26,12 @@ export function fill({ tl, root, at, geo }: SceneContext, options: FillOptions):
   show(tl, el(root, 'new-template-form'), at, 'none')
   fade(tl, popup, at, 1, 0.25)
 
-  cursorJump(tl, root, geo.point('[data-el=toolbar-icon]'), at)
+  // The teaser's window layer is already scaled, so cursor targets have to follow the zoom.
+  const target = (selector: string): Point =>
+    options.camera === 'teaser' ? zoomed(geo.point(selector), TEASER_FOCUS, TEASER_FOCUS.scale) : geo.point(selector)
+  cursorJump(tl, root, target('[data-el=toolbar-icon]'), at)
   cursorShow(tl, root, at + 0.1, true)
-  cursorTo(tl, root, geo.point('[data-el=fill-button]'), at + 0.6, 0.4)
+  cursorTo(tl, root, target('[data-el=fill-button]'), at + 0.6, 0.4)
   click(tl, root, at + 1.0)
   tl.to(fillButton, { opacity: 0.6, duration: 0.1 }, at + 1.0)
   sweep(tl, root, at + 1.1)

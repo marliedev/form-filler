@@ -1,6 +1,7 @@
 import { gsap } from 'gsap'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createVideoApi } from '../../promo/video/api'
+import { TEASER_FOCUS } from '../../promo/video/camera'
 import { DATASETS } from '../../promo/video/data'
 import { fontsReady } from '../../promo/video/fx'
 import { SCENES, sceneStart, TEASER_DURATION, TOTAL } from '../../promo/video/schedule'
@@ -29,6 +30,27 @@ describe('buildTimeline', () => {
 
   it('builds the teaser timeline with the teaser duration', () => {
     expect(buildTimeline(mountRoot(), 'teaser').duration()).toBeCloseTo(TEASER_DURATION, 3)
+  })
+
+  it('teaser: maps cursor targets through the zoom so the arrow lands on the scaled button', () => {
+    const root = mountRoot()
+    const tl = buildTimeline(root, 'teaser')
+    tl.seek(1.0)
+    // happy-dom measures every rect as 0/0, so the zoomed target is origin − origin·scale (minus the tip offset).
+    const expectedX = TEASER_FOCUS.x - TEASER_FOCUS.x * TEASER_FOCUS.scale - 3
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=cursor]')!.style.left)).toBeCloseTo(expectedX, 0)
+  })
+
+  it('teaser: shows the zoomed window without the intro and fills the form', () => {
+    const root = mountRoot()
+    const tl = buildTimeline(root, 'teaser')
+    tl.seek(5)
+    expect(gsap.getProperty(root.querySelector('[data-el=window]')!, 'scale')).toBeGreaterThanOrEqual(1.4)
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=intro]')!.style.opacity)).toBe(0)
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=window]')!.style.opacity)).toBe(1)
+    expect(root.querySelector('[data-field=company] [data-el=value]')!.textContent).toBe(DATASETS[0].company)
+    tl.seek(TEASER_DURATION - 0.1)
+    expect(root.querySelector('[data-field=company] [data-el=value]')!.textContent).toBe(DATASETS[1].company)
   })
 })
 

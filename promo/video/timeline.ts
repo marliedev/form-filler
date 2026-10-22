@@ -1,5 +1,7 @@
 import { gsap } from 'gsap'
+import { TEASER_FOCUS } from './camera'
 import { FIELDS } from './data'
+import { el } from './fx'
 import { measure, type Geometry, type MeasurePass } from './geometry'
 import { SCENES, sceneStart, TEASER_DURATION, TOTAL } from './schedule'
 import { intro } from './scenes/intro'
@@ -71,8 +73,20 @@ export function buildTimeline(root: HTMLElement, mode: Mode): gsap.core.Timeline
     // Pins the total length even if the last scene ends early.
     tl.set(root, {}, TOTAL)
   } else {
-    tl.addLabel('teaser', 0)
+    teaser({ tl, root, at: 0, geo })
     tl.set(root, {}, TEASER_DURATION)
   }
   return tl
+}
+
+/**
+ * The README teaser: no intro, the window already zoomed onto form and popup, then the fill
+ * scene with its two captions. The last two optional fields sit under the caption band.
+ */
+function teaser({ tl, root, geo }: SceneContext): void {
+  tl.addLabel('teaser', 0)
+  tl.set(el(root, 'intro'), { opacity: 0 }, 0)
+  tl.set(el(root, 'window'), { opacity: 1, transformOrigin: `${TEASER_FOCUS.x}px ${TEASER_FOCUS.y}px`, scale: TEASER_FOCUS.scale }, 0)
+  tl.set(el(root, 'glow'), { opacity: 0.5 }, 0)
+  fill({ tl, root, at: 0.2, geo }, { caption: true, camera: 'teaser' })
 }
