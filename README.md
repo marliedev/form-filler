@@ -57,6 +57,7 @@ Danach auf der Erweiterungsseite bei Form Filler auf **Neu laden** klicken und o
 
 - **Popup meldet fehlende Berechtigung:** Die Erweiterung fragt pro App einmal nach Zugriff auf die Seite. Ohne diese Freigabe kann sie dort weder aufnehmen noch füllen.
 - **Nach einem Update passiert auf der Seite nichts:** Den Tab neu laden. Bereits offene Seiten laufen sonst noch mit der alten Version.
+- **Tastenkürzel reagiert nicht (Arc unter Windows):** Arc gibt dort Tastenkürzel nicht an Erweiterungen weiter. In Chrome und unter macOS funktioniert es; in Arc unter Windows über das Popup füllen.
 - **`npm ci` schlägt fehl:** Node.js-Version prüfen (`node -v`) und gegebenenfalls auf die aktuelle LTS-Version aktualisieren.
 
 ## Erste Schritte
