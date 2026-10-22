@@ -4,6 +4,7 @@ import { findElement, type FormControl } from '../dom/locator'
 import { DATA_TYPES } from '../generators/catalog'
 import type { FieldRule } from '../model/types'
 import CapturePopover from './CapturePopover.vue'
+import { popoverPlacement } from './placement'
 import { resolveControl, type Recorder } from './useRecorder'
 
 defineOptions({ name: 'RecorderOverlay' })
@@ -17,10 +18,6 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 
 const SAVED_NOTICE_MS = 1500
-const POPOVER_WIDTH = 304
-const GAP = 8
-/** Keeps the popover clear of the bottom bar. */
-const BAR_SPACE = 72
 
 const doc = props.host.ownerDocument
 const view = doc.defaultView ?? window
@@ -84,25 +81,10 @@ const pendingStyle = computed(() => {
   return rect ? rectStyle(rect) : null
 })
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), Math.max(min, max))
-}
-
 const popoverStyle = computed<CSSProperties>(() => {
   void tick.value
   const el = pending.value?.el
-  if (!el) return {}
-  const rect = el.getBoundingClientRect()
-  const vw = view.innerWidth
-  const vh = view.innerHeight
-  const left = clamp(rect.left, GAP, vw - POPOVER_WIDTH - GAP)
-  const spaceBelow = vh - BAR_SPACE - rect.bottom
-  if (spaceBelow >= 320 || spaceBelow >= rect.top) {
-    const top = clamp(rect.bottom + GAP, GAP, vh - BAR_SPACE - 160)
-    return { top: `${top}px`, left: `${left}px`, maxHeight: `${vh - BAR_SPACE - top}px` }
-  }
-  const bottom = clamp(vh - rect.top + GAP, BAR_SPACE, vh - 160)
-  return { bottom: `${bottom}px`, left: `${left}px`, maxHeight: `${vh - bottom - GAP}px` }
+  return el ? popoverPlacement(el.getBoundingClientRect(), view.innerWidth, view.innerHeight) : {}
 })
 
 const count = computed(() => fields.value.length)
@@ -310,7 +292,7 @@ defineExpose({ focusBar })
 
     <div
       v-if="pending"
-      class="fixed z-[2147483647] overflow-auto rounded-2xl"
+      class="fixed z-[2147483647] flex flex-col"
       :style="popoverStyle"
     >
       <CapturePopover
