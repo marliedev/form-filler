@@ -5,3 +5,4 @@ dist/
 .superpowers/
 src/theme/theme.local.css
 src/theme/fonts/local/
+promo/video/out/
