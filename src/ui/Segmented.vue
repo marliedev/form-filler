@@ -32,7 +32,7 @@ function onKeydown(event: KeyboardEvent, index: number): void {
   <div
     role="radiogroup"
     :aria-label="label"
-    class="grid grid-flow-col auto-cols-fr rounded-lg border border-zinc-500 p-0.5"
+    class="grid grid-flow-col auto-cols-fr rounded-full border border-border-subtle bg-surface p-[3px]"
   >
     <button
       v-for="(option, index) in options"
@@ -42,8 +42,8 @@ function onKeydown(event: KeyboardEvent, index: number): void {
       role="radio"
       :aria-checked="option.value === modelValue"
       :tabindex="option.value === modelValue ? 0 : -1"
-      class="rounded-md px-2 py-1.5 font-medium focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600"
-      :class="option.value === modelValue ? 'bg-zinc-900 text-white' : 'text-zinc-700 hover:bg-zinc-100'"
+      class="rounded-full px-2 py-1.5 text-[13px] font-medium focus-visible:focus-ring"
+      :class="option.value === modelValue ? 'bg-brand text-on-brand ring-1 ring-brand-fg ring-inset' : 'text-muted hover:text-text'"
       @click="emit('update:modelValue', option.value)"
       @keydown="onKeydown($event, index)"
     >

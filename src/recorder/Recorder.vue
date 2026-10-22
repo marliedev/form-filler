@@ -278,7 +278,7 @@ defineExpose({ focusBar })
 
 <template>
   <div
-    class="font-sans text-sm text-zinc-900"
+    class="font-body text-sm leading-normal font-light text-text scheme-dark"
     @keydown="onOverlayKeydown"
   >
     <div
@@ -286,10 +286,10 @@ defineExpose({ focusBar })
       :key="box.id"
       aria-hidden="true"
       data-testid="captured-box"
-      class="pointer-events-none fixed z-[2147483645] rounded-md border-2 border-green-600"
+      class="pointer-events-none fixed z-[2147483645] rounded-md border-2 border-success outline-1 outline-bg"
       :style="box.style"
     >
-      <span class="absolute -top-5 right-0 rounded-sm bg-green-700 px-1.5 text-xs leading-5 whitespace-nowrap text-white">
+      <span class="absolute -top-5 right-0 rounded-sm bg-success px-1.5 text-xs leading-5 font-medium whitespace-nowrap text-on-status">
         {{ box.tag }}
       </span>
     </div>
@@ -297,20 +297,20 @@ defineExpose({ focusBar })
     <div
       v-if="hoverStyle"
       aria-hidden="true"
-      class="pointer-events-none fixed z-[2147483645] rounded-md border-2 border-dashed border-blue-600"
+      class="pointer-events-none fixed z-[2147483645] rounded-md border-2 border-dashed border-brand-fg outline-1 outline-bg"
       :style="hoverStyle"
     />
 
     <div
       v-if="pendingStyle"
       aria-hidden="true"
-      class="pointer-events-none fixed z-[2147483645] rounded-md border-2 border-blue-600"
+      class="pointer-events-none fixed z-[2147483645] rounded-md border-2 border-brand-fg outline-1 outline-bg"
       :style="pendingStyle"
     />
 
     <div
       v-if="pending"
-      class="fixed z-[2147483647] overflow-auto rounded-xl"
+      class="fixed z-[2147483647] overflow-auto rounded-2xl"
       :style="popoverStyle"
     >
       <CapturePopover
@@ -330,7 +330,7 @@ defineExpose({ focusBar })
       <p
         v-if="error"
         role="alert"
-        class="pointer-events-auto rounded-md bg-red-700 px-3 py-2 text-white"
+        class="pointer-events-auto rounded-xl border border-error bg-bg px-3 py-2 text-text shadow-xl"
       >
         {{ error }}
       </p>
@@ -339,17 +339,17 @@ defineExpose({ focusBar })
         role="alertdialog"
         aria-labelledby="ff-confirm-title"
         aria-describedby="ff-confirm-text"
-        class="pointer-events-auto rounded-xl border border-zinc-300 bg-white p-4 shadow-xl"
+        class="pointer-events-auto rounded-2xl border border-border-subtle bg-bg p-4 shadow-xl"
       >
         <h2
           id="ff-confirm-title"
-          class="font-semibold"
+          class="font-display text-base font-semibold"
         >
           Ungespeicherte Änderungen verwerfen?
         </h2>
         <p
           id="ff-confirm-text"
-          class="mt-1 text-zinc-700"
+          class="mt-1 text-muted"
         >
           Die Aufnahme wird ohne Speichern beendet.
         </p>
@@ -357,14 +357,14 @@ defineExpose({ focusBar })
           <button
             ref="keepRecordingButton"
             type="button"
-            class="rounded-md border border-zinc-500 px-3 py-1.5 font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600"
+            class="rounded-sm border border-line px-3 py-1.5 font-medium hover:bg-surface focus-visible:focus-ring"
             @click="keepRecording"
           >
             Weiter aufnehmen
           </button>
           <button
             type="button"
-            class="rounded-md bg-red-700 px-3 py-1.5 font-semibold text-white hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            class="rounded-sm bg-error px-3 py-1.5 font-medium text-on-status hover:brightness-110 focus-visible:focus-ring"
             @click="discard"
           >
             Verwerfen
@@ -376,23 +376,27 @@ defineExpose({ focusBar })
     <div
       role="region"
       aria-label="Aufnahme"
-      class="fixed bottom-4 left-1/2 z-[2147483647] flex max-w-[calc(100vw-16px)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-3xl bg-zinc-900 py-1.5 pr-1.5 pl-4 text-white shadow-lg"
+      class="fixed bottom-4 left-1/2 z-[2147483647] flex max-w-[calc(100vw-16px)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-3.5 gap-y-1 rounded-3xl border border-border-subtle bg-bg py-2 pr-2 pl-4 text-[13px] text-text shadow-xl"
     >
       <template v-if="saved">
-        <span class="py-1.5 pr-2.5">✓ Vorlage gespeichert</span>
+        <span class="py-1.5 pr-2.5"><span
+          aria-hidden="true"
+          class="text-success"
+        >✓</span> Vorlage gespeichert</span>
       </template>
       <template v-else>
-        <span>
+        <span class="flex items-center gap-2.5">
           <span
             aria-hidden="true"
-            class="text-red-400"
-          >●</span>
-          Aufnahme · {{ count }} {{ count === 1 ? 'Feld' : 'Felder' }} · Esc beendet
+            class="size-2.5 shrink-0 rounded-full bg-error"
+          />
+          <span><b class="font-medium">Aufnahme</b> · {{ count }} {{ count === 1 ? 'Feld' : 'Felder' }}</span>
         </span>
-        <span class="flex gap-1">
+        <span class="text-muted">Esc beendet</span>
+        <span class="flex gap-1.5">
           <button
             type="button"
-            class="rounded-full px-3 py-1.5 font-medium hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-400"
+            class="rounded-sm border border-line px-3 py-1.5 font-medium hover:bg-surface focus-visible:focus-ring"
             @click="requestEnd"
           >
             Beenden
@@ -401,7 +405,7 @@ defineExpose({ focusBar })
             ref="saveButton"
             type="button"
             :aria-disabled="saving || undefined"
-            class="rounded-full bg-white px-3 py-1.5 font-semibold text-zinc-900 hover:bg-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+            class="rounded-sm bg-brand px-3 py-1.5 font-medium text-on-brand hover:brightness-125 focus-visible:focus-ring"
             @click="onSave"
           >
             {{ saving ? 'Speichert …' : 'Speichern' }}
