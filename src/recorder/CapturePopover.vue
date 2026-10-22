@@ -99,6 +99,8 @@ function trapTab(event: KeyboardEvent): void {
 const inputClass =
   'mt-1 block w-full rounded-sm border border-muted bg-surface px-2 py-1.5 text-sm text-text focus-visible:focus-ring aria-invalid:border-error'
 const labelClass = 'block text-xs font-medium text-muted'
+const chipClass =
+  'inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 has-checked:border-brand-fg has-checked:text-brand-fg'
 </script>
 
 <template>
@@ -106,15 +108,16 @@ const labelClass = 'block text-xs font-medium text-muted'
     ref="root"
     role="dialog"
     aria-labelledby="ff-pop-title"
-    class="w-76 rounded-2xl border border-border-subtle bg-bg p-3.5 text-sm text-text shadow-xl"
+    class="flex min-h-0 w-76 flex-col rounded-2xl border border-border-subtle bg-bg text-sm text-text shadow-xl"
     @keydown="trapTab"
   >
+    <!-- Header and buttons stay put; only the middle scrolls when the viewport is short. -->
     <form
-      class="space-y-3"
+      class="flex min-h-0 flex-1 flex-col"
       novalidate
       @submit.prevent="accept"
     >
-      <div>
+      <div class="border-b border-border-subtle px-3.5 pt-3 pb-2.5">
         <h2
           id="ff-pop-title"
           class="font-display text-base font-semibold break-words"
@@ -140,103 +143,109 @@ const labelClass = 'block text-xs font-medium text-muted'
         </p>
       </div>
 
-      <div>
-        <label
-          for="ff-type"
-          :class="labelClass"
-        >Datentyp</label>
-        <select
-          id="ff-type"
-          ref="typeSelect"
-          v-model="type"
-          :class="inputClass"
-        >
-          <optgroup
-            v-for="group in groups"
-            :key="group.group"
-            :label="group.group"
+      <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-3.5 py-3">
+        <div>
+          <label
+            for="ff-type"
+            :class="labelClass"
+          >Datentyp</label>
+          <select
+            id="ff-type"
+            ref="typeSelect"
+            v-model="type"
+            :class="inputClass"
+          >
+            <optgroup
+              v-for="group in groups"
+              :key="group.group"
+              :label="group.group"
+            >
+              <option
+                v-for="meta in group.types"
+                :key="meta.type"
+                :value="meta.type"
+              >
+                {{ meta.label }}
+              </option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div v-if="slotKind !== null">
+          <label
+            for="ff-slot"
+            :class="labelClass"
+          >{{ slotKind === 'person' ? 'Gehört zu Person' : 'Gehört zu Adresse' }}</label>
+          <select
+            id="ff-slot"
+            v-model="draft.slot"
+            :class="inputClass"
           >
             <option
-              v-for="meta in group.types"
-              :key="meta.type"
-              :value="meta.type"
+              v-for="slot in slots"
+              :key="slot.value"
+              :value="slot.value"
             >
-              {{ meta.label }}
+              {{ slot.label }}
             </option>
-          </optgroup>
-        </select>
-      </div>
+          </select>
+        </div>
 
-      <div v-if="slotKind !== null">
-        <label
-          for="ff-slot"
-          :class="labelClass"
-        >{{ slotKind === 'person' ? 'Gehört zu Person' : 'Gehört zu Adresse' }}</label>
-        <select
-          id="ff-slot"
-          v-model="draft.slot"
-          :class="inputClass"
-        >
-          <option
-            v-for="slot in slots"
-            :key="slot.value"
-            :value="slot.value"
-          >
-            {{ slot.label }}
-          </option>
-        </select>
-      </div>
+        <ConfigEditor
+          v-model="draft.config"
+          :error="error"
+        />
 
-      <ConfigEditor
-        v-model="draft.config"
-        :error="error"
-      />
-
-      <fieldset class="space-y-1.5">
-        <legend class="sr-only">
-          Eigenschaften
-        </legend>
-        <label class="flex items-center gap-2">
-          <input
-            v-model="draft.required"
-            type="checkbox"
-            class="size-4 accent-brand-fg focus-visible:focus-ring"
-          >
-          <span>Pflichtfeld <span
+        <fieldset class="space-y-1.5">
+          <legend class="sr-only">
+            Eigenschaften
+          </legend>
+          <div class="flex flex-wrap gap-1.5">
+            <label :class="chipClass">
+              <input
+                v-model="draft.required"
+                type="checkbox"
+                class="size-3.5 accent-brand-fg focus-visible:focus-ring"
+              >
+              <span>Pflichtfeld</span>
+            </label>
+            <label
+              :class="[chipClass, { 'cursor-not-allowed text-muted': !runIdEnabled }]"
+            >
+              <input
+                v-model="draft.appendRunId"
+                type="checkbox"
+                :disabled="!runIdEnabled"
+                aria-describedby="ff-runid-hint"
+                class="size-3.5 accent-brand-fg focus-visible:focus-ring disabled:cursor-not-allowed"
+              >
+              <span>Kennung anhängen</span>
+            </label>
+          </div>
+          <p
             v-if="requiredDetected"
             class="text-xs text-muted"
-          >(auf der Seite erkannt)</span></span>
-        </label>
-        <label
-          class="flex items-center gap-2"
-          :class="{ 'text-muted': !runIdEnabled }"
-        >
-          <input
-            v-model="draft.appendRunId"
-            type="checkbox"
-            :disabled="!runIdEnabled"
-            aria-describedby="ff-runid-hint"
-            class="size-4 accent-brand-fg focus-visible:focus-ring disabled:cursor-not-allowed"
           >
-          <span>Kennung anhängen</span>
-        </label>
+            Pflichtfeld auf der Seite erkannt.
+          </p>
+          <p
+            id="ff-runid-hint"
+            class="text-xs text-muted"
+          >
+            {{ runIdEnabled ? 'Hängt die Kennung des Testlaufs an den Wert an.' : RUN_ID_NOT_APPLICABLE }}
+          </p>
+        </fieldset>
+
         <p
-          id="ff-runid-hint"
-          class="pl-6 text-xs text-muted"
+          v-if="error"
+          role="alert"
+          class="text-xs font-medium text-error"
         >
-          {{ runIdEnabled ? 'Hängt die Kennung des Testlaufs an den Wert an.' : RUN_ID_NOT_APPLICABLE }}
+          {{ error.message }}
         </p>
-      </fieldset>
+      </div>
 
-      <p
-        v-if="error"
-        role="alert"
-        class="text-xs font-medium text-error"
-      >
-        {{ error.message }}
-      </p>
-
-      <div class="flex items-center gap-2 pt-1">
+      <div class="flex items-center gap-2 border-t border-border-subtle px-3.5 py-2.5">
         <button
           v-if="!pending.isNew"
           type="button"
