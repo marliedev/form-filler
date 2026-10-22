@@ -66,3 +66,11 @@ Abschnitt 1 mit einem echten Formular der Ziel-App durchspielen (Aufnahme, Füll
 - Geprüfte Formulare/Schritte:
 - Ergebnis (bestanden / mit Einschränkungen / nicht bestanden):
 - Auffälligkeiten und Folgeaufgaben:
+
+## Firefox (Build aus `npm run build:firefox`, temporär über `about:debugging` geladen)
+
+- [ ] 1. Punkte 1–6 der Testseite in Firefox → gleiches Ergebnis wie in Chromium; die Berechtigungsabfrage erscheint als Firefox-Dialog.
+- [ ] 2. Popup-Fußzeile ohne Kürzel → Hinweis nennt `about:addons`, nicht `chrome://`.
+- [ ] 3. Tastenkürzel Alt+Shift+F (bzw. das in `about:addons` gesetzte) → füllt mit der zuletzt genutzten Vorlage.
+- [ ] 4. Firefox beenden und neu starten → das temporäre Add-on ist weg (erwartet); nach erneutem Laden sind Apps und Vorlagen noch da.
+
