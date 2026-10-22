@@ -126,6 +126,8 @@ Startet eine lokale Testseite mit allen unterstützten Feldarten für Aufnahme- 
 | `npm test` | Unit-Tests (Vitest) |
 | `npm run test-site` | Lokale Testseite |
 
+Das Icon liegt als SVG in `assets/icon/` (`icon.svg` ab 48 px, `icon-small.svg` für 16 und 32 px); die PNGs in `public/icon/` sind daraus gerendert.
+
 Manuelle Prüfungen im echten Browser: [docs/manual-test-checklist.md](docs/manual-test-checklist.md).
 
 ## Datenquellen
