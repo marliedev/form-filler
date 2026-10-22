@@ -24,8 +24,8 @@ export default defineConfig({
             gecko: {
               // MV3 add-ons need a fixed id; an email-like id does not have to be a mailbox.
               id: 'form-filler@martinliesche.de',
-              // optional_host_permissions and data_collection_permissions both need Firefox 128+.
-              strict_min_version: '128.0',
+              // data_collection_permissions needs Firefox 140+ (optional_host_permissions 128+).
+              strict_min_version: '140.0',
               // Nothing leaves the browser; required since November 2025 for new add-ons.
               data_collection_permissions: { required: ['none'] },
             },

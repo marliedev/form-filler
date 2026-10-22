@@ -6,3 +6,6 @@ dist/
 src/theme/theme.local.css
 src/theme/fonts/local/
 promo/video/out/
+.env
+.env.*
+!.env.example
