@@ -4,3 +4,4 @@ node_modules/
 dist/
 .superpowers/
 src/theme/theme.local.css
+src/theme/fonts/local/

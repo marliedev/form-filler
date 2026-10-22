@@ -95,6 +95,17 @@ Die Oberfläche nutzt ein dunkles Standard-Theme. Farben lassen sich lokal anpas
 
 Die Datei gilt für Popup, Verwaltungsseite und die Aufnahme-Leiste. Sie ist per `.gitignore` ausgeschlossen und wird nie eingecheckt. Fehlt sie, baut die Erweiterung unverändert mit dem Standard-Theme. Beim Anpassen auf ausreichenden Kontrast achten (Text mindestens 4,5:1).
 
+## Schriften
+
+Überschriften nutzen [Bricolage Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque) (SIL Open Font License), die im Repository liegt. Für Fließtext ist Wotfard (Atipo Foundry) vorgesehen. Wotfard ist nicht frei lizenziert und deshalb nicht enthalten; ohne sie nutzt die Oberfläche die Systemschrift.
+
+Wer eine Wotfard-Lizenz hat, legt die Dateien lokal ab:
+
+1. `wotfard-light.woff2` (300) und `wotfard-medium.woff2` (500) nach `src/theme/fonts/local/` kopieren.
+2. Neu bauen (`npm run build`) und die Erweiterung neu laden.
+
+Der Ordner ist per `.gitignore` ausgeschlossen.
+
 ## Testseite
 
 ```sh
