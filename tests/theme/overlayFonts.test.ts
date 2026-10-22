@@ -11,9 +11,13 @@ class FakeFontFace {
 }
 
 describe('registerOverlayFonts', () => {
+  const originalFonts = Object.getOwnPropertyDescriptor(document, 'fonts')
+
   afterEach(() => {
     vi.unstubAllGlobals()
     delete window.__formFillerFonts
+    if (originalFonts) Object.defineProperty(document, 'fonts', originalFonts)
+    else delete (document as { fonts?: unknown }).fonts
   })
 
   function setup(): FakeFontFace[] {
