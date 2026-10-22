@@ -4,6 +4,7 @@ import { createShadowRootUi } from 'wxt/utils/content-script-ui/shadow-root'
 import type { RecordStartResponse } from '../fill/messages'
 import { getTemplate } from '../storage/repository'
 import { localThemeCss } from '../theme/localTheme'
+import { registerOverlayFonts } from '../theme/overlayFonts'
 import Recorder from './Recorder.vue'
 import css from './recorder.css?inline'
 import { useRecorder, type Recorder as RecorderState } from './useRecorder'
@@ -47,6 +48,7 @@ async function mount(templateId: string): Promise<RecordStartResponse> {
   let exposed: { focusBar(): void } | null = null
   const recording: ActiveRecording = { templateId, recorder, ctx, focus: () => exposed?.focusBar() }
 
+  registerOverlayFonts(document)
   const ui = await createShadowRootUi<App>(ctx, {
     name: 'form-filler-recorder',
     position: 'inline',
