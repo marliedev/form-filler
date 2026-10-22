@@ -76,7 +76,7 @@ describe('popup App', () => {
     await more.trigger('click')
     expect(more.attributes('aria-expanded')).toBe('true')
     const menu = w.get('#menu-t1')
-    expect(menu.findAll('button').map((b) => b.text())).toEqual(['Felder aufnehmen', 'Bearbeiten'])
+    expect(menu.findAll('button').map((b) => b.text())).toEqual(['Felder aufnehmen', 'Bearbeiten', 'Neuer Datensatz'])
     await menu.findAll('button')[0]?.trigger('keydown', { key: 'Escape' })
     expect(w.find('#menu-t1').exists()).toBe(false)
     expect(document.activeElement).toBe(more.element)
