@@ -97,8 +97,8 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 const inputClass =
-  'mt-1 block w-full rounded-md border border-zinc-500 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 aria-invalid:border-red-700'
-const labelClass = 'block text-xs font-medium text-zinc-700'
+  'mt-1 block w-full rounded-sm border border-muted bg-surface px-2 py-1.5 text-sm text-text focus-visible:focus-ring aria-invalid:border-error'
+const labelClass = 'block text-xs font-medium text-muted'
 </script>
 
 <template>
@@ -106,7 +106,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
     ref="root"
     role="dialog"
     aria-labelledby="ff-pop-title"
-    class="w-76 rounded-xl border border-zinc-300 bg-white p-3 text-sm text-zinc-900 shadow-xl"
+    class="w-76 rounded-2xl border border-border-subtle bg-bg p-3.5 text-sm text-text shadow-xl"
     @keydown="trapTab"
   >
     <form
@@ -117,21 +117,25 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
       <div>
         <h2
           id="ff-pop-title"
-          class="text-sm font-semibold break-words"
+          class="font-display text-base font-semibold break-words"
         >
           Feld „{{ draft.label }}“
         </h2>
         <p
           v-if="!pending.isNew"
-          class="text-xs text-zinc-600"
+          class="text-xs text-muted"
         >
           Bereits erfasst – Änderungen ersetzen das Feld.
         </p>
         <p
           v-if="pending.unlocatable"
           role="alert"
-          class="mt-1 rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900"
+          class="mt-1.5 flex items-start gap-2 rounded-xl bg-surface px-2.5 py-1.5 text-xs"
         >
+          <span
+            aria-hidden="true"
+            class="mt-1 size-2 shrink-0 rounded-full bg-warning"
+          />
           Dieses Feld hat keine eindeutigen Merkmale und wird beim Füllen voraussichtlich nicht wiedergefunden.
         </p>
       </div>
@@ -196,29 +200,29 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
           <input
             v-model="draft.required"
             type="checkbox"
-            class="size-4 accent-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            class="size-4 accent-brand-fg focus-visible:focus-ring"
           >
           <span>Pflichtfeld <span
             v-if="requiredDetected"
-            class="text-xs text-zinc-600"
+            class="text-xs text-muted"
           >(auf der Seite erkannt)</span></span>
         </label>
         <label
           class="flex items-center gap-2"
-          :class="{ 'text-zinc-600': !runIdEnabled }"
+          :class="{ 'text-muted': !runIdEnabled }"
         >
           <input
             v-model="draft.appendRunId"
             type="checkbox"
             :disabled="!runIdEnabled"
             aria-describedby="ff-runid-hint"
-            class="size-4 accent-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed"
+            class="size-4 accent-brand-fg focus-visible:focus-ring disabled:cursor-not-allowed"
           >
           <span>Kennung anhängen</span>
         </label>
         <p
           id="ff-runid-hint"
-          class="pl-6 text-xs text-zinc-600"
+          class="pl-6 text-xs text-muted"
         >
           {{ runIdEnabled ? 'Hängt die Kennung des Testlaufs an den Wert an.' : RUN_ID_NOT_APPLICABLE }}
         </p>
@@ -227,7 +231,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
       <p
         v-if="error"
         role="alert"
-        class="text-xs font-medium text-red-700"
+        class="text-xs font-medium text-error"
       >
         {{ error.message }}
       </p>
@@ -236,21 +240,21 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
         <button
           v-if="!pending.isNew"
           type="button"
-          class="mr-auto rounded-md px-2 py-1.5 font-medium text-red-700 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600"
+          class="mr-auto rounded-sm px-2 py-1.5 font-medium text-error hover:underline hover:underline-offset-3 focus-visible:focus-ring"
           @click="emit('remove', draft.id)"
         >
           Entfernen
         </button>
         <button
           type="button"
-          class="ml-auto rounded-md border border-zinc-500 px-3 py-1.5 font-medium text-zinc-900 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600"
+          class="ml-auto rounded-sm border border-line px-3 py-1.5 font-medium text-text hover:bg-surface focus-visible:focus-ring"
           @click="emit('cancel')"
         >
           Abbrechen
         </button>
         <button
           type="submit"
-          class="rounded-md bg-blue-700 px-3 py-1.5 font-semibold text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          class="rounded-sm bg-brand px-3 py-1.5 font-medium text-on-brand hover:brightness-125 focus-visible:focus-ring"
         >
           Übernehmen
         </button>

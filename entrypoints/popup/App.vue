@@ -5,6 +5,7 @@ import { isProblem, summarizeReport } from '../../src/fill/reportSummary'
 import type { FillMode } from '../../src/fill/messages'
 import type { Template } from '../../src/model/types'
 import { usePopup } from '../../src/popup/usePopup'
+import BrandSignet from '../../src/theme/BrandSignet.vue'
 import FillReportView from '../../src/ui/FillReportView.vue'
 import Segmented from '../../src/ui/Segmented.vue'
 import type { SegmentedOption } from '../../src/ui/segmented'
@@ -52,6 +53,12 @@ onMounted(async () => {
 
 const otherApps = computed(() => apps.value.filter((a) => a.id !== app.value?.id))
 const hasProblems = computed(() => report.value?.fields.some((f) => isProblem(f.status)) ?? false)
+
+/** Dot color of the status line; the text itself stays neutral. */
+const statusTone = computed(() => {
+  if (busy.value || notice.value || !report.value) return 'bg-info'
+  return hasProblems.value ? 'bg-warning' : 'bg-success'
+})
 
 const statusText = computed(() => {
   if (busy.value) return 'Bitte warten …'
@@ -131,30 +138,35 @@ function submitNewApp(): void {
   })
 }
 
-const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
-const secondaryButton = `rounded-lg border border-zinc-500 bg-white px-2.5 py-1.5 font-medium text-zinc-900 hover:bg-zinc-100 ${focusRing}`
-const primaryButton = `rounded-lg bg-blue-600 px-3 py-2 font-semibold text-white hover:bg-blue-700 ${focusRing}`
-const linkButton = `rounded-md px-1 py-1 font-medium text-blue-700 hover:underline ${focusRing}`
-const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1.5 text-zinc-900 ${focusRing}`
+const focusRing = 'focus-visible:focus-ring'
+const secondaryButton = `rounded-sm border border-line px-3 py-1.5 font-medium text-text hover:bg-line ${focusRing}`
+const primaryButton = `rounded-sm bg-brand px-3.5 py-1.5 font-medium whitespace-nowrap text-on-brand hover:brightness-125 ${focusRing}`
+const linkButton = `rounded-sm px-0.5 py-1 text-brand-fg underline underline-offset-3 hover:text-brand-fg-strong ${focusRing}`
+const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.5 text-text ${focusRing}`
 </script>
 
 <template>
-  <div class="w-[360px] bg-white text-[13px] leading-snug text-zinc-900">
-    <header class="flex items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2.5">
+  <div class="w-[360px] bg-bg text-sm leading-normal font-light text-text">
+    <header class="flex items-center gap-3 px-4.5 pt-4.5 pb-3.5">
+      <BrandSignet class="h-[18px] w-[30px] shrink-0 text-text" />
       <h1
         ref="heading"
         tabindex="-1"
-        class="flex min-w-0 items-center gap-2 rounded text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+        class="min-w-0 rounded-sm focus-visible:focus-ring"
       >
-        <span class="truncate">{{ app?.name ?? 'Form Filler' }}</span>
+        <span class="block truncate font-display text-xl leading-tight font-bold tracking-[-0.01em]">{{ app?.name ?? 'Form Filler' }}</span>
         <span
           v-if="app"
-          class="shrink-0 rounded-full bg-zinc-200 px-2 py-px text-[11px] font-medium text-zinc-800"
-        >{{ detected ? 'erkannt' : 'manuell gewählt' }}</span>
+          class="sr-only"
+        >, </span>
+        <span
+          v-if="app"
+          class="mt-0.5 block text-xs text-muted"
+        >{{ detected ? 'An der Adresse erkannt' : 'Manuell gewählt' }}</span>
       </h1>
       <button
         type="button"
-        :class="`shrink-0 rounded-md p-1.5 text-zinc-700 hover:bg-zinc-100 ${focusRing}`"
+        :class="`ml-auto grid size-8 shrink-0 place-items-center rounded-sm text-text hover:bg-surface ${focusRing}`"
         aria-label="Vorlagen verwalten"
         title="Vorlagen verwalten"
         @click="popup.openManage()"
@@ -172,17 +184,17 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
       </button>
     </header>
 
-    <main class="grid gap-3 p-3">
+    <main class="grid gap-3.5 px-4.5 pt-1 pb-4.5">
       <p
         v-if="loaded && tabId === null"
-        class="text-zinc-700"
+        class="text-muted"
       >
         Kein aktiver Tab gefunden.
       </p>
 
       <p
         v-else-if="loaded && !pageSupported"
-        class="text-zinc-700"
+        class="text-muted"
       >
         Auf dieser Seite können keine Formulare befüllt werden.
       </p>
@@ -190,19 +202,25 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
       <template v-else-if="loaded && app">
         <div
           v-if="permissionMissing"
-          class="grid gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900"
+          class="flex items-start gap-2.5 rounded-xl border border-border-subtle bg-surface px-3 py-2.5"
         >
-          <p>
-            <strong class="font-semibold">Berechtigung fehlt.</strong>
-            Ohne Freigabe für diese Adresse kann das Tastenkürzel hier nicht befüllen.
-          </p>
-          <button
-            type="button"
-            :class="`justify-self-start ${secondaryButton}`"
-            @click="popup.grantPermission()"
-          >
-            Berechtigung erteilen
-          </button>
+          <span
+            aria-hidden="true"
+            class="mt-1.5 size-2.5 shrink-0 rounded-full bg-warning"
+          />
+          <div class="grid gap-2">
+            <p>
+              <strong class="font-medium">Berechtigung fehlt.</strong>
+              Ohne Freigabe für diese Adresse kann das Tastenkürzel hier nicht befüllen.
+            </p>
+            <button
+              type="button"
+              :class="`justify-self-start ${secondaryButton}`"
+              @click="popup.grantPermission()"
+            >
+              Berechtigung erteilen
+            </button>
+          </div>
         </div>
 
         <Segmented
@@ -215,25 +233,25 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
         <section aria-labelledby="templates-heading">
           <h2
             id="templates-heading"
-            class="mb-1 text-[11px] font-semibold tracking-wide text-zinc-600 uppercase"
+            class="mb-2 text-xs font-medium text-muted"
           >
             Vorlagen
           </h2>
           <p
             v-if="templates.length === 0"
-            class="px-2 py-1.5 text-zinc-700"
+            class="text-muted"
           >
             Noch keine Vorlagen für diese App.
           </p>
           <ul
             v-else
-            class="grid gap-0.5"
+            class="grid gap-2"
             :aria-busy="busy"
           >
             <li
               v-for="t in templates"
               :key="t.id"
-              class="rounded-lg px-2 py-1.5 hover:bg-zinc-50"
+              class="rounded-xl border border-border-subtle bg-surface py-2.5 pr-2.5 pl-3.5"
             >
               <div class="flex items-center gap-2">
                 <div class="min-w-0 flex-1">
@@ -242,14 +260,14 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
                   </div>
                   <div
                     v-if="processLabel(t)"
-                    class="truncate text-xs text-zinc-600"
+                    class="truncate text-xs text-muted"
                   >
                     {{ processLabel(t) }}
                   </div>
                 </div>
                 <button
                   type="button"
-                  :class="secondaryButton"
+                  :class="primaryButton"
                   :aria-label="`Füllen: ${t.name}`"
                   @click="popup.fill(t.id)"
                 >
@@ -258,7 +276,7 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
                 <button
                   :id="`menu-button-${t.id}`"
                   type="button"
-                  :class="`rounded-md px-2 py-1 text-base leading-none text-zinc-700 hover:bg-zinc-100 ${focusRing}`"
+                  :class="`rounded-sm px-2 py-1.5 text-base leading-none text-muted hover:bg-line hover:text-text ${focusRing}`"
                   :aria-label="`Weitere Aktionen: ${t.name}`"
                   :aria-expanded="openMenuId === t.id"
                   :aria-controls="`menu-${t.id}`"
@@ -271,7 +289,7 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
               <div
                 v-if="openMenuId === t.id"
                 :id="`menu-${t.id}`"
-                class="mt-1.5 flex gap-2"
+                class="mt-2 flex gap-2"
                 @keydown.esc.stop="closeMenu(t.id)"
               >
                 <button
@@ -294,15 +312,24 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
         </section>
 
         <div>
-          <button
-            type="button"
-            :class="linkButton"
-            :aria-expanded="showNewTemplate"
-            aria-controls="new-template-form"
-            @click="toggleNewTemplate()"
-          >
-            + Neue Vorlage
-          </button>
+          <div class="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              :class="linkButton"
+              :aria-expanded="showNewTemplate"
+              aria-controls="new-template-form"
+              @click="toggleNewTemplate()"
+            >
+              + Neue Vorlage
+            </button>
+            <button
+              type="button"
+              :class="linkButton"
+              @click="popup.newDataset()"
+            >
+              Neuer Datensatz
+            </button>
+          </div>
           <form
             v-if="showNewTemplate"
             id="new-template-form"
@@ -339,18 +366,10 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
             </div>
           </form>
         </div>
-
-        <button
-          type="button"
-          :class="secondaryButton"
-          @click="popup.newDataset()"
-        >
-          Neuer Datensatz
-        </button>
       </template>
 
       <template v-else-if="loaded">
-        <p class="text-zinc-700">
+        <p class="text-muted">
           Für diese Seite ist keine App hinterlegt.
         </p>
         <form
@@ -360,7 +379,7 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
         >
           <h2
             id="new-app-heading"
-            class="text-sm font-semibold"
+            class="font-display text-base font-semibold"
           >
             Neue App für diese Seite
           </h2>
@@ -392,13 +411,13 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
           >
           <p
             id="new-app-pattern-hint"
-            class="text-xs text-zinc-600"
+            class="text-xs text-muted"
           >
             * steht für beliebige Zeichen. Der Browser fragt danach nach der Berechtigung für diese Adresse.
           </p>
           <button
             type="submit"
-            :class="primaryButton"
+            :class="`justify-self-start ${primaryButton}`"
           >
             App anlegen
           </button>
@@ -408,29 +427,43 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
       <div
         v-if="error"
         role="alert"
-        class="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-red-800"
+        class="flex items-start gap-2.5 rounded-xl border border-border-subtle bg-surface px-3 py-2.5"
       >
-        <p>{{ error.message }}</p>
-        <details
-          v-if="error.detail"
-          class="mt-1 text-xs"
-        >
-          <summary :class="`cursor-pointer rounded ${focusRing}`">
-            Technische Details
-          </summary>
-          <p class="mt-1 font-mono break-words">
-            {{ error.detail }}
-          </p>
-        </details>
+        <span
+          aria-hidden="true"
+          class="mt-1.5 size-2.5 shrink-0 rounded-full bg-error"
+        />
+        <div class="min-w-0">
+          <p>{{ error.message }}</p>
+          <details
+            v-if="error.detail"
+            class="mt-1 text-xs text-muted"
+          >
+            <summary :class="`cursor-pointer rounded-sm text-brand-fg underline underline-offset-3 ${focusRing}`">
+              Technische Details
+            </summary>
+            <p class="mt-1 font-mono break-words">
+              {{ error.detail }}
+            </p>
+          </details>
+        </div>
       </div>
 
       <div class="grid gap-2">
-        <div class="flex items-center justify-between gap-2">
+        <div
+          class="flex items-start gap-2.5"
+          :class="{ 'rounded-xl border border-border-subtle px-3 py-2.5': statusText }"
+        >
+          <span
+            v-if="statusText"
+            aria-hidden="true"
+            class="mt-1.5 size-2.5 shrink-0 rounded-full"
+            :class="statusTone"
+          />
           <p
             role="status"
             aria-live="polite"
-            class="min-w-0"
-            :class="hasProblems ? 'text-amber-800' : 'text-zinc-700'"
+            class="min-w-0 flex-1"
           >
             {{ statusText }}
           </p>
@@ -455,12 +488,12 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
 
     <footer
       v-if="loaded && pageSupported && tabId !== null"
-      class="grid gap-2 border-t border-zinc-200 px-3 py-2.5 text-xs text-zinc-600"
+      class="grid gap-2 border-t border-line px-4.5 py-3 text-xs text-muted"
     >
       <div v-if="otherApps.length > 0">
         <button
           type="button"
-          :class="`rounded-md py-1 font-medium text-zinc-700 hover:underline ${focusRing}`"
+          :class="linkButton"
           :aria-expanded="showAppPicker"
           aria-controls="app-picker"
           @click="toggleAppPicker()"
@@ -481,7 +514,7 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
             id="app-picker-select"
             ref="appPicker"
             v-model="pickedAppId"
-            :class="`${textInput} min-w-0 flex-1 text-[13px]`"
+            :class="`${textInput} min-w-0 flex-1`"
           >
             <option value="">
               App auswählen …
@@ -496,7 +529,7 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
           </select>
           <button
             type="submit"
-            :class="`shrink-0 text-[13px] ${secondaryButton}`"
+            :class="`shrink-0 ${secondaryButton}`"
           >
             Wechseln
           </button>
@@ -504,7 +537,7 @@ const textInput = `w-full rounded-lg border border-zinc-500 bg-white px-2.5 py-1
       </div>
       <p v-if="app">
         <template v-if="shortcut">
-          <kbd class="rounded border border-zinc-400 px-1 font-mono text-[11px] text-zinc-800">{{ shortcut }}</kbd>
+          <kbd class="rounded-sm border border-line px-1.5 font-body text-[11px] font-medium text-text">{{ shortcut }}</kbd>
           füllt mit der zuletzt genutzten Vorlage.
         </template>
         <template v-else>

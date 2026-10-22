@@ -72,20 +72,20 @@ function processText(t: Template): string {
 }
 
 const itemClass =
-  'flex w-full flex-col items-start rounded-md px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600'
+  'flex w-full flex-col items-start rounded-xl px-3 py-2 text-left text-sm focus-visible:focus-ring'
 const control =
-  'mt-1 block w-full rounded-md border border-zinc-500 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600'
-const labelClass = 'block text-xs font-medium text-zinc-700'
+  'mt-1 block w-full rounded-sm border border-muted bg-surface px-2 py-1.5 text-sm text-text focus-visible:focus-ring'
+const labelClass = 'block text-xs font-medium text-muted'
 </script>
 
 <template>
   <div class="space-y-4">
-    <section class="rounded-xl border border-zinc-300 bg-white p-3">
+    <section class="rounded-2xl border border-border-subtle bg-surface p-3">
       <h2
         :id="`${uid}-apps`"
         ref="appsHeading"
         tabindex="-1"
-        class="px-1 pb-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+        class="rounded-sm px-1 pb-2 font-display text-base font-semibold focus-visible:focus-ring"
       >
         Apps
       </h2>
@@ -96,14 +96,14 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
         >
           <button
             type="button"
-            :class="[itemClass, app.id === selectedApp?.id ? 'bg-zinc-900 text-white' : 'text-zinc-900 hover:bg-zinc-100']"
+            :class="[itemClass, app.id === selectedApp?.id ? 'bg-brand text-on-brand ring-1 ring-brand-fg ring-inset' : 'text-text hover:bg-line']"
             :aria-current="app.id === selectedApp?.id ? 'true' : undefined"
             @click="actions.selectApp(app.id)"
           >
             <span class="font-medium">{{ app.name }}</span>
             <span
               class="max-w-full truncate text-xs"
-              :class="app.id === selectedApp?.id ? 'text-zinc-200' : 'text-zinc-600'"
+              :class="app.id === selectedApp?.id ? 'text-brand-fg-strong' : 'text-muted'"
             >{{ app.urlPatterns.join(', ') }}</span>
           </button>
         </li>
@@ -113,18 +113,18 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
     <section
       v-if="selectedApp"
       :aria-labelledby="TEMPLATES_HEADING_ID"
-      class="rounded-xl border border-zinc-300 bg-white p-3"
+      class="rounded-2xl border border-border-subtle bg-surface p-3"
     >
       <h2
         :id="TEMPLATES_HEADING_ID"
         tabindex="-1"
-        class="px-1 pb-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+        class="rounded-sm px-1 pb-2 font-display text-base font-semibold focus-visible:focus-ring"
       >
         Vorlagen von {{ selectedApp.name }}
       </h2>
       <p
         v-if="templates.length === 0"
-        class="px-1 text-sm text-zinc-700"
+        class="px-1 text-sm text-muted"
       >
         Noch keine Vorlagen. Lege sie im Popup auf der Seite der App an.
       </p>
@@ -138,17 +138,17 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
         >
           <button
             type="button"
-            :class="[itemClass, t.id === selectedTemplateId ? 'bg-blue-50 text-blue-900 ring-1 ring-blue-700' : 'text-zinc-900 hover:bg-zinc-100']"
+            :class="[itemClass, t.id === selectedTemplateId ? 'bg-bg text-text ring-1 ring-brand-fg ring-inset' : 'text-text hover:bg-line']"
             :aria-current="t.id === selectedTemplateId ? 'true' : undefined"
             @click="actions.selectTemplate(t.id)"
           >
             <span class="font-medium">{{ t.name }}</span>
-            <span class="text-xs text-zinc-700">
+            <span class="text-xs text-muted">
               {{ t.fields.length }} {{ t.fields.length === 1 ? 'Feld' : 'Felder' }}<template v-if="processText(t)"> · {{ processText(t) }}</template>
             </span>
             <span
               v-if="t.lastMissing.length > 0"
-              class="text-xs font-medium text-amber-800"
+              class="text-xs font-medium text-warning"
             ><span aria-hidden="true">⚠ </span>{{ t.lastMissing.length }} zuletzt nicht gefunden</span>
           </button>
         </li>
@@ -158,11 +158,11 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
     <section
       v-if="selectedApp"
       :aria-labelledby="`${uid}-settings`"
-      class="rounded-xl border border-zinc-300 bg-white p-3"
+      class="rounded-2xl border border-border-subtle bg-surface p-3"
     >
       <h2
         :id="`${uid}-settings`"
-        class="px-1 pb-2 text-sm font-semibold"
+        class="px-1 pb-2 font-display text-base font-semibold"
       >
         App-Einstellungen
       </h2>
@@ -199,7 +199,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
           />
           <p
             :id="`${uid}-patterns-hint`"
-            class="mt-1 text-xs text-zinc-600"
+            class="mt-1 text-xs text-muted"
           >
             * steht für beliebige Zeichen, z. B. https://app.example.com/*
           </p>
@@ -208,20 +208,20 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
           <button
             type="submit"
             :disabled="!dirty || busy"
-            class="rounded-md bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            class="rounded-sm bg-brand px-3 py-1.5 text-sm font-medium text-on-brand hover:brightness-125 disabled:opacity-60 disabled:hover:brightness-100 focus-visible:focus-ring"
           >
             Speichern
           </button>
           <button
             type="button"
-            class="rounded-md border border-zinc-500 px-3 py-1.5 text-sm font-medium text-zinc-900 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            class="rounded-sm border border-line px-3 py-1.5 text-sm font-medium text-text hover:bg-line disabled:opacity-60 focus-visible:focus-ring"
             @click="emit('export-app', selectedApp.id)"
           >
             Exportieren
           </button>
           <button
             type="button"
-            class="rounded-md px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            class="rounded-sm px-3 py-1.5 text-sm font-medium text-text underline underline-offset-3 hover:bg-line focus-visible:focus-ring"
             @click="remove"
           >
             App löschen
