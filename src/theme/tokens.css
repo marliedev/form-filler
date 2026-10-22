@@ -3,6 +3,9 @@
    `static` emits every variable, so an optional theme.local.css can override any of them.
    Imported after `tailwindcss` by every surface (popup, manage page, recorder overlay). */
 @theme static {
+  /* Drops Tailwind's default palette: a stray zinc/blue utility produces no CSS at all. */
+  --color-*: initial;
+
   --color-bg: #121116;
   --color-surface: #27252c;
   --color-line: #3d3c45;

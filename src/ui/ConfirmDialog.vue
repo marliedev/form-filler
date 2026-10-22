@@ -46,9 +46,9 @@ function onCancel(event: Event): void {
 }
 
 const toneClass: Record<DialogChoice<V>['tone'], string> = {
-  danger: 'bg-red-700 text-white hover:bg-red-800',
-  primary: 'bg-blue-700 text-white hover:bg-blue-800',
-  secondary: 'border border-zinc-500 text-zinc-900 hover:bg-zinc-100',
+  danger: 'bg-error text-on-status hover:brightness-110',
+  primary: 'bg-brand text-on-brand hover:brightness-125',
+  secondary: 'border border-line text-text hover:bg-line',
 }
 </script>
 
@@ -57,18 +57,18 @@ const toneClass: Record<DialogChoice<V>['tone'], string> = {
     ref="dialog"
     :aria-labelledby="titleId"
     :aria-describedby="messageId"
-    class="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-xl border border-zinc-300 bg-white p-5 text-sm text-zinc-900 shadow-xl backdrop:bg-zinc-900/40"
+    class="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-2xl border border-line bg-surface p-5 text-sm text-text shadow-xl backdrop:bg-bg/70"
     @cancel="onCancel"
   >
     <h2
       :id="titleId"
-      class="text-base font-semibold"
+      class="font-display text-lg font-semibold"
     >
       {{ request?.title }}
     </h2>
     <p
       :id="messageId"
-      class="mt-2 text-zinc-700"
+      class="mt-2 text-muted"
     >
       {{ request?.message }}
     </p>
@@ -76,7 +76,7 @@ const toneClass: Record<DialogChoice<V>['tone'], string> = {
       <button
         ref="cancelButton"
         type="button"
-        class="rounded-md border border-zinc-500 px-3 py-1.5 font-medium text-zinc-900 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+        class="rounded-sm border border-line px-3 py-1.5 font-medium text-text hover:bg-line focus-visible:focus-ring"
         @click="emit('choose', null)"
       >
         Abbrechen
@@ -85,7 +85,7 @@ const toneClass: Record<DialogChoice<V>['tone'], string> = {
         v-for="choice in request?.choices ?? []"
         :key="choice.value"
         type="button"
-        class="rounded-md px-3 py-1.5 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+        class="rounded-sm px-3 py-1.5 font-medium focus-visible:focus-ring"
         :class="toneClass[choice.tone]"
         @click="emit('choose', choice.value)"
       >

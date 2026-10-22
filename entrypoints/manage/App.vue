@@ -79,14 +79,14 @@ async function onFileChosen(event: Event): Promise<void> {
 }
 
 const secondaryButton =
-  'rounded-md border border-zinc-500 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 hover:bg-zinc-100 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+  'rounded-sm border border-line px-3 py-1.5 text-sm font-medium text-text hover:bg-line disabled:opacity-60 focus-visible:focus-ring'
 </script>
 
 <template>
-  <div class="min-h-screen bg-zinc-50 text-zinc-900">
-    <header class="border-b border-zinc-200 bg-white">
+  <div class="min-h-screen bg-bg text-text">
+    <header class="border-b border-line">
       <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <h1 class="text-lg font-semibold">
+        <h1 class="font-display text-2xl font-bold tracking-[-0.01em]">
           Vorlagen verwalten
         </h1>
         <div class="flex flex-wrap gap-2">
@@ -129,26 +129,34 @@ const secondaryButton =
       <div role="status">
         <p
           v-if="notice && !error"
-          class="mb-4 rounded-md border border-green-700 bg-green-50 px-3 py-2 text-sm text-green-900"
+          class="mb-4 flex items-start gap-2.5 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm"
         >
+          <span
+            aria-hidden="true"
+            class="mt-1.5 size-2.5 shrink-0 rounded-full bg-success"
+          />
           {{ notice }}
         </p>
       </div>
       <div role="alert">
         <p
           v-if="error"
-          class="mb-4 rounded-md border border-red-700 bg-red-50 px-3 py-2 text-sm text-red-800"
+          class="mb-4 flex items-start gap-2.5 rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm"
         >
-          {{ error.message }}<span
+          <span
+            aria-hidden="true"
+            class="mt-1.5 size-2.5 shrink-0 rounded-full bg-error"
+          />
+          <span>{{ error.message }}<span
             v-if="error.detail"
-            class="block text-xs text-red-800"
-          >{{ error.detail }}</span>
+            class="block text-xs text-muted"
+          >{{ error.detail }}</span></span>
         </p>
       </div>
 
       <p
         v-if="apps.length === 0"
-        class="rounded-xl border border-zinc-300 bg-white p-6 text-sm text-zinc-700"
+        class="rounded-2xl border border-border-subtle bg-surface p-6 text-sm text-muted"
       >
         Noch keine Apps. Öffne die Seite einer App, klicke auf das Symbol der Erweiterung und lege dort App und Vorlage an – oder importiere eine Export-Datei.
       </p>
@@ -176,7 +184,7 @@ const secondaryButton =
         />
         <p
           v-else
-          class="rounded-xl border border-zinc-300 bg-white p-6 text-sm text-zinc-700"
+          class="rounded-2xl border border-border-subtle bg-surface p-6 text-sm text-muted"
         >
           Wähle links eine Vorlage aus.
         </p>
