@@ -1,0 +1,25 @@
+/* Extension pages (popup, manage). The recorder overlay registers its own prefixed faces,
+   because @font-face inside a shadow root is ignored (see overlayFonts.ts). */
+@font-face {
+  font-family: "Wotfard";
+  src: url("./fonts/wotfard-light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Wotfard";
+  src: url("./fonts/wotfard-medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("./fonts/bricolage-grotesque.woff2") format("woff2");
+  font-weight: 600 800;
+  font-style: normal;
+  font-display: swap;
+}
