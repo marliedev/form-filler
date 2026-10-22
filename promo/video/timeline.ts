@@ -6,6 +6,8 @@ import { intro } from './scenes/intro'
 import { problem } from './scenes/problem'
 import { detect } from './scenes/detect'
 import { record } from './scenes/record'
+import { fill } from './scenes/fill'
+import { shortcut } from './scenes/shortcut'
 import type { Mode } from './video-api'
 
 /** What every scene function receives: the shared timeline, the stage root, its absolute start and measured geometry. */
@@ -59,6 +61,8 @@ export function buildTimeline(root: HTMLElement, mode: Mode): gsap.core.Timeline
     problem(ctx('problem'))
     detect(ctx('detect'))
     record(ctx('record'))
+    fill(ctx('fill'), { caption: true, camera: 'full' })
+    shortcut(ctx('shortcut'))
     // Remaining scenes follow in later tasks; the no-op pins the total length until then.
     tl.set(root, {}, TOTAL)
   } else {

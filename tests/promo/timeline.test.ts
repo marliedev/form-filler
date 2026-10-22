@@ -1,5 +1,7 @@
+import { gsap } from 'gsap'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createVideoApi } from '../../promo/video/api'
+import { DATASETS } from '../../promo/video/data'
 import { fontsReady } from '../../promo/video/fx'
 import { SCENES, sceneStart, TEASER_DURATION, TOTAL } from '../../promo/video/schedule'
 import { renderStage } from '../../promo/video/stage'
@@ -80,6 +82,31 @@ describe('scenes', () => {
     for (const box of root.querySelectorAll<HTMLElement>('[data-captured]')) expect(parseFloat(box.style.opacity)).toBe(1)
     tl.seek(sceneStart('record') + 12.5)
     expect(root.querySelector<HTMLElement>('[data-el=saved]')!.style.display).not.toBe('none')
+  })
+
+  it('fills every field with the first dataset, reports success, then refills with the second', () => {
+    const root = mountStage()
+    const tl = buildTimeline(root, 'full')
+    const value = (key: string) => root.querySelector(`[data-field=${key}] [data-el=value]`)!.textContent
+    tl.seek(sceneStart('fill') + 3.8)
+    expect(value('company')).toBe(DATASETS[0].company)
+    expect(value('iban')).toBe(DATASETS[0].iban)
+    expect(root.querySelector('[data-el=badge]')!.textContent).toBe('✓')
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=badge]')!.style.opacity)).toBe(1)
+    expect(root.querySelector('[data-el=status-text]')!.textContent).toContain('12 von 12 befüllt')
+    tl.seek(sceneStart('fill') + 9)
+    expect(value('company')).toBe(DATASETS[1].company)
+    expect(value('customerNo')).toBe(DATASETS[1].customerNo)
+  })
+
+  it('presses the three key caps and fills again without the popup', () => {
+    const root = mountStage()
+    const tl = buildTimeline(root, 'full')
+    tl.seek(sceneStart('shortcut') + 1.5)
+    expect(gsap.getProperty(root.querySelector('[data-key=alt]')!, 'y')).toBeGreaterThan(0)
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=popup]')!.style.opacity)).toBe(0)
+    tl.seek(sceneStart('shortcut') + 4)
+    expect(root.querySelector('[data-field=company] [data-el=value]')!.textContent).toBe(DATASETS[0].company)
   })
 
   it('types into the company field and wipes it again during the problem scene', () => {

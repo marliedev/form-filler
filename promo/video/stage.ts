@@ -57,7 +57,7 @@ function formField(f: Field): string {
   return `<div class="min-w-0">
     <label class="mb-1.5 block text-[14px] font-medium text-[#4a5160]">${f.label}${f.required ? ' *' : ''}</label>
     <div data-field="${f.key}" class="relative flex h-11 items-center rounded-md border border-[#c9ced8] bg-[#fff] px-3.5 text-[18px] text-[#1f2430]">
-      <span data-el="value" class="truncate"></span><span data-el="caret" class="ml-0.5 inline-block h-[22px] w-[2px] bg-[#1f2430]" style="opacity:0"></span>
+      <span data-el="value" class="truncate"><span data-el="value-main"></span><span data-el="runid" class="text-brand-2"></span></span><span data-el="caret" class="ml-0.5 inline-block h-[22px] w-[2px] bg-[#1f2430]" style="opacity:0"></span>
       ${f.kind === 'select' ? '<span aria-hidden="true" class="ml-auto text-[#5f6775]">▾</span>' : ''}
     </div>
   </div>`

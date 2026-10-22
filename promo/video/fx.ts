@@ -1,6 +1,6 @@
 import { gsap } from 'gsap'
 import { TextPlugin } from 'gsap/TextPlugin'
-import { CAPTIONS, type CaptionKey } from './data'
+import { CAPTIONS, DATASETS, FIELDS, type CaptionKey } from './data'
 
 gsap.registerPlugin(TextPlugin)
 import type { Point } from './geometry'
@@ -133,6 +133,35 @@ export function sweep(tl: Timeline, root: HTMLElement, at: number): number {
   tl.fromTo(band, { left: -300, opacity: 1 }, { immediateRender: false, left: 1600, duration: 0.9, ease: EASE.move }, at)
   tl.set(band, { opacity: 0 }, at + 0.9)
   return at + 0.9
+}
+
+/* ---- filling ---------------------------------------------------------------------------- */
+
+const RUN_ID_SEPARATOR = ' · '
+const FILL_STAGGER = 0.14
+const FILL_MS_PER_CHAR = 30
+const FILL_MAX_SECONDS = 0.6
+
+/** `K-2041 · T4821` → main `K-2041 ` and the run id `· T4821`, which the stage shows in teal. */
+export function splitRunId(value: string): [main: string, runId: string] {
+  const i = value.indexOf(RUN_ID_SEPARATOR)
+  return i === -1 ? [value, ''] : [value.slice(0, i + 1), value.slice(i + 1)]
+}
+
+/** Fills the twelve fields top to bottom, each typed quickly with a teal pulse. Returns the end time. */
+export function fillCascade(tl: Timeline, root: HTMLElement, dataset: 0 | 1, at: number): number {
+  let end = at
+  FIELDS.forEach((f, i) => {
+    const field = root.querySelector<HTMLElement>(`[data-field=${f.key}]`)!
+    const [main, runId] = splitRunId(DATASETS[dataset][f.key])
+    const start = at + i * FILL_STAGGER
+    const duration = Math.min(FILL_MAX_SECONDS, main.length * FILL_MS_PER_CHAR / 1000)
+    tl.to(field.querySelector('[data-el=value-main]')!, { text: { value: main }, duration, ease: 'none' }, start)
+    if (runId) tl.to(field.querySelector('[data-el=runid]')!, { text: { value: runId }, duration: 0.2, ease: 'none' }, start + duration)
+    glow(tl, field, start)
+    end = Math.max(end, start + duration + (runId ? 0.2 : 0))
+  })
+  return end
 }
 
 export function fade(tl: Timeline, target: HTMLElement, at: number, opacity: number, duration = 0.3): number {

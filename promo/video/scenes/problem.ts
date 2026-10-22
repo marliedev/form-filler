@@ -7,7 +7,7 @@ const QUICK_MS = 45
 /** A person types into the empty form by hand, hesitates, deletes, tries again, wipes. */
 export function problem({ tl, root, at, geo }: SceneContext): void {
   const field = root.querySelector<HTMLElement>('[data-field=company]')!
-  const value = field.querySelector<HTMLElement>('[data-el=value]')!
+  const value = field.querySelector<HTMLElement>('[data-el=value-main]')!
   const caretEl = field.querySelector<HTMLElement>('[data-el=caret]')!
 
   caption(tl, root, 'problem', at, 4.5)
