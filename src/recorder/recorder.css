@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '../theme/tokens.css';
 
 /* The overlay lives in a shadow root on foreign pages: rem would follow the page's root font size,
    so the sizes used by the overlay are pinned to px. */
@@ -7,8 +8,10 @@
   --text-xs: 12px;
   --text-sm: 14px;
   --text-base: 16px;
+  --text-lg: 18px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 12px;
+  --radius-2xl: 16px;
 }

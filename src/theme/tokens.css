@@ -1,0 +1,47 @@
+/* Brand theme (dark). Components only use the semantic utilities generated from these tokens
+   (bg-surface, text-muted, bg-brand, text-brand-fg, border-line, font-display, ...).
+   `static` emits every variable, so an optional theme.local.css can override any of them.
+   Imported after `tailwindcss` by every surface (popup, manage page, recorder overlay). */
+@theme static {
+  --color-bg: #121116;
+  --color-surface: #27252c;
+  --color-line: #3d3c45;
+  --color-text: #e5e5e9;
+  --color-muted: #a8a7b0;
+  /* Decorative only (fails text contrast). */
+  --color-subtle: #6f6d78;
+  /* Indigo leads, but only as a fill: as text on dark it fails contrast. */
+  --color-brand: #1d00ad;
+  --color-on-brand: #f5f5f7;
+  /* Text, links and icons in brand color on dark backgrounds. */
+  --color-brand-fg: #94aefe;
+  --color-brand-fg-strong: #d2defe;
+  --color-brand-2: #14b8b8;
+  --color-success: #34d399;
+  --color-warning: #f3c853;
+  --color-error: #f0516c;
+  --color-info: #5b8def;
+  --color-on-status: #121116;
+  --color-border-subtle: rgb(245 245 247 / 0.08);
+
+  --focus-ring: 0 0 0 3px rgb(148 174 254 / 0.55);
+
+  --font-display: "Bricolage Grotesque", "Mulish", system-ui, sans-serif;
+  --font-body: "Wotfard", "Mulish", system-ui, sans-serif;
+  --default-font-family: var(--font-body);
+}
+
+@layer base {
+  :root,
+  :host {
+    color-scheme: dark;
+  }
+}
+
+/* A shadow instead of an outline keeps the ring outside rounded corners; the transparent
+   outline still shows up in forced-colors mode, where box-shadow is dropped. */
+@utility focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
+}

@@ -3,3 +3,4 @@ node_modules/
 .wxt/
 dist/
 .superpowers/
+src/theme/theme.local.css
