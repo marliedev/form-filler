@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { createVideoApi } from '../../promo/video/api'
 import { fontsReady } from '../../promo/video/fx'
 import { SCENES, sceneStart, TEASER_DURATION, TOTAL } from '../../promo/video/schedule'
 import { buildTimeline } from '../../promo/video/timeline'
@@ -23,6 +24,18 @@ describe('buildTimeline', () => {
 
   it('builds the teaser timeline with the teaser duration', () => {
     expect(buildTimeline(mountRoot(), 'teaser').duration()).toBeCloseTo(TEASER_DURATION, 3)
+  })
+})
+
+describe('createVideoApi', () => {
+  it('exposes mode and duration and makes seek return nothing', () => {
+    // GSAP's seek() returns the timeline; handing that to Playwright's evaluate would never serialize.
+    const tl = buildTimeline(mountRoot(), 'full')
+    const api = createVideoApi(tl, 'full', Promise.resolve())
+    expect(api.mode).toBe('full')
+    expect(api.duration).toBeCloseTo(TOTAL, 3)
+    expect(api.seek(1)).toBeUndefined()
+    expect(tl.time()).toBe(1)
   })
 })
 
