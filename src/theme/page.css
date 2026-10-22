@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+@import './tokens.css';
+@import './fonts.css';
+
+@layer base {
+  /* The popup window and the manage tab show the body background around the app. */
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-weight: 300;
+  }
+}

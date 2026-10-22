@@ -64,8 +64,8 @@ function invalid(input: ConfigError['input']): boolean {
 const id = (name: string): string => `${props.idPrefix}-${name}`
 
 const inputClass =
-  'mt-1 block w-full rounded-md border border-zinc-500 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 aria-invalid:border-red-700'
-const labelClass = 'block text-xs font-medium text-zinc-700'
+  'mt-1 block w-full rounded-sm border border-muted bg-surface px-2 py-1.5 text-sm text-text focus-visible:focus-ring aria-invalid:border-error'
+const labelClass = 'block text-xs font-medium text-muted'
 </script>
 
 <template>
@@ -125,7 +125,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
       />
       <p
         :id="id('values-hint')"
-        class="mt-1 text-xs text-zinc-600"
+        class="mt-1 text-xs text-muted"
       >
         Leer lassen = aus allen Optionen des Felds wählen.
       </p>
@@ -163,7 +163,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
     >
     <p
       :id="id('pattern-hint')"
-      class="mt-1 text-xs text-zinc-600"
+      class="mt-1 text-xs text-muted"
     >
       Platzhalter: {zahl:6}, {buchstabe:2}, {kennung}, {datum}
     </p>

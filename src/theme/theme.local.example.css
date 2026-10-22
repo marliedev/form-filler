@@ -1,0 +1,43 @@
+/* Beispiel für ein eigenes, lokales Theme.
+
+   So geht's:
+   1. Diese Datei nach src/theme/theme.local.css kopieren (die Kopie ist per .gitignore
+      vom Repository ausgeschlossen und bleibt nur bei dir).
+   2. Nur die Variablen überschreiben, die du ändern willst – alles andere bleibt beim Standard.
+   3. Neu bauen (npm run build bzw. npm run dev) und die Erweiterung neu laden.
+
+   Die Werte gelten für Popup, Verwaltungsseite und die Aufnahme-Leiste auf der Seite.
+   Hier nur Variablen setzen, keine eigenen Selektoren oder Klassen.
+   Schriften bitte nicht überschreiben: Die Aufnahme-Leiste bringt eigene Schriften mit.
+   Für ein helles Theme zusätzlich `color-scheme: light;` setzen (betrifft native Elemente
+   wie Auswahllisten und Scrollbalken in Popup und Verwaltungsseite). */
+
+:root,
+:host {
+  /* Flächen */
+  /* --color-bg: #121116; */
+  /* --color-surface: #27252c; */
+  /* --color-line: #3d3c45; */
+  /* --color-border-subtle: rgb(245 245 247 / 0.08); */
+
+  /* Text */
+  /* --color-text: #e5e5e9; */
+  /* --color-muted: #a8a7b0; */
+
+  /* Markenfarbe: --color-brand nur als Fläche, Text darauf in --color-on-brand.
+     --color-brand-fg ist die Markenfarbe für Text, Links und Icons auf dunklem Grund. */
+  /* --color-brand: #1d00ad; */
+  /* --color-on-brand: #f5f5f7; */
+  /* --color-brand-fg: #94aefe; */
+  /* --color-brand-fg-strong: #d2defe; */
+
+  /* Status */
+  /* --color-success: #34d399; */
+  /* --color-warning: #f3c853; */
+  /* --color-error: #f0516c; */
+  /* --color-info: #5b8def; */
+  /* --color-on-status: #121116; */
+
+  /* Fokusrahmen */
+  /* --focus-ring: 0 0 0 3px rgb(148 174 254 / 0.55); */
+}
