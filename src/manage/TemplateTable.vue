@@ -228,33 +228,33 @@ function onDragEnd(): void {
 }
 
 const iconButton =
-  'inline-flex size-7 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600'
+  'inline-flex size-7 items-center justify-center rounded-sm text-muted hover:bg-line hover:text-text disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted focus-visible:focus-ring'
 const control =
-  'block w-full rounded-md border border-zinc-500 bg-white px-2 py-1 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600'
+  'block w-full rounded-sm border border-muted bg-surface px-2 py-1 text-sm text-text focus-visible:focus-ring'
 const switchClass =
-  "relative h-5 w-9 cursor-pointer appearance-none rounded-full bg-zinc-500 transition-colors before:absolute before:top-0.5 before:left-0.5 before:size-4 before:rounded-full before:bg-white before:shadow before:transition-transform before:content-[''] checked:bg-blue-700 checked:before:translate-x-4 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+  "relative h-5 w-9 cursor-pointer appearance-none rounded-full bg-line ring-1 ring-muted ring-inset transition-colors before:absolute before:top-0.5 before:left-0.5 before:size-4 before:rounded-full before:bg-muted before:shadow before:transition-transform before:content-[''] checked:bg-brand checked:ring-brand-fg checked:before:translate-x-4 checked:before:bg-on-brand disabled:cursor-not-allowed disabled:opacity-40 focus-visible:focus-ring"
 const secondaryButton =
-  'rounded-md border border-zinc-500 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 hover:bg-zinc-100 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+  'rounded-sm border border-line px-3 py-1.5 text-sm font-medium text-text hover:bg-line disabled:opacity-60 focus-visible:focus-ring'
 const primaryButton =
-  'rounded-md bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
-const labelClass = 'block text-xs font-medium text-zinc-700'
+  'rounded-sm bg-brand px-3 py-1.5 text-sm font-medium text-on-brand hover:brightness-125 disabled:opacity-60 disabled:hover:brightness-100 focus-visible:focus-ring'
+const labelClass = 'block text-xs font-medium text-muted'
 </script>
 
 <template>
   <section
     ref="root"
     :aria-labelledby="`${uid}-heading`"
-    class="min-w-0 rounded-xl border border-zinc-300 bg-white"
+    class="min-w-0 rounded-2xl border border-border-subtle bg-surface"
   >
-    <header class="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-200 px-4 py-3">
+    <header class="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-3">
       <h2
         :id="`${uid}-heading`"
         tabindex="-1"
-        class="text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+        class="rounded-sm font-display text-lg font-semibold focus-visible:focus-ring"
       >
         {{ app.name }} › {{ template.name }}<span
           v-if="template.process"
-          class="font-normal text-zinc-600"
+          class="font-body text-base font-light text-muted"
         > · {{ template.process.name }}, Schritt {{ template.process.step }}</span>
       </h2>
       <button
@@ -276,7 +276,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
     </header>
 
     <form
-      class="flex flex-wrap items-end gap-3 border-b border-zinc-200 px-4 py-3"
+      class="flex flex-wrap items-end gap-3 border-b border-line px-4 py-3"
       novalidate
       @submit.prevent="saveMeta"
     >
@@ -318,7 +318,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
           min="1"
           step="1"
           :disabled="meta.processName.trim() === ''"
-          :class="[control, 'mt-1 disabled:bg-zinc-100 disabled:text-zinc-600']"
+          :class="[control, 'mt-1 disabled:opacity-60']"
         >
       </div>
       <div class="flex gap-2">
@@ -331,7 +331,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
         </button>
         <button
           type="button"
-          class="rounded-md px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          class="rounded-sm px-3 py-1.5 text-sm font-medium text-text underline underline-offset-3 hover:bg-line focus-visible:focus-ring"
           @click="removeTemplate"
         >
           Vorlage löschen
@@ -339,7 +339,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
       </div>
       <p
         :id="`${uid}-process-hint`"
-        class="w-full text-xs text-zinc-600"
+        class="w-full text-xs text-muted"
       >
         Alle Schritte eines Prozesses teilen sich denselben Datensatz.
       </p>
@@ -347,7 +347,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
 
     <p
       v-if="template.fields.length === 0"
-      class="px-4 py-6 text-sm text-zinc-700"
+      class="px-4 py-6 text-sm text-muted"
     >
       Diese Vorlage hat noch keine Felder. Öffne die Seite der App und nimm sie mit „+ Felder aufnehmen“ auf.
     </p>
@@ -361,7 +361,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
           Felder der Vorlage „{{ template.name }}“ in Füllreihenfolge. Änderungen werden sofort gespeichert.
         </caption>
         <thead>
-          <tr class="border-b border-zinc-200 text-left text-xs font-medium tracking-wide text-zinc-600 uppercase">
+          <tr class="border-b border-line text-left text-xs font-medium text-muted">
             <th
               scope="col"
               class="w-24 px-3 py-2"
@@ -412,11 +412,11 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
             :key="field.id"
           >
             <tr
-              class="border-b border-zinc-100 align-middle"
+              class="border-b border-line align-middle"
               :class="{
-                'bg-blue-50': expanded === field.id,
+                'bg-bg': expanded === field.id,
                 'opacity-50': dragId === field.id,
-                'shadow-[inset_0_2px_0_0_var(--color-blue-700)]': dropIndex === index && dragId !== field.id,
+                'shadow-[inset_0_2px_0_0_var(--color-brand-fg)]': dropIndex === index && dragId !== field.id,
               }"
               @dragover="onDragOver(index, $event)"
               @drop="onDrop(index, $event)"
@@ -424,7 +424,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
               <td class="px-3 py-1.5 whitespace-nowrap">
                 <span
                   draggable="true"
-                  class="mr-1 inline-flex size-7 cursor-grab items-center justify-center rounded-md text-zinc-600 select-none hover:bg-zinc-100 active:cursor-grabbing"
+                  class="mr-1 inline-flex size-7 cursor-grab items-center justify-center rounded-sm text-muted select-none hover:bg-line active:cursor-grabbing"
                   title="Ziehen zum Umsortieren"
                   aria-hidden="true"
                   @dragstart="onDragStart(field, $event)"
@@ -466,12 +466,12 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
                   <span
                     v-if="missing.has(field.id)"
                     :id="`${uid}-missing-${field.id}`"
-                    class="font-medium text-amber-800"
+                    class="font-medium text-warning"
                     title="Beim letzten Füllen problematisch"
                   ><span aria-hidden="true">⚠ </span>Beim letzten Füllen problematisch</span>
                   <span
                     v-if="locatorHint(field)"
-                    class="truncate text-zinc-600"
+                    class="truncate text-muted"
                   >{{ locatorHint(field) }}</span>
                 </div>
               </td>
@@ -500,7 +500,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
                 <p
                   v-if="incomplete(field)"
                   :id="`${uid}-incomplete-${field.id}`"
-                  class="mt-0.5 text-xs font-medium text-red-700"
+                  class="mt-0.5 text-xs font-medium text-warning"
                 >
                   Optionen unvollständig
                 </p>
@@ -523,7 +523,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
                 </select>
                 <span
                   v-else
-                  class="text-zinc-600"
+                  class="text-muted"
                 ><span aria-hidden="true">–</span><span class="sr-only">kein Slot</span></span>
               </td>
               <td class="px-2 py-1.5 text-center">
@@ -553,7 +553,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
                 <button
                   v-if="hasOptions(field.config.type)"
                   type="button"
-                  class="rounded-md px-2 py-1 text-xs font-medium text-blue-800 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600"
+                  class="rounded-sm px-2 py-1 text-xs font-medium text-brand-fg hover:bg-line focus-visible:focus-ring"
                   :data-options="field.id"
                   :aria-expanded="expanded === field.id"
                   :aria-controls="expanded === field.id ? `${uid}-opt-${field.id}` : undefined"
@@ -564,7 +564,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
                 </button>
                 <button
                   type="button"
-                  :class="[iconButton, 'ml-1 hover:bg-red-50 hover:text-red-700']"
+                  :class="[iconButton, 'ml-1 hover:text-error']"
                   :data-remove="field.id"
                   :aria-label="`Feld „${displayName(field)}“ löschen`"
                   title="Feld löschen"
@@ -576,7 +576,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
             </tr>
             <tr
               v-if="expanded === field.id && optionDraft !== null"
-              class="border-b border-zinc-200 bg-blue-50"
+              class="border-b border-line bg-bg"
             >
               <td
                 colspan="7"
@@ -600,7 +600,7 @@ const labelClass = 'block text-xs font-medium text-zinc-700'
                   <p
                     v-if="optionError"
                     role="alert"
-                    class="text-xs font-medium text-red-700"
+                    class="text-xs font-medium text-error"
                   >
                     {{ optionError.message }}
                   </p>
