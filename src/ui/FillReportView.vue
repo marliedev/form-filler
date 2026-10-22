@@ -16,13 +16,13 @@ function icon(status: FieldReport['status']): string {
 }
 
 function tone(status: FieldReport['status']): string {
-  return isProblem(status) ? 'text-amber-800' : status === 'filled' ? 'text-green-700' : 'text-zinc-600'
+  return isProblem(status) ? 'text-warning' : status === 'filled' ? 'text-success' : 'text-muted'
 }
 </script>
 
 <template>
   <ul
-    class="max-h-48 divide-y divide-zinc-200 overflow-y-auto rounded-lg border border-zinc-200"
+    class="max-h-48 divide-y divide-line overflow-y-auto rounded-xl border border-line"
     aria-label="Feld-Protokoll"
   >
     <li
@@ -31,15 +31,15 @@ function tone(status: FieldReport['status']): string {
       class="flex items-start justify-between gap-3 px-2.5 py-1.5"
     >
       <span class="min-w-0 break-words">{{ field.label }}<span class="sr-only">: </span></span>
-      <span
-        class="shrink-0 text-right"
-        :class="tone(field.status)"
-      >
-        <span aria-hidden="true">{{ icon(field.status) }}</span>
+      <span class="shrink-0 text-right">
+        <span
+          aria-hidden="true"
+          :class="tone(field.status)"
+        >{{ icon(field.status) }}</span>
         {{ STATUS_TEXT[field.status] }}
         <span
           v-if="field.detail && field.status !== 'filled'"
-          class="block text-xs text-zinc-600"
+          class="block text-xs text-muted"
         >{{ field.detail }}</span>
       </span>
     </li>
