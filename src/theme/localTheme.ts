@@ -6,10 +6,10 @@ const modules = import.meta.glob<string>('./theme.local.css', { eager: true, que
 export const localThemeCss: string = Object.values(modules).join('\n')
 
 /** Appends the local override after the bundled styles so its variables win. */
-export function applyLocalTheme(doc: Document = document): void {
-  if (!localThemeCss) return
+export function applyLocalTheme(doc: Document = document, css: string = localThemeCss): void {
+  if (!css) return
   const style = doc.createElement('style')
   style.dataset.theme = 'local'
-  style.textContent = localThemeCss
+  style.textContent = css
   doc.head.append(style)
 }
