@@ -240,7 +240,7 @@ const labelClass = 'block text-xs font-medium text-muted'
         <button
           v-if="!pending.isNew"
           type="button"
-          class="mr-auto rounded-sm px-2 py-1.5 font-medium text-error hover:bg-surface focus-visible:focus-ring"
+          class="mr-auto rounded-sm px-2 py-1.5 font-medium text-error hover:underline hover:underline-offset-3 focus-visible:focus-ring"
           @click="emit('remove', draft.id)"
         >
           Entfernen

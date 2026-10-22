@@ -5,7 +5,7 @@ import { isProblem, summarizeReport } from '../../src/fill/reportSummary'
 import type { FillMode } from '../../src/fill/messages'
 import type { Template } from '../../src/model/types'
 import { usePopup } from '../../src/popup/usePopup'
-import logoUrl from '../../src/theme/ml-logo.svg'
+import BrandSignet from '../../src/theme/BrandSignet.vue'
 import FillReportView from '../../src/ui/FillReportView.vue'
 import Segmented from '../../src/ui/Segmented.vue'
 import type { SegmentedOption } from '../../src/ui/segmented'
@@ -148,11 +148,7 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
 <template>
   <div class="w-[360px] bg-bg text-sm leading-normal font-light text-text">
     <header class="flex items-center gap-3 px-4.5 pt-4.5 pb-3.5">
-      <img
-        :src="logoUrl"
-        alt=""
-        class="h-[18px] w-[30px] shrink-0"
-      >
+      <BrandSignet class="h-[18px] w-[30px] shrink-0 text-text" />
       <h1
         ref="heading"
         tabindex="-1"
@@ -161,12 +157,16 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
         <span class="block truncate font-display text-xl leading-tight font-bold tracking-[-0.01em]">{{ app?.name ?? 'Form Filler' }}</span>
         <span
           v-if="app"
+          class="sr-only"
+        >, </span>
+        <span
+          v-if="app"
           class="mt-0.5 block text-xs text-muted"
         >{{ detected ? 'An der Adresse erkannt' : 'Manuell gewählt' }}</span>
       </h1>
       <button
         type="button"
-        :class="`ml-auto grid size-8 shrink-0 place-items-center rounded-sm text-on-brand hover:bg-surface ${focusRing}`"
+        :class="`ml-auto grid size-8 shrink-0 place-items-center rounded-sm text-text hover:bg-surface ${focusRing}`"
         aria-label="Vorlagen verwalten"
         title="Vorlagen verwalten"
         @click="popup.openManage()"
