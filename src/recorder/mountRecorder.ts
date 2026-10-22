@@ -3,6 +3,7 @@ import { ContentScriptContext } from 'wxt/utils/content-script-context'
 import { createShadowRootUi } from 'wxt/utils/content-script-ui/shadow-root'
 import type { RecordStartResponse } from '../fill/messages'
 import { getTemplate } from '../storage/repository'
+import { localThemeCss } from '../theme/localTheme'
 import Recorder from './Recorder.vue'
 import css from './recorder.css?inline'
 import { useRecorder, type Recorder as RecorderState } from './useRecorder'
@@ -51,7 +52,8 @@ async function mount(templateId: string): Promise<RecordStartResponse> {
     position: 'inline',
     anchor: 'body',
     append: 'last',
-    css,
+    // The local theme comes last so its variables override the bundled tokens.
+    css: localThemeCss ? `${css}\n${localThemeCss}` : css,
     // Typing in the popover must not trigger the page's own keyboard shortcuts.
     isolateEvents: true,
     onMount(container, _shadow, host) {

@@ -47,6 +47,16 @@ Im Pflege-Tab („Vorlagen verwalten“, Zahnrad im Popup) lassen sich Apps und 
 
 App-spezifische Vorlagen und Exporte gehören nicht ins Repository. Sie bleiben lokal bzw. werden außerhalb des Repos weitergegeben.
 
+## Eigenes Theme (lokal)
+
+Die Oberfläche nutzt ein dunkles Standard-Theme. Farben lassen sich lokal anpassen, ohne das Repository zu ändern:
+
+1. `src/theme/theme.local.example.css` nach `src/theme/theme.local.css` kopieren.
+2. In der Kopie nur die gewünschten Variablen (z. B. `--color-brand`, `--color-surface`) einkommentieren und ändern.
+3. Neu bauen (`npm run build`) und die Erweiterung neu laden.
+
+Die Datei gilt für Popup, Verwaltungsseite und die Aufnahme-Leiste. Sie ist per `.gitignore` ausgeschlossen und wird nie eingecheckt. Fehlt sie, baut die Erweiterung unverändert mit dem Standard-Theme. Beim Anpassen auf ausreichenden Kontrast achten (Text mindestens 4,5:1).
+
 ## Testseite
 
 ```sh
