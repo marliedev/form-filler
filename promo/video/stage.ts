@@ -14,8 +14,16 @@ const PRIMARY = 'rounded-sm bg-brand px-3.5 py-1.5 font-medium whitespace-nowrap
 const SECONDARY = 'rounded-sm border border-line px-3 py-1.5 font-medium text-text'
 const TEXT_INPUT = 'rounded-sm border border-muted bg-surface px-2 py-1.5 text-sm text-text'
 const LABEL = 'block text-xs font-medium text-muted'
-const SWITCH_ON = 'relative inline-block h-5 w-9 rounded-full bg-brand-fg after:absolute after:top-0.5 after:left-[18px] after:size-4 after:rounded-full after:bg-bg after:content-[""]'
-const SWITCH_OFF = 'relative inline-block h-5 w-9 rounded-full bg-line after:absolute after:top-0.5 after:left-0.5 after:size-4 after:rounded-full after:bg-text after:content-[""]'
+/** Token values GSAP needs as concrete colours when it animates the manage-page switches. */
+export const SWITCH_COLORS = { trackOn: '#94aefe', trackOff: '#3d3c45', knobOn: '#121116', knobOff: '#e5e5e9' } as const
+export const SWITCH_TRAVEL = 16
+
+/** Track + knob, so a scene can slide the knob and recolour the track instead of swapping classes. */
+function switchMarkup(on: boolean, dataEl?: string): string {
+  const track = on ? SWITCH_COLORS.trackOn : SWITCH_COLORS.trackOff
+  const knob = on ? SWITCH_COLORS.knobOn : SWITCH_COLORS.knobOff
+  return `<span${dataEl ? ` data-el="${dataEl}"` : ''} class="relative inline-block h-5 w-9 rounded-full" style="background-color:${track}"><span data-el="knob" class="absolute top-0.5 left-0.5 size-4 rounded-full" style="background-color:${knob};transform:translateX(${on ? SWITCH_TRAVEL : 0}px)"></span></span>`
+}
 
 const SIGNET_PATHS =
   '<path d="M4.73176 28.0413C7.25665 28.0413 9.30348 25.9831 9.30348 23.4442C9.30348 20.9053 7.25665 18.8472 4.73176 18.8472C2.20686 18.8472 0.160034 20.9053 0.160034 23.4442C0.160034 25.9831 2.20686 28.0413 4.73176 28.0413Z"/>' +
@@ -185,8 +193,8 @@ function manage(): string {
       <td class="px-2 py-1.5 font-medium">${f.label}</td>
       <td class="px-2 py-1.5 text-muted">${f.typeLabel}</td>
       <td class="px-2 py-1.5 text-muted">${slot}</td>
-      <td class="px-2 py-1.5 text-center"><span data-el="switch-required" class="${f.required ? SWITCH_ON : SWITCH_OFF}"></span></td>
-      <td class="px-2 py-1.5 text-center"><span class="${f.key === 'customerNo' ? SWITCH_ON : SWITCH_OFF}"></span></td>
+      <td class="px-2 py-1.5 text-center">${switchMarkup(f.required, 'switch-required')}</td>
+      <td class="px-2 py-1.5 text-center">${switchMarkup(f.key === 'customerNo')}</td>
     </tr>`
   }).join('')
   return `<div data-el="manage" class="absolute inset-x-0 bottom-0 bg-bg text-text" style="top:${BROWSER.chrome}px;opacity:0">

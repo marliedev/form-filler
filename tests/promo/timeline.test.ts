@@ -109,6 +109,20 @@ describe('scenes', () => {
     expect(root.querySelector('[data-field=company] [data-el=value]')!.textContent).toBe(DATASETS[0].company)
   })
 
+  it('cuts to the manage page and ends on the outro with the repository address', () => {
+    const root = mountStage()
+    const tl = buildTimeline(root, 'full')
+    tl.seek(sceneStart('manage') + 3)
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=manage]')!.style.opacity)).toBe(1)
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=page]')!.style.opacity)).toBe(0)
+    expect(root.querySelector('[data-el=url]')!.textContent).toContain('manage.html')
+    tl.seek(TOTAL - 0.1)
+    const outro = root.querySelector<HTMLElement>('[data-el=outro]')!
+    expect(parseFloat(outro.style.opacity)).toBe(1)
+    expect(parseFloat(root.querySelector<HTMLElement>('[data-el=outro-repo]')!.style.opacity)).toBe(1)
+    expect(outro.textContent).toContain('github.com/marliedev/form-filler')
+  })
+
   it('types into the company field and wipes it again during the problem scene', () => {
     const root = mountStage()
     const tl = buildTimeline(root, 'full')

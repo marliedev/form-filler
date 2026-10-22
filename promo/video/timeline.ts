@@ -8,6 +8,8 @@ import { detect } from './scenes/detect'
 import { record } from './scenes/record'
 import { fill } from './scenes/fill'
 import { shortcut } from './scenes/shortcut'
+import { manage } from './scenes/manage'
+import { outro } from './scenes/outro'
 import type { Mode } from './video-api'
 
 /** What every scene function receives: the shared timeline, the stage root, its absolute start and measured geometry. */
@@ -29,6 +31,7 @@ const MEASURED: readonly MeasurePass[] = [
       '[data-el=icon]', '[data-el=toolbar-icon]', '[data-el=browser]', '[data-el=popup]',
       '[data-el=newapp-name]', '[data-el=newapp-submit]', '[data-el=allow]',
       '[data-el=bar-save]', '[data-el=popover]', '[data-el=popover-accept]', '[data-el=export]', '[data-el=export-one]',
+      '[data-row=phone] [data-el=switch-required]',
       ...FIELDS.map((f) => `[data-field=${f.key}]`),
       ...FIELDS.map((f) => `[data-row=${f.key}]`),
     ],
@@ -63,7 +66,9 @@ export function buildTimeline(root: HTMLElement, mode: Mode): gsap.core.Timeline
     record(ctx('record'))
     fill(ctx('fill'), { caption: true, camera: 'full' })
     shortcut(ctx('shortcut'))
-    // Remaining scenes follow in later tasks; the no-op pins the total length until then.
+    manage(ctx('manage'))
+    outro(ctx('outro'))
+    // Pins the total length even if the last scene ends early.
     tl.set(root, {}, TOTAL)
   } else {
     tl.addLabel('teaser', 0)
