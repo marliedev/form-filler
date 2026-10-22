@@ -14,4 +14,8 @@
   --radius-lg: 8px;
   --radius-xl: 12px;
   --radius-2xl: 16px;
+
+  /* Prefixed faces registered on the page document by overlayFonts.ts. */
+  --font-display: "FF Bricolage", "Mulish", system-ui, sans-serif;
+  --font-body: "FF Wotfard", "Mulish", system-ui, sans-serif;
 }
