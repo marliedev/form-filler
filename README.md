@@ -37,7 +37,7 @@ Die Erweiterung ist nicht im Chrome Web Store. Du baust sie einmal lokal und lä
 
 - [Git](https://git-scm.com)
 - [Node.js](https://nodejs.org) in einer aktuellen LTS-Version (getestet mit Node.js 22) samt npm
-- Ein Chromium-Browser, z. B. Dia, Arc, Chrome, Edge oder Brave
+- Ein Chromium-Browser, z. B. Dia, Arc, Chrome, Edge oder Brave, oder Firefox ab 128
 
 ### 1. Herunterladen und bauen
 
@@ -60,6 +60,8 @@ Der Ablauf ist bei allen Chromium-Browsern gleich:
 4. Die Erweiterung an die Symbolleiste anheften, damit das Popup mit einem Klick erreichbar ist.
 
 Die genauen Menü- und Schaltflächennamen können je nach Browser und Version abweichen.
+
+**Firefox** (ab Version 128): mit `npm run build:firefox` bauen, dann `about:debugging#/runtime/this-firefox` öffnen, **„Temporäres Add-on laden“** wählen und die Datei `.output/firefox-mv3/manifest.json` auswählen. Ein temporäres Add-on verschwindet beim Beenden von Firefox. Dauerhaft installieren lässt sich nur ein von Mozilla signiertes Paket: `npm run zip:firefox` erzeugt die Datei für die Signierung als selbst verteiltes Add-on (ohne Eintrag im Add-on-Store).
 
 ### 3. Aktualisieren
 
@@ -90,7 +92,7 @@ Bei mehrteiligen Prozessen bleibt die Kennung zwischen den Schritten gleich; **N
 
 ## Tastenkürzel
 
-Standard: **Alt+Shift+F** füllt die aktuelle Seite mit der zuletzt genutzten Vorlage. Ändern lässt sich das Kürzel auf der Kürzel-Seite der Erweiterungsverwaltung des Browsers (bei Chromium-Browsern meist `chrome://extensions/shortcuts`).
+Standard: **Alt+Shift+F** füllt die aktuelle Seite mit der zuletzt genutzten Vorlage. Ändern lässt sich das Kürzel auf der Kürzel-Seite der Erweiterungsverwaltung des Browsers (bei Chromium-Browsern meist `chrome://extensions/shortcuts`, in Firefox unter `about:addons` → Zahnrad → „Tastenkürzel für Erweiterungen verwalten“).
 
 ## Datenschutz
 

@@ -7,6 +7,7 @@ import type { Template } from '../../src/model/types'
 import { usePopup } from '../../src/popup/usePopup'
 import BrandSignet from '../../src/theme/BrandSignet.vue'
 import FillReportView from '../../src/ui/FillReportView.vue'
+import { SHORTCUTS_PAGE_HINT } from '../../src/popup/browserHints'
 import Segmented from '../../src/ui/Segmented.vue'
 import type { SegmentedOption } from '../../src/ui/segmented'
 
@@ -540,7 +541,7 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
           füllt mit der zuletzt genutzten Vorlage.
         </template>
         <template v-else>
-          Tastenkürzel für „zuletzt genutzte Vorlage“ unter chrome://extensions/shortcuts festlegen.
+          Tastenkürzel für „zuletzt genutzte Vorlage“ {{ SHORTCUTS_PAGE_HINT }} festlegen.
         </template>
       </p>
     </footer>
