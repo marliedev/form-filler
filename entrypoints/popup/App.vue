@@ -289,7 +289,7 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
               <div
                 v-if="openMenuId === t.id"
                 :id="`menu-${t.id}`"
-                class="mt-2 flex gap-2"
+                class="mt-2 flex flex-wrap gap-2"
                 @keydown.esc.stop="closeMenu(t.id)"
               >
                 <button
@@ -306,30 +306,29 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
                 >
                   Bearbeiten
                 </button>
+                <button
+                  type="button"
+                  :class="secondaryButton"
+                  title="Verwirft die Testdaten dieses Tabs; beim nächsten Füllen entstehen neue."
+                  @click="popup.newDataset()"
+                >
+                  Neuer Datensatz
+                </button>
               </div>
             </li>
           </ul>
         </section>
 
         <div>
-          <div class="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              :class="linkButton"
-              :aria-expanded="showNewTemplate"
-              aria-controls="new-template-form"
-              @click="toggleNewTemplate()"
-            >
-              + Neue Vorlage
-            </button>
-            <button
-              type="button"
-              :class="linkButton"
-              @click="popup.newDataset()"
-            >
-              Neuer Datensatz
-            </button>
-          </div>
+          <button
+            type="button"
+            :class="`w-full rounded-xl border border-dashed border-brand-fg px-3 py-2.5 font-medium text-brand-fg hover:bg-surface hover:text-brand-fg-strong ${focusRing}`"
+            :aria-expanded="showNewTemplate"
+            aria-controls="new-template-form"
+            @click="toggleNewTemplate()"
+          >
+            + Neue Vorlage
+          </button>
           <form
             v-if="showNewTemplate"
             id="new-template-form"
