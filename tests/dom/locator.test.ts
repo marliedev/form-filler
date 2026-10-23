@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { describeElement, displayLabel, findElement, isRequired, listControls, normalizeLabel, type FormControl } from '../../src/dom/locator'
+import { frame, frameDoc, q as deepQ, shadow } from './deepHelpers'
 
 function setup(html: string): HTMLElement {
   document.body.innerHTML = html
@@ -197,5 +198,52 @@ describe('listControls', () => {
       <input name="gone" style="display:none">
     `)
     expect(listControls(document.body).map((el) => el.getAttribute('name') ?? el.getAttribute('aria-label'))).toEqual(['a', 'r', 'G', 's', 't', 'C'])
+  })
+})
+
+describe('deep lookup', () => {
+  const zipMarkup = '<label for="zip">PLZ</label><input id="zip" name="zip">'
+
+  it('describes a field inside a shadow root with its label from the same tree and its scope', () => {
+    setup('<wc-x id="h"></wc-x>')
+    const inner = deepQ<HTMLInputElement>('input', shadow(deepQ('wc-x'), '<label for="i">PLZ</label><input id="i" name="zip">'))
+    expect(describeElement(inner)).toEqual({ kind: 'text', name: 'zip', id: 'i', label: 'plz', inputType: 'text', scope: ['wc-x#h'] })
+  })
+
+  it('an old locator without scope prefers the main-document field over an equally named one in a frame', async () => {
+    setup(zipMarkup)
+    await frame(zipMarkup, 'name="delivery"')
+    const found = findElement(document, { kind: 'text', name: 'zip', id: 'zip', label: 'plz' })
+    expect(found.status).toBe('found')
+    if (found.status === 'found') expect(found.el.ownerDocument).toBe(document)
+  })
+
+  it('a locator recorded in a frame finds the frame field, not the main-document twin', async () => {
+    setup(zipMarkup)
+    const f = await frame(zipMarkup, 'name="delivery"')
+    const found = findElement(document, { kind: 'text', name: 'zip', id: 'zip', label: 'plz', scope: ['iframe:delivery'] })
+    expect(found.status).toBe('found')
+    if (found.status === 'found') expect(found.el.ownerDocument).toBe(frameDoc(f))
+  })
+
+  it('two identical hosts without id or name stay ambiguous', () => {
+    setup('<wc-x></wc-x><wc-x></wc-x>')
+    for (const host of Array.from(document.querySelectorAll('wc-x'))) shadow(host, '<input name="zip">')
+    expect(findElement(document, { kind: 'text', name: 'zip', scope: ['wc-x'] })).toEqual({ status: 'ambiguous', count: 2 })
+  })
+
+  it('treats fields in hidden frames and hidden hosts as invisible', async () => {
+    setup('<wc-x style="display:none"></wc-x>')
+    shadow(deepQ('wc-x'), '<input name="zip">')
+    expect(findElement(document, { kind: 'text', name: 'zip', scope: ['wc-x'] }).status).toBe('missing')
+    await frame('<input name="plz">', 'name="hidden" style="display:none"')
+    expect(findElement(document, { kind: 'text', name: 'plz', scope: ['iframe:hidden'] }).status).toBe('missing')
+  })
+
+  it('listControls includes shadow and frame fields', async () => {
+    setup('<input name="a"><wc-x></wc-x>')
+    shadow(deepQ('wc-x'), '<select name="b"></select>')
+    await frame('<textarea name="c"></textarea>', 'name="delivery"')
+    expect(listControls(document).map((el) => el.getAttribute('name'))).toEqual(['a', 'b', 'c'])
   })
 })

@@ -31,8 +31,10 @@ function errorMessage(e: unknown): string {
 
 /** -1 (the DOM default) means no limit. */
 function maxLengthOf(el: FormControl): number | null {
-  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
-    return el.maxLength >= 0 ? el.maxLength : null
+  // Tag check instead of instanceof: elements inside a frame belong to another realm.
+  if (el.localName === 'input' || el.localName === 'textarea') {
+    const { maxLength } = el as HTMLInputElement
+    return maxLength >= 0 ? maxLength : null
   }
   return null
 }

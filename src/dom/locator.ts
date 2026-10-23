@@ -1,4 +1,5 @@
 import type { ControlKind, FieldLocator } from '../model/types'
+import { byId, deepQuerySelectorAll, parentOf, rootOf, scopeOf, type Root } from './deep'
 
 /** HTMLElement covers `[role=combobox]` and `[role=radiogroup]` hosts. */
 export type FormControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLElement
@@ -40,11 +41,11 @@ function isNativeRadio(el: Element): el is HTMLInputElement {
   return el.tagName.toLowerCase() === 'input' && (el.getAttribute('type') ?? '').toLowerCase() === 'radio'
 }
 
-function textOfIds(doc: Document, ids: string | null): string {
+function textOfIds(root: Root, ids: string | null): string {
   if (!ids) return ''
   return ids
     .split(/\s+/)
-    .map((id) => doc.getElementById(id)?.textContent ?? '')
+    .map((id) => byId(root, id)?.textContent ?? '')
     .join(' ')
 }
 
@@ -57,22 +58,23 @@ function labelText(label: Element): string {
 
 /** Raw (not normalized) label text, so `isRequired` can still see a trailing '*'. */
 function rawLabel(el: Element): string {
-  const doc = el.ownerDocument
+  // Labels and ids are looked up in the element's own tree: a shadow root keeps its own.
+  const root = rootOf(el)
   if (isNativeRadio(el)) {
     const legend = el.closest('fieldset')?.querySelector(':scope > legend')
     if (legend?.textContent?.trim()) return legend.textContent
     const group = el.closest('[role="radiogroup"]')
-    if (group) return textOfIds(doc, group.getAttribute('aria-labelledby')) || (group.getAttribute('aria-label') ?? '')
+    if (group) return textOfIds(root, group.getAttribute('aria-labelledby')) || (group.getAttribute('aria-label') ?? '')
     return ''
   }
   const id = el.getAttribute('id')
   if (id) {
-    const forLabel = Array.from(doc.querySelectorAll('label')).find((l) => l.getAttribute('for') === id)
+    const forLabel = Array.from(root.querySelectorAll('label')).find((l) => l.getAttribute('for') === id)
     if (forLabel) return labelText(forLabel)
   }
   const wrapping = el.closest('label')
   if (wrapping) return labelText(wrapping)
-  const labelledBy = textOfIds(doc, el.getAttribute('aria-labelledby'))
+  const labelledBy = textOfIds(root, el.getAttribute('aria-labelledby'))
   if (labelledBy) return labelledBy
   // ARIA widget hosts (custom radio groups, comboboxes) cannot have a <label>; their
   // aria-label is their visible group label, so it must count like one for re-finding.
@@ -129,6 +131,9 @@ export function describeElement(el: FormControl): FieldLocator {
   if (el.tagName.toLowerCase() === 'input' && kind !== 'radiogroup') {
     locator.inputType = (el.getAttribute('type') ?? 'text').toLowerCase()
   }
+  // Omitted for the main document, so existing templates and exports keep their shape.
+  const scope = scopeOf(el)
+  if (scope.length > 0) locator.scope = scope
   return locator
 }
 
@@ -153,13 +158,18 @@ export function displayLabel(el: FormControl): string {
 }
 
 export function isVisible(el: Element): boolean {
-  if (el.closest('[hidden]')) return false
-  const view = el.ownerDocument.defaultView
-  if (!view) return true
-  for (let node: Element | null = el; node; node = node.parentElement) {
-    if (view.getComputedStyle(node).display === 'none') return false
+  // Climbs through shadow hosts and frame elements: a field in a hidden frame is hidden too.
+  for (let node: Element | null = el; node; node = parentOf(node)) {
+    if (node.hasAttribute('hidden')) return false
+    const view = node.ownerDocument.defaultView
+    if (view && view.getComputedStyle(node).display === 'none') return false
   }
-  return view.getComputedStyle(el).visibility !== 'hidden'
+  const view = el.ownerDocument.defaultView
+  return !view || view.getComputedStyle(el).visibility !== 'hidden'
+}
+
+function sameScope(wanted: string[] | undefined, actual: string[]): boolean {
+  return (wanted ?? []).join('\n') === actual.join('\n')
 }
 
 function score(el: Element, loc: FieldLocator): number {
@@ -169,6 +179,9 @@ function score(el: Element, loc: FieldLocator): number {
   if (loc.label !== undefined && normalizeLabel(rawLabel(el)) === normalizeLabel(loc.label)) total += 3
   if (loc.ariaLabel !== undefined && normalizeLabel(attr(el, 'aria-label')) === normalizeLabel(loc.ariaLabel)) total += 2
   if (loc.placeholder !== undefined && normalizeLabel(attr(el, 'placeholder')) === normalizeLabel(loc.placeholder)) total += 1
+  // The place counts like a label, but only for a field that already matches on its own;
+  // a weak or bare locator must not become a match just by being in the right tree.
+  if (total >= MIN_SCORE && sameScope(loc.scope, scopeOf(el))) total += 3
   return total
 }
 
@@ -177,7 +190,7 @@ export function listControls(root: ParentNode): FormControl[] {
   // Radio names are only unique per form, so groups are tracked per form owner.
   const seenRadioGroups = new Map<HTMLFormElement | null, Set<string>>()
   const controls: FormControl[] = []
-  for (const el of Array.from(root.querySelectorAll<HTMLElement>(CANDIDATE_SELECTOR))) {
+  for (const el of deepQuerySelectorAll(root, CANDIDATE_SELECTOR) as HTMLElement[]) {
     if (kindOf(el) === null || !isVisible(el)) continue
     if (isNativeRadio(el)) {
       // An ARIA radiogroup wrapper is the group; its inner radios are not candidates.

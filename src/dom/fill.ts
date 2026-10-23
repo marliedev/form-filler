@@ -1,5 +1,6 @@
 import type { FieldValue } from '../generators/resolve'
 import type { ControlKind } from '../model/types'
+import { byId, rootOf } from './deep'
 import { isVisible, type FormControl } from './locator'
 
 export type FillOutcome = { status: 'filled'; shown: string } | { status: 'failed'; reason: string }
@@ -145,9 +146,9 @@ function isNativeRadio(el: Element): el is HTMLInputElement {
 }
 
 function radioLabel(r: HTMLInputElement): string {
-  const doc = r.ownerDocument
+  const root = rootOf(r)
   if (r.id) {
-    const forLabel = Array.from(doc.querySelectorAll('label')).find((l) => l.htmlFor === r.id)
+    const forLabel = Array.from(root.querySelectorAll('label')).find((l) => l.htmlFor === r.id)
     if (forLabel?.textContent?.trim()) return forLabel.textContent.trim()
   }
   const wrapping = r.closest('label')?.textContent?.trim()
@@ -155,7 +156,7 @@ function radioLabel(r: HTMLInputElement): string {
   const aria = r.getAttribute('aria-label')?.trim()
   if (aria) return aria
   const ids = r.getAttribute('aria-labelledby')
-  return ids ? ids.split(/\s+/).map((id) => doc.getElementById(id)?.textContent ?? '').join(' ').trim() : ''
+  return ids ? ids.split(/\s+/).map((id) => byId(root, id)?.textContent ?? '').join(' ').trim() : ''
 }
 
 /** First non-empty text node, e.g. the title of a card that also carries a description. */
@@ -178,7 +179,7 @@ function radioValue(el: Element): string | null {
 
 function nativeGroup(first: HTMLInputElement): HTMLInputElement[] {
   if (!first.name) return [first]
-  const scope: ParentNode = first.form ?? first.ownerDocument
+  const scope: ParentNode = first.form ?? rootOf(first)
   // Radio names are only unique per form, so radios of other forms must not join the group.
   return Array.from(scope.querySelectorAll<HTMLInputElement>('input[type="radio"]'))
     .filter((r) => r.name === first.name && r.form === first.form)
@@ -246,7 +247,7 @@ function openListbox(el: HTMLElement): HTMLElement | null {
   const host = comboboxInput(el)
   const ids = `${host.getAttribute('aria-controls') ?? ''} ${host.getAttribute('aria-owns') ?? ''}`.split(/\s+/).filter(Boolean)
   for (const id of ids) {
-    const target = el.ownerDocument.getElementById(id)
+    const target = byId(rootOf(el), id)
     const listbox = target?.getAttribute('role') === 'listbox' ? target : target?.querySelector<HTMLElement>('[role="listbox"]')
     if (listbox && isVisible(listbox) && listbox.querySelector('[role="option"]')) return listbox
   }

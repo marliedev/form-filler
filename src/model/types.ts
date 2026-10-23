@@ -8,6 +8,8 @@ export interface FieldLocator {
   ariaLabel?: string;
   placeholder?: string;
   inputType?: string;
+  /** Boundaries from the top document to the field (`iframe:<name>`, `<tag>#<id>`); absent for the main document. */
+  scope?: string[];
 }
 
 export type SimpleTypeId =

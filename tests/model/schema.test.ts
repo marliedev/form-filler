@@ -32,6 +32,16 @@ const template: Template = {
 };
 
 describe('parseExport', () => {
+  it('accepts and keeps locator.scope, and accepts locators without it', () => {
+    const first = template.fields[0];
+    if (!first) throw new Error('fixture');
+    const scoped: Template = { ...template, fields: [{ ...first, locator: { ...first.locator, scope: ['iframe:delivery', 'wc-input#po'] } }] };
+    const result = parseExport(buildExport([app], [scoped]));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.templates[0]?.fields[0]?.locator.scope).toEqual(['iframe:delivery', 'wc-input#po']);
+    expect(parseExport(buildExport([app], [template])).ok).toBe(true);
+  });
+
   it('round-trips the output of buildExport', () => {
     const result = parseExport(buildExport([app], [template]));
     expect(result).toEqual({
