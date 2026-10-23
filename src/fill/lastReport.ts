@@ -25,6 +25,12 @@ export async function getLastReport(tabId: number): Promise<FillReport | null> {
   return ((await browser.storage.session.get(key))[key] as FillReport | undefined) ?? null
 }
 
+/** Forgets the tab's last report (e.g. after undo) and clears its badge. */
+export async function clearLastReport(tabId: number): Promise<void> {
+  await browser.storage.session.remove(reportKey(tabId))
+  await clearBadge(tabId)
+}
+
 export async function clearBadge(tabId: number): Promise<void> {
   await browser.action.setBadgeText({ tabId, text: '' })
 }

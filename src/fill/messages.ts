@@ -8,9 +8,13 @@ export type ContentMessage =
   | { type: 'fill'; template: Template; dataset: Dataset; mode: FillMode }
   | { type: 'record:start'; templateId: string }
   | { type: 'scan' }
+  | { type: 'undo' }
 
 /** Content script answer to `record:start`. */
 export type RecordStartResponse = { ok: true } | { ok: false; error: string }
+
+/** Content script answer to `undo`: how many fields went back, and the labels of those that could not. */
+export type UndoResponse = { ok: true; restored: number; kept: string[] } | { ok: false; error: string }
 
 /** Content script answer to `scan`: the rules the recorder would suggest for every form field. */
 export type ScanResponse = { ok: true; fields: FieldRule[] } | { ok: false; error: string }

@@ -1,7 +1,7 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { browser } from 'wxt/browser'
 import { matchApp } from '../fill/appMatch'
-import { dispatchFill, quickFill as runQuickFill, startRecording } from '../fill/dispatch'
+import { dispatchFill, quickFill as runQuickFill, startRecording, undoLastRun } from '../fill/dispatch'
 import { clearBadge, getLastReport } from '../fill/lastReport'
 import type { FillMode } from '../fill/messages'
 import type { FillReport } from '../fill/runFill'
@@ -45,6 +45,10 @@ export interface PopupState {
   newDataset(): Promise<void>
   /** Fills the page without a template; the run can then be saved as one. */
   quickFill(): Promise<void>
+  /** The last report has filled fields, so there is a run to take back. */
+  canUndo: ComputedRef<boolean>
+  /** Puts the last run on the page back and tells what could not be restored. */
+  undo(): Promise<void>
   /** Saves the quick run as template of the current app; resolves to true when stored. */
   saveQuickTemplate(name: string): Promise<boolean>
   chooseApp(id: string): Promise<void>
@@ -88,6 +92,7 @@ export function usePopup(): PopupState {
 
   const suggestedPattern = computed(() => originPattern(url.value))
   const pageSupported = computed(() => suggestedPattern.value !== '')
+  const canUndo = computed(() => (report.value?.filled ?? 0) > 0)
 
   function resetStatus(): void {
     error.value = null
@@ -207,6 +212,21 @@ export function usePopup(): PopupState {
         dataset.value = await getLatestDataset(id)
         quickRun.value = await loadQuickRun(id)
       }
+    })
+  }
+
+  async function undo(): Promise<void> {
+    const id = tabId.value
+    if (id === null || busy.value) return
+    await run('Rückgängig fehlgeschlagen.', async () => {
+      const result = await undoLastRun(id)
+      report.value = null
+      if (!result.ok) {
+        notice.value = result.error
+        return
+      }
+      const kept = result.kept.length > 0 ? ` · nicht zurückgesetzt: ${result.kept.join(', ')}` : ''
+      notice.value = `Letzter Lauf zurückgenommen · ${result.restored} Felder${kept}`
     })
   }
 
@@ -383,6 +403,7 @@ export function usePopup(): PopupState {
 
   return {
     tabId, url, title, pageSupported, suggestedPattern, app, detected, apps, templates, mode, report, dataset, quickRun, busy, error, notice, permissionMissing,
-    load, setMode, fill, quickFill, saveQuickTemplate, newDataset, chooseApp, createAppForCurrentPage, grantPermission, newTemplate, record, openManage,
+    canUndo,
+    load, setMode, fill, quickFill, undo, saveQuickTemplate, newDataset, chooseApp, createAppForCurrentPage, grantPermission, newTemplate, record, openManage,
   }
 }

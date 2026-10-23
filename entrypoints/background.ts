@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser'
 import { defineBackground } from 'wxt/utils/define-background'
-import { dispatchFill, fillByShortcut, quickFill, startRecording } from '../src/fill/dispatch'
+import { dispatchFill, fillByShortcut, quickFill, startRecording, undoLastRun } from '../src/fill/dispatch'
 import { clearDatasetsForTab } from '../src/storage/datasetStore'
 import { clearQuickRun } from '../src/storage/quickRunStore'
 
@@ -17,5 +17,5 @@ export default defineBackground(() => {
 
   // `wxt build --mode e2e` only: the browser test can neither click the toolbar button nor press
   // the shortcut, so it calls the same entry points directly. Production builds drop this line.
-  if (import.meta.env.MODE === 'e2e') Object.assign(self, { __formFillerE2E: { dispatchFill, startRecording, quickFill } })
+  if (import.meta.env.MODE === 'e2e') Object.assign(self, { __formFillerE2E: { dispatchFill, startRecording, quickFill, undoLastRun } })
 })

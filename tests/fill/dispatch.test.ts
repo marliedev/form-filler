@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeBrowser } from 'wxt/testing/fake-browser'
-import { dispatchFill, fillByShortcut, quickFill, startRecording } from '../../src/fill/dispatch'
-import { getLastReport } from '../../src/fill/lastReport'
+import { dispatchFill, fillByShortcut, quickFill, startRecording, undoLastRun } from '../../src/fill/dispatch'
+import { getLastReport, recordFillResult } from '../../src/fill/lastReport'
 import type { FillReport } from '../../src/fill/runFill'
 import type { ContentMessage } from '../../src/fill/messages'
 import type { FieldRule, Template } from '../../src/model/types'
@@ -374,5 +374,25 @@ describe('quickFill', () => {
     await expect(quickFill(5, 'all', page)).rejects.toThrow('kaputt')
     expect((await getLastReport(5))?.error).toBe('kaputt')
     expect(await getQuickRun(5)).toBeNull()
+  })
+})
+
+describe('undoLastRun', () => {
+  it('injects the content script, sends undo and clears report and badge', async () => {
+    await recordFillResult(5, report)
+    const { execute, send } = mockMessaging({ ok: true, restored: 2, kept: [] })
+    expect(await undoLastRun(5)).toEqual({ ok: true, restored: 2, kept: [] })
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(firstMessage(send)[1]).toEqual({ type: 'undo' })
+    expect(await getLastReport(5)).toBeNull()
+    expect(await fakeBrowser.action.getBadgeText({ tabId: 5 })).toBe('')
+  })
+
+  it('passes a failed undo through without touching the report', async () => {
+    await recordFillResult(5, report)
+    mockMessaging({ ok: false, error: 'Nichts zum Zurücknehmen – die Seite wurde seit dem letzten Lauf neu geladen.' })
+    const result = await undoLastRun(5)
+    expect(result.ok).toBe(false)
+    expect(await getLastReport(5)).toEqual(report)
   })
 })

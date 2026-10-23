@@ -290,6 +290,30 @@ describe('usePopup', () => {
     expect(await getQuickRun(7)).toBeNull()
   })
 
+  it('undo shows the result and drops the report', async () => {
+    await recordFillResult(7, report)
+    mockActiveTab('https://crm.example.com/')
+    const p = usePopup()
+    await p.load()
+    expect(p.canUndo.value).toBe(true)
+    mockMessaging({ ok: true, restored: 1, kept: ['Rolle'] })
+    await p.undo()
+    expect(p.notice.value).toBe('Letzter Lauf zurückgenommen · 1 Felder · nicht zurückgesetzt: Rolle')
+    expect(p.report.value).toBeNull()
+    expect(p.canUndo.value).toBe(false)
+  })
+
+  it('undo reports a reloaded page', async () => {
+    await recordFillResult(7, report)
+    mockActiveTab('https://crm.example.com/')
+    const p = usePopup()
+    await p.load()
+    mockMessaging({ ok: false, error: 'Nichts zum Zurücknehmen – die Seite wurde seit dem letzten Lauf neu geladen.' })
+    await p.undo()
+    expect(p.notice.value).toBe('Nichts zum Zurücknehmen – die Seite wurde seit dem letzten Lauf neu geladen.')
+    expect(p.report.value).toBeNull()
+  })
+
   it('chooseApp switches to another app and its templates', async () => {
     mockActiveTab('https://crm.example.com/')
     const p = usePopup()
