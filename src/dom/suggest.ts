@@ -83,6 +83,8 @@ function findRule(sources: (string | null | undefined)[]): SuggestRule | undefin
 export function suggestDataType(el: FormControl): DataTypeConfig {
   const loc = describeElement(el)
   if (loc.kind === 'checkbox') return { type: 'checkbox', checked: true }
+  // One fixed value, so "Passwort" and "Passwort wiederholen" end up equal.
+  if (loc.inputType === 'password') return { type: 'fixed', value: 'Test1234!' }
 
   // The visible label is the strongest signal; name/autocomplete only decide when it yields nothing.
   const rule =

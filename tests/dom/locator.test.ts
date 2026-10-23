@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { describeElement, displayLabel, findElement, isRequired, normalizeLabel, type FormControl } from '../../src/dom/locator'
+import { describeElement, displayLabel, findElement, isRequired, listControls, normalizeLabel, type FormControl } from '../../src/dom/locator'
 
 function setup(html: string): HTMLElement {
   document.body.innerHTML = html
@@ -183,5 +183,19 @@ describe('displayLabel', () => {
     expect(displayLabel(q('[name=street]'))).toBe('Z. B. Musterstraße')
     expect(displayLabel(q('[name=kostenStelle]'))).toBe('kostenStelle')
     expect(displayLabel(q('input:not([name])'))).toBe('')
+  })
+})
+
+describe('listControls', () => {
+  it('lists visible supported controls once per radio group, in document order', () => {
+    setup(`
+      <input name="a"><input type="hidden" name="h"><input type="submit">
+      <input type="radio" name="r" value="1"><input type="radio" name="r" value="2">
+      <div role="radiogroup" aria-label="G"><input type="radio" name="g"></div>
+      <select name="s"></select><textarea name="t"></textarea>
+      <div role="combobox" aria-label="C" aria-controls="l"></div>
+      <input name="gone" style="display:none">
+    `)
+    expect(listControls(document.body).map((el) => el.getAttribute('name') ?? el.getAttribute('aria-label'))).toEqual(['a', 'r', 'G', 's', 't', 'C'])
   })
 })

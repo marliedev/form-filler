@@ -33,6 +33,10 @@ describe('suggestDataType', () => {
     expect(suggestDataType(el('<input autocomplete="organization-title">'))).toEqual({ type: 'jobTitle' })
   })
 
+  it('gives password fields a fixed value so repeated passwords match', () => {
+    expect(suggestDataType(el('<label>Passwort <input type="password"></label>'))).toEqual({ type: 'fixed', value: 'Test1234!' })
+  })
+
   it('throws for unsupported elements', () => {
     expect(() => {
       document.body.innerHTML = '<button>x</button>'
