@@ -23,6 +23,16 @@ export async function getOrCreateDataset(tabId: number, t: Template, f: Faker): 
   return dataset
 }
 
+/** The tab's existing dataset for this template, extended by the slots the template needs; throws when the run has not started. */
+export async function reuseDataset(tabId: number, t: Template, f: Faker): Promise<Dataset> {
+  const key = keyFor(tabId, t)
+  const stored = (await browser.storage.session.get(key))[key] as Dataset | undefined
+  if (!stored) throw new Error('Kein Datensatz für diesen Lauf vorhanden')
+  const dataset = ensureSlots(stored, t, f)
+  await browser.storage.session.set({ [key]: dataset })
+  return dataset
+}
+
 /** The dataset created last in the tab (a tab can hold one per process); null before the first fill. */
 export async function getLatestDataset(tabId: number): Promise<Dataset | null> {
   const prefix = tabPrefix(tabId)

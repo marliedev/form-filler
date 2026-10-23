@@ -207,7 +207,7 @@ describe('fillByShortcut', () => {
     mockActiveTab(5, 'https://other.example.com/kontakt')
     const { send } = mockScanAndFill([scanned])
     expect(await fillByShortcut()).toEqual(quickReport)
-    expect(send.mock.calls.map((c) => c[1].type)).toEqual(['scan', 'fill'])
+    expect(send.mock.calls.map((c) => c[1].type)).toEqual(['scan', 'fill', 'scan'])
     expect((await getPrefs()).lastTemplateId).toBe('t1')
   })
 
@@ -216,7 +216,7 @@ describe('fillByShortcut', () => {
     mockActiveTab(5, 'https://x.example.com/a')
     const { send } = mockScanAndFill([scanned])
     expect(await fillByShortcut()).toEqual(quickReport)
-    expect(send.mock.calls.map((c) => c[1].type)).toEqual(['scan', 'fill'])
+    expect(send.mock.calls.map((c) => c[1].type)).toEqual(['scan', 'fill', 'scan'])
     expect((await getLastReport(5))?.templateId).toBe('quick')
     expect((await getQuickRun(5))?.url).toBe('https://x.example.com/a')
     expect((await getPrefs()).lastTemplateId).toBe('deleted')
@@ -226,7 +226,7 @@ describe('fillByShortcut', () => {
     mockActiveTab(5, 'https://x.example.com/a')
     const { send } = mockScanAndFill([scanned])
     expect(await fillByShortcut()).toEqual(quickReport)
-    expect(send.mock.calls.map((c) => c[1].type)).toEqual(['scan', 'fill'])
+    expect(send.mock.calls.map((c) => c[1].type)).toEqual(['scan', 'fill', 'scan'])
     expect(await fakeBrowser.action.getBadgeText({ tabId: 5 })).toBe('3')
   })
 
@@ -268,8 +268,63 @@ describe('fillByShortcut', () => {
     mockActiveTab(5, 'https://crm.example.com/')
     const { send } = mockScanAndFill([scanned])
     expect(await fillByShortcut()).toEqual(quickReport)
-    expect(send.mock.calls.map((c) => c[1].type)).toEqual(['scan', 'fill'])
+    expect(send.mock.calls.map((c) => c[1].type)).toEqual(['scan', 'fill', 'scan'])
     expect((await getPrefs()).lastTemplateId).toBe('order')
+  })
+})
+
+/** Answers successive `scan` messages with the given field lists (the last one repeats) and every `fill` with a report of the template it received. */
+function mockScanSequence(scans: FieldRule[][]) {
+  const { execute, send } = mockMessaging()
+  let scanCount = 0
+  send.mockImplementation(async (_tab, message) => {
+    if (message.type === 'scan') {
+      const fields = scans[Math.min(scanCount, scans.length - 1)] ?? []
+      scanCount++
+      return { ok: true, fields }
+    }
+    if (message.type === 'fill') {
+      const fields = message.template.fields.map((f) => ({ fieldId: f.id, label: f.label, status: 'filled' as const }))
+      return { templateId: message.template.id, filled: fields.length, total: fields.length, fields }
+    }
+    return undefined
+  })
+  return { execute, send }
+}
+
+const billing: FieldRule = {
+  id: 'b', label: 'Rechnung: PLZ', locator: { kind: 'text', name: 'billing_zip' }, config: { type: 'zip' }, slot: 'B', required: false, appendRunId: false,
+}
+
+describe('quickFill – conditional fields', () => {
+  it('scans again after the first pass and fills fields that appeared, with the same dataset', async () => {
+    const { send } = mockScanSequence([[scanned], [scanned, billing]])
+    const result = await quickFill(5, 'all', page)
+    const types = send.mock.calls.map((c) => c[1].type)
+    expect(types).toEqual(['scan', 'fill', 'scan', 'fill', 'scan'])
+    const first = send.mock.calls[1]?.[1]
+    const second = send.mock.calls[3]?.[1]
+    if (first?.type !== 'fill' || second?.type !== 'fill') throw new Error('fill messages')
+    expect(second.template.fields.map((f) => f.locator.name)).toEqual(['billing_zip'])
+    expect(second.dataset.runId).toBe(first.dataset.runId)
+    expect(second.dataset.addresses.B).toBeDefined()
+    expect(result.fields.map((f) => f.label)).toEqual(['A', 'Rechnung: PLZ'])
+    expect(result.filled).toBe(2)
+    expect((await getQuickRun(5))?.fields.map((f) => f.locator.name)).toEqual(['a', 'billing_zip'])
+  })
+
+  it('stops after two extra passes even when fields keep appearing', async () => {
+    const more = (name: string): FieldRule => ({ ...billing, id: name, label: name, locator: { kind: 'text', name } })
+    const { send } = mockScanSequence([[scanned], [scanned, more('x')], [scanned, more('x'), more('y')], [scanned, more('x'), more('y'), more('z')]])
+    const result = await quickFill(5, 'all', page)
+    expect(send.mock.calls.filter((c) => c[1].type === 'fill')).toHaveLength(3)
+    expect(result.fields.map((f) => f.label)).toEqual(['A', 'x', 'y'])
+  })
+
+  it('does not scan again when nothing new appears', async () => {
+    const { send } = mockScanSequence([[scanned]])
+    await quickFill(5, 'all', page)
+    expect(send.mock.calls.map((c) => c[1].type)).toEqual(['scan', 'fill', 'scan'])
   })
 })
 
@@ -295,8 +350,9 @@ describe('quickFill', () => {
     const { send } = mockScanAndFill([scanned])
     await quickFill(5, 'all', page)
     await quickFill(5, 'all', page)
-    const first = send.mock.calls[1]?.[1]
-    const second = send.mock.calls[3]?.[1]
+    const fills = send.mock.calls.map((c) => c[1]).filter((m) => m.type === 'fill')
+    const first = fills[0]
+    const second = fills[1]
     expect(first?.type).toBe('fill')
     expect(second?.type).toBe('fill')
     if (first?.type !== 'fill' || second?.type !== 'fill') return

@@ -27,7 +27,7 @@ Die Punkte 3–5, 7 und 9 laufen automatisiert mit `npm run test:e2e` (Chromium)
 - [ ] Popup zeigt beim Öffnen den letzten Bericht des Tabs.
 - [ ] „Andere App wählen“ und „⋯“-Menü (Felder aufnehmen / Bearbeiten): Esc schließt, Fokus kehrt zurück.
 - [ ] Fill während einer aktiven Aufnahme → Overlay bleibt bestehen, Fill läuft.
-- [ ] „Ohne Vorlage füllen“ in allen drei Zuständen (keine App: Hauptaktion über dem App-Formular; App ohne Vorlagen: Hauptaktion; App mit Vorlagen: Textknopf unter „+ Neue Vorlage“) → Statuszeile „Schnellfüllen: N von M befüllt …“, Badge, Bericht mit Feldbeschriftungen.
+- [ ] „Ohne Vorlage füllen“ in allen drei Zuständen (keine App: Hauptaktion über dem App-Formular; App ohne Vorlagen: Hauptaktion; App mit Vorlagen: Textknopf unter „+ Neue Vorlage“) → Statuszeile „Schnellfüllen: N von M befüllt …“, Badge, Bericht mit Feldbeschriftungen; die Rechnungsadresse der Testseite (erscheint erst nach der Checkbox) ist mit befüllt.
 - [ ] Nach dem Lauf „Als Vorlage speichern“: mit App → Namensformular (Seitentitel vorbelegt), Vorlage erscheint in der Liste, Problemfelder im Pflege-Tab als fehlend markiert; ohne App → Formular „Neue App“ mit Feld „Vorlage aus Schnellfüllen“, „App und Vorlage anlegen“ legt beides an.
 - [ ] Seitenwechsel im Tab nach einem Lauf → „Als Vorlage speichern“ ist weg; „Neuer Datensatz“ lässt das Angebot bestehen.
 
