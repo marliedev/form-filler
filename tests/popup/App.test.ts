@@ -218,6 +218,10 @@ describe('popup App', () => {
     await flushPromises()
     expect(w.get<HTMLInputElement>('#new-app-template').element.value).toBe('Seite')
     expect(document.activeElement).toBe(w.get('#new-app-name').element)
+    // The result must be visible without scrolling: status and offer come before the long new-app form.
+    const status = w.get('[role="status"]').element
+    const form = w.get('form[aria-labelledby="new-app-heading"]').element
+    expect(status.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(w.get('form[aria-labelledby="new-app-heading"] button[type="submit"]').text()).toBe('App und Vorlage anlegen')
     w.unmount()
   })
@@ -236,6 +240,12 @@ describe('popup App', () => {
     const name = w.get<HTMLInputElement>('#quick-template-name')
     expect(name.element.value).toBe('Seite')
     expect(document.activeElement).toBe(name.element)
+    await buttonByText(w, 'Abbrechen')?.trigger('click')
+    await flushPromises()
+    expect(w.find('#quick-template-form').exists()).toBe(false)
+    expect(document.activeElement).toBe(buttonByText(w, 'Als Vorlage speichern')?.element)
+    await buttonByText(w, 'Als Vorlage speichern')?.trigger('click')
+    await flushPromises()
     await name.setValue('Lieferant')
     await w.get('#quick-template-form').trigger('submit')
     await flushPromises()
@@ -243,6 +253,7 @@ describe('popup App', () => {
     expect(w.get('[role="status"]').text()).toBe('Vorlage „Lieferant“ gespeichert – Felder im Pflege-Tab prüfen.')
     expect(w.find('#quick-template-form').exists()).toBe(false)
     expect(buttonByText(w, 'Als Vorlage speichern')).toBeUndefined()
+    expect(document.activeElement).toBe(w.get('h1').element)
     w.unmount()
   })
 

@@ -40,6 +40,7 @@ const shortcut = ref('')
 const newTemplateInput = ref<HTMLInputElement | null>(null)
 const newAppNameInput = ref<HTMLInputElement | null>(null)
 const quickTemplateInput = ref<HTMLInputElement | null>(null)
+const quickSaveButton = ref<HTMLButtonElement | null>(null)
 const appPicker = ref<HTMLSelectElement | null>(null)
 const pickedAppId = ref('')
 const heading = ref<HTMLHeadingElement | null>(null)
@@ -160,11 +161,15 @@ function submitNewApp(): void {
   })
 }
 
-/** "Als Vorlage speichern": with an app an inline name form, without one the new-app form takes the run. */
+/** "Als Vorlage speichern": with an app an inline name form (toggled), without one the new-app form takes the run. */
 async function offerSave(): Promise<void> {
   const run = quickRun.value
   if (run === null) return
   if (app.value) {
+    if (showQuickTemplate.value) {
+      await cancelQuickTemplate()
+      return
+    }
     if (quickTemplateName.value === '') quickTemplateName.value = run.title
     showQuickTemplate.value = true
     await nextTick()
@@ -176,10 +181,19 @@ async function offerSave(): Promise<void> {
   newAppNameInput.value?.focus()
 }
 
+/** The form closes, so focus goes back to the button that opened it (WCAG 2.4.3). */
+async function cancelQuickTemplate(): Promise<void> {
+  showQuickTemplate.value = false
+  await nextTick()
+  quickSaveButton.value?.focus()
+}
+
 async function submitQuickTemplate(): Promise<void> {
   if (await popup.saveQuickTemplate(quickTemplateName.value)) {
     quickTemplateName.value = ''
     showQuickTemplate.value = false
+    // Form and button are gone now; the heading is the stable focus target.
+    await focusHeading()
   }
 }
 
@@ -458,15 +472,123 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
             Ohne Vorlage füllen
           </button>
         </div>
+      </template>
 
+      <div
+        v-if="error"
+        role="alert"
+        class="flex items-start gap-2.5 rounded-xl border border-border-subtle bg-surface px-3 py-2.5"
+      >
+        <span
+          aria-hidden="true"
+          class="mt-1.5 size-2.5 shrink-0 rounded-full bg-error"
+        />
+        <div class="min-w-0">
+          <p>{{ error.message }}</p>
+          <details
+            v-if="error.detail"
+            class="mt-1 text-xs text-muted"
+          >
+            <summary :class="`cursor-pointer rounded-sm text-brand-fg underline underline-offset-3 ${focusRing}`">
+              Technische Details
+            </summary>
+            <p class="mt-1 font-mono break-words">
+              {{ error.detail }}
+            </p>
+          </details>
+        </div>
+      </div>
+
+      <div class="grid gap-2">
+        <div
+          class="flex items-start gap-2.5"
+          :class="{ 'rounded-xl border border-border-subtle px-3 py-2.5': statusText }"
+        >
+          <span
+            v-if="statusText"
+            aria-hidden="true"
+            class="mt-1.5 size-2.5 shrink-0 rounded-full"
+            :class="statusTone"
+          />
+          <p
+            role="status"
+            aria-live="polite"
+            class="min-w-0 flex-1"
+          >
+            {{ statusText }}
+          </p>
+          <button
+            v-if="report && report.fields.length > 0 && !busy"
+            type="button"
+            :class="`shrink-0 ${linkButton}`"
+            :aria-expanded="showReport"
+            aria-controls="fill-report"
+            @click="showReport = !showReport"
+          >
+            {{ showReport ? 'Details ausblenden' : 'Details' }}
+          </button>
+        </div>
+        <FillReportView
+          v-if="showReport && report"
+          id="fill-report"
+          :report="report"
+        />
+        <button
+          v-if="quickRun && !busy"
+          ref="quickSaveButton"
+          type="button"
+          :class="`justify-self-start ${secondaryButton}`"
+          :aria-expanded="app ? showQuickTemplate : undefined"
+          :aria-controls="app ? 'quick-template-form' : undefined"
+          @click="offerSave()"
+        >
+          Als Vorlage speichern
+        </button>
+        <form
+          v-if="showQuickTemplate && app"
+          id="quick-template-form"
+          class="grid gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5"
+          @submit.prevent="submitQuickTemplate()"
+        >
+          <label
+            for="quick-template-name"
+            class="font-medium"
+          >Name der Vorlage</label>
+          <input
+            id="quick-template-name"
+            ref="quickTemplateInput"
+            v-model="quickTemplateName"
+            type="text"
+            autocomplete="off"
+            required
+            :class="textInput"
+          >
+          <div class="flex gap-2">
+            <button
+              type="submit"
+              :class="primaryButton"
+            >
+              Speichern
+            </button>
+            <button
+              type="button"
+              :class="secondaryButton"
+              @click="cancelQuickTemplate()"
+            >
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Below the result on purpose: after a quick fill the status and the offer stay above the fold. -->
+      <template v-if="loaded && pageSupported && tabId !== null && !app">
         <p
-          v-if="!app"
           class="text-muted"
         >
           Für diese Seite ist keine App hinterlegt.
         </p>
         <form
-          v-if="!app"
           class="grid gap-2"
           aria-labelledby="new-app-heading"
           @submit.prevent="submitNewApp()"
@@ -531,112 +653,6 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
           </button>
         </form>
       </template>
-
-      <div
-        v-if="error"
-        role="alert"
-        class="flex items-start gap-2.5 rounded-xl border border-border-subtle bg-surface px-3 py-2.5"
-      >
-        <span
-          aria-hidden="true"
-          class="mt-1.5 size-2.5 shrink-0 rounded-full bg-error"
-        />
-        <div class="min-w-0">
-          <p>{{ error.message }}</p>
-          <details
-            v-if="error.detail"
-            class="mt-1 text-xs text-muted"
-          >
-            <summary :class="`cursor-pointer rounded-sm text-brand-fg underline underline-offset-3 ${focusRing}`">
-              Technische Details
-            </summary>
-            <p class="mt-1 font-mono break-words">
-              {{ error.detail }}
-            </p>
-          </details>
-        </div>
-      </div>
-
-      <div class="grid gap-2">
-        <div
-          class="flex items-start gap-2.5"
-          :class="{ 'rounded-xl border border-border-subtle px-3 py-2.5': statusText }"
-        >
-          <span
-            v-if="statusText"
-            aria-hidden="true"
-            class="mt-1.5 size-2.5 shrink-0 rounded-full"
-            :class="statusTone"
-          />
-          <p
-            role="status"
-            aria-live="polite"
-            class="min-w-0 flex-1"
-          >
-            {{ statusText }}
-          </p>
-          <button
-            v-if="report && report.fields.length > 0 && !busy"
-            type="button"
-            :class="`shrink-0 ${linkButton}`"
-            :aria-expanded="showReport"
-            aria-controls="fill-report"
-            @click="showReport = !showReport"
-          >
-            {{ showReport ? 'Details ausblenden' : 'Details' }}
-          </button>
-        </div>
-        <FillReportView
-          v-if="showReport && report"
-          id="fill-report"
-          :report="report"
-        />
-        <button
-          v-if="quickRun && !busy"
-          type="button"
-          :class="`justify-self-start ${secondaryButton}`"
-          :aria-expanded="app ? showQuickTemplate : undefined"
-          :aria-controls="app ? 'quick-template-form' : undefined"
-          @click="offerSave()"
-        >
-          Als Vorlage speichern
-        </button>
-        <form
-          v-if="showQuickTemplate && app"
-          id="quick-template-form"
-          class="grid gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5"
-          @submit.prevent="submitQuickTemplate()"
-        >
-          <label
-            for="quick-template-name"
-            class="font-medium"
-          >Name der Vorlage</label>
-          <input
-            id="quick-template-name"
-            ref="quickTemplateInput"
-            v-model="quickTemplateName"
-            type="text"
-            autocomplete="off"
-            required
-            :class="textInput"
-          >
-          <div class="flex gap-2">
-            <button
-              type="submit"
-              :class="primaryButton"
-            >
-              Speichern
-            </button>
-            <button
-              type="button"
-              :class="secondaryButton"
-              @click="showQuickTemplate = false"
-            >
-              Abbrechen
-            </button>
-          </div>
-        </form>
-      </div>
     </main>
 
     <footer
