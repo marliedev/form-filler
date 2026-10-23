@@ -1,7 +1,7 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { browser } from 'wxt/browser'
 import { matchApp } from '../fill/appMatch'
-import { dispatchFill, startRecording } from '../fill/dispatch'
+import { dispatchFill, quickFill as runQuickFill, startRecording } from '../fill/dispatch'
 import { clearBadge, getLastReport } from '../fill/lastReport'
 import type { FillMode } from '../fill/messages'
 import type { FillReport } from '../fill/runFill'
@@ -9,12 +9,16 @@ import type { Dataset } from '../generators/dataset'
 import type { AppDef, Template } from '../model/types'
 import { createId } from '../model/id'
 import { clearDatasetsForTab, getLatestDataset } from '../storage/datasetStore'
+import { clearQuickRun, getQuickRun, type QuickRun } from '../storage/quickRunStore'
 import { deleteApp, getPrefs, listApps, listTemplates, saveApp, saveTemplate, setPrefs } from '../storage/repository'
+import { samePage } from './samePage'
 import { toUserError, type UserError } from './userError'
 
 export interface PopupState {
   tabId: Ref<number | null>
   url: Ref<string | null>
+  /** Title of the active tab; prefills template names after a quick fill. */
+  title: Ref<string>
   /** Only http(s) pages can be scripted; browser-internal pages cannot. */
   pageSupported: ComputedRef<boolean>
   suggestedPattern: ComputedRef<string>
@@ -27,6 +31,8 @@ export interface PopupState {
   report: Ref<FillReport | null>
   /** Test data of the tab as shown in the popup; null before the first fill. */
   dataset: Ref<Dataset | null>
+  /** Last quick fill of the tab, only while the tab still shows the page it ran on. */
+  quickRun: Ref<QuickRun | null>
   busy: Ref<boolean>
   error: Ref<UserError | null>
   /** Short confirmation for the live status line. */
@@ -37,9 +43,13 @@ export interface PopupState {
   setMode(mode: FillMode): Promise<void>
   fill(templateId: string): Promise<void>
   newDataset(): Promise<void>
+  /** Fills the page without a template; the run can then be saved as one. */
+  quickFill(): Promise<void>
+  /** Saves the quick run as template of the current app; resolves to true when stored. */
+  saveQuickTemplate(name: string): Promise<boolean>
   chooseApp(id: string): Promise<void>
   /** Resolves to true when the app was created and the permission granted. */
-  createAppForCurrentPage(name: string, pattern?: string): Promise<boolean>
+  createAppForCurrentPage(name: string, pattern?: string, templateName?: string): Promise<boolean>
   grantPermission(): Promise<void>
   /** Resolves to true when the template was saved (recording may still have failed). */
   newTemplate(name: string): Promise<boolean>
@@ -62,6 +72,7 @@ const INVALID_PATTERN = 'Das URL-Muster ist ungültig, z. B. https://app.example
 export function usePopup(): PopupState {
   const tabId = ref<number | null>(null)
   const url = ref<string | null>(null)
+  const title = ref('')
   const app = ref<AppDef | null>(null)
   const detected = ref(false)
   const apps = ref<AppDef[]>([])
@@ -69,6 +80,7 @@ export function usePopup(): PopupState {
   const mode = ref<FillMode>('all')
   const report = ref<FillReport | null>(null)
   const dataset = ref<Dataset | null>(null)
+  const quickRun = ref<QuickRun | null>(null)
   const busy = ref(false)
   const error = ref<UserError | null>(null)
   const notice = ref('')
@@ -125,6 +137,7 @@ export function usePopup(): PopupState {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true })
     tabId.value = tab?.id ?? null
     url.value = tab?.url ?? null
+    title.value = tab?.title ?? ''
     const [allApps, prefs] = await Promise.all([listApps(), getPrefs()])
     apps.value = allApps
     mode.value = prefs.mode
@@ -132,9 +145,20 @@ export function usePopup(): PopupState {
     await selectApp(match, match !== null)
     if (tabId.value !== null) {
       dataset.value = await getLatestDataset(tabId.value)
+      quickRun.value = await loadQuickRun(tabId.value)
       report.value = await getLastReport(tabId.value)
       if (report.value?.error !== undefined) error.value = toUserError(report.value.error, 'Befüllen fehlgeschlagen.')
     }
+  }
+
+  async function loadQuickRun(tab: number): Promise<QuickRun | null> {
+    const stored = await getQuickRun(tab)
+    return stored !== null && url.value !== null && samePage(stored.url, url.value) ? stored : null
+  }
+
+  function quickTemplate(appId: string, name: string, quick: QuickRun): Template {
+    // Problem fields are marked as missing so the manage tab shows right away what to check.
+    return { id: createId(), appId, name, process: null, fields: quick.fields, lastMissing: quick.problems }
   }
 
   async function setMode(next: FillMode): Promise<void> {
@@ -156,6 +180,45 @@ export function usePopup(): PopupState {
         dataset.value = await getLatestDataset(id)
       }
     })
+  }
+
+  async function quickFill(): Promise<void> {
+    const id = tabId.value
+    if (id === null || busy.value) return
+    report.value = null
+    await run('Schnellfüllen fehlgeschlagen.', async () => {
+      try {
+        const result = await runQuickFill(id, mode.value, { url: url.value ?? '', title: title.value })
+        report.value = result
+        if (result.error !== undefined) error.value = toUserError(result.error, 'Schnellfüllen fehlgeschlagen.')
+      } finally {
+        dataset.value = await getLatestDataset(id)
+        quickRun.value = await loadQuickRun(id)
+      }
+    })
+  }
+
+  async function saveQuickTemplate(name: string): Promise<boolean> {
+    const trimmed = name.trim()
+    const current = app.value
+    const quick = quickRun.value
+    const tab = tabId.value
+    if (busy.value || current === null || quick === null || tab === null) return false
+    resetStatus()
+    if (trimmed === '') {
+      error.value = { message: 'Bitte einen Namen eingeben.' }
+      return false
+    }
+    let saved = false
+    await run('Vorlage konnte nicht gespeichert werden.', async () => {
+      await saveTemplate(quickTemplate(current.id, trimmed, quick))
+      templates.value = await listTemplates(current.id)
+      await clearQuickRun(tab)
+      quickRun.value = null
+      notice.value = `Vorlage „${trimmed}“ gespeichert – Felder im Pflege-Tab prüfen.`
+      saved = true
+    })
+    return saved
   }
 
   async function newDataset(): Promise<void> {
@@ -184,7 +247,7 @@ export function usePopup(): PopupState {
    * The app is saved while the prompt is open because Chrome may close the popup meanwhile and the
    * promise then never settles; an explicit denial removes it again.
    */
-  async function createAppForCurrentPage(name: string, pattern = suggestedPattern.value): Promise<boolean> {
+  async function createAppForCurrentPage(name: string, pattern = suggestedPattern.value, templateName = ''): Promise<boolean> {
     const trimmed = name.trim()
     const origin = pattern.trim()
     if (busy.value) return false
@@ -224,7 +287,17 @@ export function usePopup(): PopupState {
       }
       apps.value = await listApps()
       await selectApp(created, url.value !== null && matchApp(url.value, [created]) !== null)
-      notice.value = `App „${trimmed}“ angelegt.`
+      const quick = quickRun.value
+      const template = templateName.trim()
+      if (quick !== null && template !== '' && tabId.value !== null) {
+        await saveTemplate(quickTemplate(created.id, template, quick))
+        templates.value = await listTemplates(created.id)
+        await clearQuickRun(tabId.value)
+        quickRun.value = null
+        notice.value = `App „${trimmed}“ und Vorlage „${template}“ angelegt.`
+      } else {
+        notice.value = `App „${trimmed}“ angelegt.`
+      }
       return true
     } catch (e) {
       error.value = toUserError(e, 'App konnte nicht gespeichert werden.')
@@ -296,7 +369,7 @@ export function usePopup(): PopupState {
   }
 
   return {
-    tabId, url, pageSupported, suggestedPattern, app, detected, apps, templates, mode, report, dataset, busy, error, notice, permissionMissing,
-    load, setMode, fill, newDataset, chooseApp, createAppForCurrentPage, grantPermission, newTemplate, record, openManage,
+    tabId, url, title, pageSupported, suggestedPattern, app, detected, apps, templates, mode, report, dataset, quickRun, busy, error, notice, permissionMissing,
+    load, setMode, fill, quickFill, saveQuickTemplate, newDataset, chooseApp, createAppForCurrentPage, grantPermission, newTemplate, record, openManage,
   }
 }

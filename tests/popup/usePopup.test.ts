@@ -3,9 +3,10 @@ import { fakeBrowser } from 'wxt/testing/fake-browser'
 import { getLastReport, recordFillResult } from '../../src/fill/lastReport'
 import type { ContentMessage } from '../../src/fill/messages'
 import type { FillReport } from '../../src/fill/runFill'
-import type { AppDef, Template } from '../../src/model/types'
+import type { AppDef, FieldRule, Template } from '../../src/model/types'
 import { usePopup } from '../../src/popup/usePopup'
 import { getPrefs, listApps, listTemplates, saveApp, saveTemplate, setPrefs } from '../../src/storage/repository'
+import { getQuickRun, saveQuickRun } from '../../src/storage/quickRunStore'
 
 const crm: AppDef = { id: 'crm', name: 'CRM', urlPatterns: ['https://crm.example.com/*'] }
 const shop: AppDef = { id: 'shop', name: 'Shop', urlPatterns: ['https://shop.example.com/*'] }
@@ -23,8 +24,8 @@ const report: FillReport = {
 }
 
 // The browser APIs are overloaded (promise + callback), so the mocks are typed separately and cast once.
-function mockActiveTab(url: string, id = 7) {
-  const query = vi.fn<(info: unknown) => Promise<{ id: number; url: string }[]>>(async () => [{ id, url }])
+function mockActiveTab(url: string, id = 7, title = 'Seite') {
+  const query = vi.fn<(info: unknown) => Promise<{ id: number; url: string; title: string }[]>>(async () => [{ id, url, title }])
   vi.spyOn(fakeBrowser.tabs, 'query').mockImplementation(query as unknown as typeof fakeBrowser.tabs.query)
 }
 
@@ -34,6 +35,17 @@ function mockMessaging(response: unknown = report) {
   vi.spyOn(fakeBrowser.scripting, 'executeScript').mockImplementation(execute as unknown as typeof fakeBrowser.scripting.executeScript)
   vi.spyOn(fakeBrowser.tabs, 'sendMessage').mockImplementation(send as unknown as typeof fakeBrowser.tabs.sendMessage)
   return { execute, send }
+}
+
+/** Answers `scan` with the given fields and every other message with `response`. */
+function mockScanAndFill(fields: FieldRule[], response: unknown = report) {
+  const { execute, send } = mockMessaging(response)
+  send.mockImplementation(async (_tab, message) => (message.type === 'scan' ? { ok: true, fields } : response))
+  return { execute, send }
+}
+
+const scanned: FieldRule = {
+  id: 'a', label: 'A', locator: { kind: 'text', name: 'a' }, config: { type: 'companyName' }, slot: null, required: false, appendRunId: false,
 }
 
 function mockPermissionRequest(granted: boolean | Promise<boolean>) {
@@ -171,6 +183,87 @@ describe('usePopup', () => {
     expect(p.dataset.value).toBeNull()
     await p.fill('t1')
     expect(p.dataset.value?.runId).toMatch(/^T\d{4}$/)
+  })
+
+  it('quickFill fills without a template and remembers run, report and dataset', async () => {
+    mockActiveTab('https://crm.example.com/')
+    mockScanAndFill([scanned])
+    const p = usePopup()
+    await p.load()
+    expect(p.quickRun.value).toBeNull()
+    await p.quickFill()
+    expect(p.report.value).toEqual(report)
+    expect(p.quickRun.value).toEqual({ fields: [scanned], problems: ['b'], url: 'https://crm.example.com/', title: 'Seite' })
+    expect(p.dataset.value?.runId).toMatch(/^T\d{4}$/)
+    expect(p.busy.value).toBe(false)
+  })
+
+  it('quickFill shows a technical scan failure as fallback with detail, and the no-fields message as is', async () => {
+    mockActiveTab('https://crm.example.com/')
+    const { send } = mockMessaging()
+    send.mockImplementation(async () => ({ ok: false, error: 'kaputt' }))
+    const p = usePopup()
+    await p.load()
+    await p.quickFill()
+    expect(p.error.value).toEqual({ message: 'Schnellfüllen fehlgeschlagen.', detail: 'kaputt' })
+    expect(p.quickRun.value).toBeNull()
+
+    mockScanAndFill([])
+    await p.quickFill()
+    expect(p.error.value).toEqual({ message: 'Keine Formularfelder auf dieser Seite erkannt.' })
+  })
+
+  it('shows a stored run only on the page it came from', async () => {
+    await saveQuickRun(7, { fields: [scanned], problems: [], url: 'https://crm.example.com/x?y', title: 'Seite' })
+    mockActiveTab('https://crm.example.com/x#top')
+    const same = usePopup()
+    await same.load()
+    expect(same.quickRun.value?.title).toBe('Seite')
+    mockActiveTab('https://crm.example.com/other')
+    const other = usePopup()
+    await other.load()
+    expect(other.quickRun.value).toBeNull()
+  })
+
+  it('saveQuickTemplate stores the run as template of the app with its problems marked and drops the run', async () => {
+    await saveQuickRun(7, { fields: [scanned], problems: ['a'], url: 'https://crm.example.com/', title: 'Seite' })
+    mockActiveTab('https://crm.example.com/')
+    const p = usePopup()
+    await p.load()
+    expect(await p.saveQuickTemplate('Neu')).toBe(true)
+    const saved = (await listTemplates('crm')).find((t) => t.name === 'Neu')
+    expect(saved).toMatchObject({ appId: 'crm', process: null, fields: [scanned], lastMissing: ['a'] })
+    expect(p.templates.value.map((t) => t.name)).toContain('Neu')
+    expect(p.notice.value).toBe('Vorlage „Neu“ gespeichert – Felder im Pflege-Tab prüfen.')
+    expect(p.quickRun.value).toBeNull()
+    expect(await getQuickRun(7)).toBeNull()
+  })
+
+  it('saveQuickTemplate rejects an empty name and needs a run', async () => {
+    mockActiveTab('https://crm.example.com/')
+    const p = usePopup()
+    await p.load()
+    expect(await p.saveQuickTemplate('Neu')).toBe(false)
+    await saveQuickRun(7, { fields: [scanned], problems: [], url: 'https://crm.example.com/', title: 'Seite' })
+    await p.load()
+    expect(await p.saveQuickTemplate('  ')).toBe(false)
+    expect(p.error.value?.message).toBe('Bitte einen Namen eingeben.')
+    expect((await listTemplates('crm')).length).toBe(1)
+  })
+
+  it('createAppForCurrentPage also stores the run as template when a template name is given', async () => {
+    await saveQuickRun(7, { fields: [scanned], problems: [], url: 'https://new.example.com/form', title: 'Seite' })
+    mockActiveTab('https://new.example.com/form')
+    mockPermissionRequest(true)
+    mockPermissionContains(true)
+    const p = usePopup()
+    await p.load()
+    expect(await p.createAppForCurrentPage('Neu', undefined, 'Formular')).toBe(true)
+    const app = p.app.value
+    expect((await listTemplates(app?.id)).map((t) => [t.name, t.fields])).toEqual([['Formular', [scanned]]])
+    expect(p.templates.value.map((t) => t.name)).toEqual(['Formular'])
+    expect(p.notice.value).toBe('App „Neu“ und Vorlage „Formular“ angelegt.')
+    expect(p.quickRun.value).toBeNull()
   })
 
   it('chooseApp switches to another app and its templates', async () => {
