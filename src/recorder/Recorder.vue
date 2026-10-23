@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, type CSSProperties } from 'vue'
-import { frameDocuments, viewportRect } from '../dom/deep'
-import { findElement, type FormControl } from '../dom/locator'
+import { frameDocuments, rootOf, viewportRect } from '../dom/deep'
+import { findAmong, listControls, type FormControl } from '../dom/locator'
 import { DATA_TYPES } from '../generators/catalog'
 import type { FieldRule } from '../model/types'
 import CapturePopover from './CapturePopover.vue'
@@ -57,14 +57,16 @@ function rectStyle(rect: DOMRect, inset = 3): CSSProperties {
 function measure(el: Element): DOMRect | null {
   // Relative to the top viewport, so fields inside frames get their boxes where they are seen.
   const rect = viewportRect(el)
-  return rect.width === 0 && rect.height === 0 ? null : rect
+  return rect.width <= 0 || rect.height <= 0 ? null : rect
 }
 
 const boxes = computed(() => {
   void tick.value
   if (saved.value) return []
+  // One walk of the page per tick serves every field.
+  const candidates = listControls(doc)
   return fields.value.flatMap((field) => {
-    const found = findElement(doc, field.locator)
+    const found = findAmong(candidates, field.locator)
     if (found.status !== 'found') return []
     const rect = measure(found.el)
     return rect ? [{ id: field.id, style: rectStyle(rect), tag: tagFor(field) }] : []
@@ -136,8 +138,9 @@ function returnFocusToPage(el: FormControl): void {
   skipFocusOf = el
   el.focus({ preventScroll: true })
   skipFocusOf = null
-  // Not focusable (e.g. an ARIA group host): keep keyboard users in the overlay instead.
-  if (doc.activeElement !== el) focusBar()
+  // Not focusable (e.g. an ARIA group host): keep keyboard users in the overlay instead. The
+  // field's own tree knows the focus; the document only reports the host or frame element.
+  if (rootOf(el).activeElement !== el) focusBar()
 }
 
 function onAccept(rule: FieldRule): void {

@@ -263,3 +263,19 @@ describe('Recorder overlay – shadow DOM and frames', () => {
     expect(w.text()).toContain('1 Feld')
   })
 })
+
+describe('Recorder overlay – focus after accepting', () => {
+  it('returns focus to a field inside a shadow root instead of the bar', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<x-host></x-host>')
+    const root = shadow(deepQ('x-host'), '<label for="i">Bestellnummer</label><input id="i" name="po_number">')
+    const inner = deepQ<HTMLInputElement>('input', root)
+    vi.spyOn(inner, 'getBoundingClientRect').mockReturnValue(rect(10, 20, 30, 10))
+    await mountOverlay()
+    focusIn(inner)
+    await flushPromises()
+    buttonByText('Übernehmen').click()
+    await flushPromises()
+    expect(document.activeElement).not.toBe(buttonByText('Speichern'))
+    expect(root.activeElement).toBe(inner)
+  })
+})
