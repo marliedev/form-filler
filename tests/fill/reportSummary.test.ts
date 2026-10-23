@@ -46,3 +46,19 @@ describe('summarizeReport', () => {
     expect(problemCount({ ...base, error: 'kaputt' })).toBe(1)
   })
 })
+
+describe('kept fields', () => {
+  it('counts kept fields without treating them as problems', () => {
+    const report: FillReport = {
+      templateId: 't',
+      filled: 1,
+      total: 2,
+      fields: [
+        { fieldId: 'a', label: 'A', status: 'filled' },
+        { fieldId: 'k', label: 'K', status: 'kept', detail: 'Bereits ausgefüllt' },
+      ],
+    }
+    expect(summarizeReport(report)).toBe('1 von 2 befüllt · 1 bereits ausgefüllt')
+    expect(problemCount(report)).toBe(0)
+  })
+})

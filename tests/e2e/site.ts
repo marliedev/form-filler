@@ -63,6 +63,7 @@ const DEEP_FIELDS: FieldRule[] = [
   rule('f-delivery-street', 'Lieferung: Straße', { ...text('street', 'street', 'straße'), scope: ['iframe:delivery'] }, { type: 'streetWithNumber' }, { slot: 'B' }),
   rule('f-delivery-zip', 'Lieferung: PLZ', { ...text('zip', 'zip', 'plz'), scope: ['iframe:delivery'] }, { type: 'zip' }, { slot: 'B' }),
   rule('f-delivery-city', 'Lieferung: Ort', { ...text('city', 'city', 'ort'), scope: ['iframe:delivery'] }, { type: 'city' }, { slot: 'B' }),
+  rule('f-delivery-carrier', 'Lieferung: Versanddienst', { kind: 'select', name: 'carrier', id: 'carrier', label: 'versanddienst', scope: ['iframe:delivery'] }, { type: 'choice', mode: 'fixed', values: ['DPD'] }),
   rule('f-main-zip', 'PLZ', text('zip', 'zip', 'plz'), { type: 'zip' }, { slot: 'A' }),
 ]
 export const DEEP = template('tpl-deep', 'Komponenten und Rahmen', DEEP_FIELDS, null)

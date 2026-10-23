@@ -13,6 +13,7 @@ Chromium-Erweiterung (Manifest V3), die Webformulare mit zusammenhängenden deut
 - **Viele Feldarten:** Textfelder, Selects, Radio-Buttons, Checkboxen, Datumsfelder sowie eigene, barrierefreie Komponenten (ARIA-Combobox, ARIA-Radiogroup, Auswahl-Buttons mit `aria-haspopup="listbox"` wie in Headless UI oder Nuxt UI), auch in Web-Components (offenes Shadow DOM) und in eingebetteten Formularen derselben Adresse.
 - **Mitdenkendes Tastenkürzel:** Alt+Shift+F füllt mit der passenden Vorlage der erkannten App, bei Prozessen mit dem nächsten Schritt; ohne App oder Vorlage füllt es die Seite ohne Vorlage.
 - **Datensatz im Blick:** Das Popup zeigt Kennung, Firma und Person des aktiven Datensatzes; „Neuer Datensatz“ beginnt einen neuen Durchlauf.
+- **Nichts geht verloren:** Füllen lässt Eingaben stehen, die nicht von Form Filler stammen (Bericht: „bereits ausgefüllt“), und ersetzt nur seine eigenen Werte. Vorbelegte Textfelder bleiben, vorbelegte Auswahlfelder werden gefüllt. „Rückgängig“ setzt die Felder des letzten Laufs zurück.
 - **Pflegbar:** Felder ergänzen, entfernen, umsortieren und als Pflicht oder optional markieren; Vorlagen duplizieren. Export und Import als JSON.
 - **Lokal:** Keine Server, kein Tracking, keine Synchronisierung.
 
@@ -108,7 +109,7 @@ Zum Ausprobieren reicht ein Klick: Zielseite öffnen, Popup starten, **Ohne Vorl
 4. Felder anklicken bzw. fokussieren, Datentyp und Optionen im Popover prüfen und übernehmen, mit „Speichern“ beenden.
 5. Im Popup **Füllen** wählen („Alle“ oder „Nur Pflicht“). Nicht gefundene oder nicht befüllbare Felder werden im Bericht mit Warnung angezeigt.
 
-Bei mehrteiligen Prozessen bleibt die Kennung zwischen den Schritten gleich; **Neuer Datensatz** beginnt einen neuen Durchlauf.
+Bei mehrteiligen Prozessen bleibt die Kennung zwischen den Schritten gleich; **Neuer Datensatz** beginnt einen neuen Durchlauf. Was du selbst eingetragen hast, bleibt beim Füllen stehen; bei Auswahlfeldern gilt das ab dem ersten Lauf auf der Seite, weil eine Vorwahl der Seite nicht von deiner zu unterscheiden ist. **Rückgängig** neben der Statuszeile nimmt den letzten Lauf zurück (Auswahlen, die vorher leer waren, lassen sich nicht leeren und werden genannt); ein weiterer Lauf ersetzt die zurückgesetzten Werte wieder.
 
 ## Tastenkürzel
 

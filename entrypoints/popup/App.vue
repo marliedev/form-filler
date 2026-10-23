@@ -16,7 +16,7 @@ import type { SegmentedOption } from '../../src/ui/segmented'
 
 const version = appVersion()
 const popup = usePopup()
-const { app, detected, apps, templates, mode, report, dataset, quickRun, busy, error, notice, pageSupported, suggestedPattern, tabId, permissionMissing } = popup
+const { app, detected, apps, templates, mode, report, dataset, quickRun, canUndo, busy, error, notice, pageSupported, suggestedPattern, tabId, permissionMissing } = popup
 
 const loaded = ref(false)
 const modeOptions: SegmentedOption<FillMode>[] = [
@@ -526,6 +526,15 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
             @click="showReport = !showReport"
           >
             {{ showReport ? 'Details ausblenden' : 'Details' }}
+          </button>
+          <button
+            v-if="canUndo && !busy"
+            type="button"
+            :class="`shrink-0 ${secondaryButton}`"
+            title="Setzt die Felder des letzten Laufs auf ihren vorherigen Zustand zurück."
+            @click="popup.undo()"
+          >
+            Rückgängig
           </button>
         </div>
         <FillReportView

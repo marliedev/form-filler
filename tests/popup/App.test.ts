@@ -200,6 +200,20 @@ describe('popup App', () => {
     w.unmount()
   })
 
+  it('offers Rückgängig after a run and reports the result', async () => {
+    await recordFillResult(7, report)
+    mockActiveTab('https://crm.example.com/x')
+    const w = await mountApp()
+    const undo = buttonByText(w, 'Rückgängig')
+    expect(undo).toBeDefined()
+    mockScanAndFill([], { ok: true, restored: 1, kept: [] })
+    await undo?.trigger('click')
+    await flushPromises()
+    expect(w.get('[role="status"]').text()).toBe('Letzter Lauf zurückgenommen · 1 Felder')
+    expect(buttonByText(w, 'Rückgängig')).toBeUndefined()
+    w.unmount()
+  })
+
   it('offers quick fill as the main action without an app, with mode switch and dataset line', async () => {
     mockActiveTab('https://new.example.com/')
     mockScanAndFill([scanned])

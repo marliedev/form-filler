@@ -6,8 +6,8 @@ import { getOrCreateDataset, reuseDataset } from '../storage/datasetStore'
 import { saveQuickRun } from '../storage/quickRunStore'
 import { getPrefs, getTemplate, listApps, listTemplates, saveTemplate, setPrefs } from '../storage/repository'
 import { matchApp } from './appMatch'
-import { recordFillResult } from './lastReport'
-import type { ContentMessage, FillMode, RecordStartResponse, ScanResponse } from './messages'
+import { clearLastReport, recordFillResult } from './lastReport'
+import type { ContentMessage, FillMode, RecordStartResponse, ScanResponse, UndoResponse } from './messages'
 import { isProblem } from './reportSummary'
 import { chooseShortcutTemplate } from './shortcutTemplate'
 import type { FillReport } from './runFill'
@@ -52,10 +52,10 @@ async function remember(tabId: number, report: FillReport): Promise<void> {
 }
 
 /** Shared fill path of stored templates and quick fills: dataset, injection, fill message, answer check. */
-async function fillWithTemplate(tabId: number, template: Template, mode: FillMode, dataset?: Dataset): Promise<FillReport> {
+async function fillWithTemplate(tabId: number, template: Template, mode: FillMode, dataset?: Dataset, continueRun = false): Promise<FillReport> {
   dataset ??= await getOrCreateDataset(tabId, template, fakerDE)
   await injectContentScript(tabId)
-  const message: ContentMessage = { type: 'fill', template, dataset, mode }
+  const message: ContentMessage = { type: 'fill', template, dataset, mode, ...(continueRun ? { continueRun } : {}) }
   const report: unknown = await browser.tabs.sendMessage(tabId, message)
   if (!isFillReport(report)) throw new Error('Die Seite hat nicht geantwortet')
   return report
@@ -142,11 +142,31 @@ async function runQuickFill(tabId: number, mode: FillMode, page: { url: string; 
     fields = [...fields, ...added]
     // Same dataset as the first pass, extended by the slots the new fields need (e.g. address B).
     const extended = await reuseDataset(tabId, quickTemplate(fields), fakerDE)
-    report = mergeReports(report, await fillWithTemplate(tabId, quickTemplate(added), mode, extended))
+    // The extra pass continues the page's run, so one undo takes every pass back.
+    report = mergeReports(report, await fillWithTemplate(tabId, quickTemplate(added), mode, extended, true))
   }
   const problems = report.fields.filter((f) => isProblem(f.status)).map((f) => f.fieldId)
   await saveQuickRun(tabId, { fields, problems, url: page.url, title: page.title })
   return report
+}
+
+function isUndoResponse(value: unknown): value is UndoResponse {
+  if (typeof value !== 'object' || value === null) return false
+  const { ok, restored, kept, error } = value as { ok?: unknown; restored?: unknown; kept?: unknown; error?: unknown }
+  return (ok === true && typeof restored === 'number' && Array.isArray(kept)) || (ok === false && typeof error === 'string')
+}
+
+/**
+ * Puts the last run on the tab back. The tab's report and badge go either way: after a successful
+ * undo they are obsolete, and when the page has nothing to undo they describe a page that is gone.
+ */
+export async function undoLastRun(tabId: number): Promise<UndoResponse> {
+  await injectContentScript(tabId)
+  const message: ContentMessage = { type: 'undo' }
+  const response: unknown = await browser.tabs.sendMessage(tabId, message)
+  if (!isUndoResponse(response)) throw new Error('Die Seite hat nicht geantwortet')
+  await clearLastReport(tabId)
+  return response
 }
 
 export async function startRecording(tabId: number, templateId: string): Promise<void> {

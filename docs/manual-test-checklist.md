@@ -13,7 +13,8 @@ Die Punkte 3–5, 7 und 9 laufen automatisiert mit `npm run test:e2e` (Chromium)
 - [ ] 5. Füllen mit „Nur Pflicht“ → nur Pflichtfelder befüllt.
 - [ ] 6. Formular absenden → keine Validierungsfehler der Seite.
 - [ ] 7. Schritt 2 füllen → gleiche Kennung wie in Schritt 1.
-- [ ] 8. „Neuer Datensatz“, erneut füllen → neue Kennung; Badge geleert.
+- [ ] 8. „Neuer Datensatz“, erneut füllen → neue Kennung; Badge geleert; ein vorher von Hand eingetragener Wert (z. B. Kundennummer) bleibt stehen und steht im Bericht als „bereits ausgefüllt“.
+- [ ] 8a. „Rückgängig“ im Popup → Text-, Auswahl- und Checkbox-Felder stehen wieder wie vor dem Lauf; Rolle, Land und Anliegen werden als „nicht zurückgesetzt“ genannt; Badge geleert. Nach Neuladen der Seite meldet „Rückgängig“, dass es nichts zurückzunehmen gibt.
 - [ ] 9. Ein Feld in der Testseite umbenennen, füllen → ⚠ im Popup-Bericht, Badge zeigt Problemanzahl rot, im Pflege-Tab ist das Feld als fehlend markiert.
 - [ ] 10. Tastenkürzel Alt+Shift+F auf der Seite → Fill läuft, Badge aktualisiert; nach Schritt 1 füllt das Kürzel Schritt 2, nach dem letzten Schritt wieder Schritt 1. Auf einer Seite ohne erkannte App oder ohne Vorlage → Schnellfüllen, Statuszeile „Schnellfüllen: …“, auch wenn zuvor eine Vorlage genutzt wurde.
 - [ ] 11. Export im Pflege-Tab → JSON-Datei mit sinnvollem Dateinamen wird geladen.

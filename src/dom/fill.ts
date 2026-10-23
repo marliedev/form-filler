@@ -325,6 +325,33 @@ async function fillCombobox(el: FormControl, choice: Choice, rand: Rand): Promis
   return filled(chosen.text)
 }
 
+/** Comparable state of a control as a user sees it; '' means empty. */
+export type FieldState = string
+
+function checkedRadioValue(el: FormControl): FieldState {
+  const natives = isNativeRadio(el) ? nativeGroup(el) : Array.from(el.querySelectorAll<HTMLInputElement>('input[type="radio"]'))
+  if (natives.length > 0) return natives.find((r) => r.checked)?.value ?? ''
+  const aria = Array.from(el.querySelectorAll<HTMLElement>('[role="radio"]')).find((r) => r.getAttribute('aria-checked') === 'true')
+  return aria ? (radioValue(aria) ?? firstText(aria)) : ''
+}
+
+export function currentState(el: FormControl, kind: ControlKind): FieldState {
+  switch (kind) {
+    case 'text':
+    case 'textarea':
+    case 'date':
+      return isTag(el, 'input') || isTag(el, 'textarea') ? el.value : ''
+    case 'select':
+      return isTag(el, 'select') ? el.value : ''
+    case 'checkbox':
+      return isTag(el, 'input') && el.checked ? 'on' : ''
+    case 'radiogroup':
+      return checkedRadioValue(el)
+    case 'combobox':
+      return displayedText(el).trim()
+  }
+}
+
 /**
  * Writes `v` into `el` the way a user would, so framework bindings (Vue v-model) register it.
  * `skip` must be handled by the caller; passing it is a programming error and throws.

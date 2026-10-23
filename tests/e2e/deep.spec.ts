@@ -7,7 +7,7 @@ interface Model {
   costCenter: string
   poNumber: string
   address: { zip: string }
-  delivery: { street: string; zip: string; city: string }
+  delivery: { street: string; zip: string; city: string; carrier: string }
 }
 
 async function model(page: Page): Promise<Model> {
@@ -27,9 +27,23 @@ test.describe('Komponenten und Rahmen', () => {
     expect(m.poNumber).toMatch(/^PO-\d{5}$/)
     expect(m.delivery.street).not.toBe('')
     expect(m.delivery.zip).toMatch(/^\d{5}$/)
+    expect(m.delivery.carrier).toBe('dpd')
     expect(m.address.zip).toMatch(/^\d{5}$/)
     // Slots A and B come from different addresses; equal zips are practically impossible among 8,000.
     expect(m.delivery.zip).not.toBe(m.address.zip)
+  })
+
+  test('nimmt Felder in Komponente und Rahmen zurück, auch die Auswahlliste im Rahmen', async ({ extension }) => {
+    await extension.seed([APP], [DEEP])
+    const { page, tabId } = await extension.open()
+    await extension.fill(tabId, DEEP.id)
+
+    expect(await extension.undo(tabId)).toEqual({ ok: true, restored: DEEP.fields.length, kept: [] })
+    const m = await model(page)
+    expect(m.costCenter).toBe('')
+    expect(m.poNumber).toBe('')
+    expect(m.delivery).toEqual({ street: '', zip: '', city: '', carrier: '' })
+    expect(m.address.zip).toBe('')
   })
 
   test('nimmt Felder in Komponente und Rahmen per Klick auf', async ({ extension }) => {
