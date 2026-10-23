@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeBrowser } from 'wxt/testing/fake-browser'
-import { dispatchFill, fillByShortcut, startRecording } from '../../src/fill/dispatch'
+import { dispatchFill, fillByShortcut, quickFill, startRecording } from '../../src/fill/dispatch'
 import { getLastReport } from '../../src/fill/lastReport'
 import type { FillReport } from '../../src/fill/runFill'
 import type { ContentMessage } from '../../src/fill/messages'
-import type { Template } from '../../src/model/types'
+import type { FieldRule, Template } from '../../src/model/types'
 import { getPrefs, getTemplate, saveApp, saveTemplate, setPrefs } from '../../src/storage/repository'
+import { getQuickRun } from '../../src/storage/quickRunStore'
 
 const tpl: Template = {
   id: 't1', appId: 'app', name: 'Vorlage', process: { name: 'Kundenanlage', step: 1 }, fields: [], lastMissing: ['old'],
@@ -32,6 +33,21 @@ function mockMessaging(response: unknown = report) {
   vi.spyOn(fakeBrowser.tabs, 'sendMessage').mockImplementation(send as unknown as typeof fakeBrowser.tabs.sendMessage)
   return { execute, send }
 }
+
+/** Answers `scan` with the given fields and every other message with `response`. */
+function mockScanAndFill(fields: FieldRule[], response: unknown = quickReport) {
+  const { execute, send } = mockMessaging(response)
+  send.mockImplementation(async (_tab, message) => (message.type === 'scan' ? { ok: true, fields } : response))
+  return { execute, send }
+}
+
+/** runFill reports the id of the template it ran with, so a quick fill answers with 'quick'. */
+const quickReport: FillReport = { ...report, templateId: 'quick' }
+
+const scanned: FieldRule = {
+  id: 'a', label: 'A', locator: { kind: 'text', name: 'a' }, config: { type: 'companyName' }, slot: null, required: false, appendRunId: false,
+}
+const page = { url: 'https://x.example.com/a?b#c', title: 'Seite' }
 
 function firstMessage(send: ReturnType<typeof mockMessaging>['send']): [number, ContentMessage] {
   const call = send.mock.calls[0]
@@ -244,5 +260,53 @@ describe('fillByShortcut', () => {
     expect(execute).not.toHaveBeenCalled()
     expect((await getLastReport(5))?.error).toBe('Keine Vorlage für diese App – zuerst im Popup eine aufnehmen.')
     expect(await fakeBrowser.action.getBadgeText({ tabId: 5 })).toBe('!')
+  })
+})
+
+describe('quickFill', () => {
+  it('scans the page, fills with an ad-hoc template and keeps the run for the tab', async () => {
+    const { send } = mockScanAndFill([scanned])
+    const result = await quickFill(5, 'required', page)
+    expect(result).toEqual(quickReport)
+    expect(send.mock.calls[0]?.[1]).toEqual({ type: 'scan' })
+    const fill = send.mock.calls[1]?.[1]
+    expect(fill).toMatchObject({
+      type: 'fill', mode: 'required',
+      template: { id: 'quick', name: 'Schnellfüllen', appId: '', process: null, fields: [scanned], lastMissing: [] },
+    })
+    expect(await getQuickRun(5)).toEqual({ fields: [scanned], problems: ['b', 'c', 'd'], url: page.url, title: 'Seite' })
+    expect((await getLastReport(5))?.templateId).toBe('quick')
+    expect(await fakeBrowser.action.getBadgeText({ tabId: 5 })).toBe('3')
+    expect((await getPrefs()).lastTemplateId).toBeNull()
+    expect(await getTemplate('quick')).toBeUndefined()
+  })
+
+  it('starts a new dataset on every run', async () => {
+    const { send } = mockScanAndFill([scanned])
+    await quickFill(5, 'all', page)
+    await quickFill(5, 'all', page)
+    const first = send.mock.calls[1]?.[1]
+    const second = send.mock.calls[3]?.[1]
+    expect(first?.type).toBe('fill')
+    expect(second?.type).toBe('fill')
+    if (first?.type !== 'fill' || second?.type !== 'fill') return
+    expect(second.dataset.company.name).not.toBe(first.dataset.company.name)
+  })
+
+  it('reports an error when the page has no fields and sends no fill', async () => {
+    const { send } = mockScanAndFill([])
+    await expect(quickFill(5, 'all', page)).rejects.toThrow('Keine Formularfelder auf dieser Seite erkannt.')
+    expect(send).toHaveBeenCalledTimes(1)
+    expect((await getLastReport(5))?.error).toBe('Keine Formularfelder auf dieser Seite erkannt.')
+    expect(await fakeBrowser.action.getBadgeText({ tabId: 5 })).toBe('!')
+    expect(await getQuickRun(5)).toBeNull()
+  })
+
+  it('reports a scan failure', async () => {
+    const { send } = mockMessaging()
+    send.mockImplementation(async () => ({ ok: false, error: 'kaputt' }))
+    await expect(quickFill(5, 'all', page)).rejects.toThrow('kaputt')
+    expect((await getLastReport(5))?.error).toBe('kaputt')
+    expect(await getQuickRun(5)).toBeNull()
   })
 })
