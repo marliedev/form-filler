@@ -4,6 +4,8 @@ Voraussetzung: `npm ci && npm run build`, Erweiterung aus `.output/chrome-mv3` g
 
 ## 1. Ende-zu-Ende mit der Testseite
 
+Die Punkte 3–5, 7 und 9 laufen automatisiert mit `npm run test:e2e` (Chromium). Hier bleiben sie für die Abnahme in anderen Browsern.
+
 - [ ] 1. Testseite öffnen, Popup öffnen → Hinweis „Neue App für diese Seite“, URL-Muster mit `origin/*` vorbelegt.
 - [ ] 2. App anlegen, Berechtigung erteilen → App ist gespeichert, Popup zeigt „erkannt“.
 - [ ] 3. Vorlage „Schritt 1“ aufnehmen: alle Feldarten, Person 2, Adresse B → alle Felder erscheinen grün markiert mit Typ · Slot; Speichern zeigt „Vorlage gespeichert“.

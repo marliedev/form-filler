@@ -14,6 +14,7 @@
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:e2e": "wxt build --mode e2e && playwright test --config tests/e2e/playwright.config.ts",
     "test-site": "vite --config test-site/vite.config.ts",
     "video:preview": "vite --config promo/video/vite.config.ts --open",
     "video:render": "tsx promo/video/render.ts",

@@ -157,7 +157,10 @@ Startet eine lokale Testseite mit allen unterstützten Feldarten für Aufnahme- 
 | `npm run typecheck` | Typprüfung (vue-tsc) |
 | `npm run lint` | ESLint |
 | `npm test` | Unit-Tests (Vitest) |
+| `npm run test:e2e` | Browsertest (Playwright): baut die Erweiterung im Modus `e2e`, startet die Testseite und füllt sie in einem echten Chromium |
 | `npm run test-site` | Lokale Testseite |
+
+Der Browsertest braucht einmalig `npx playwright install chromium`. Er lädt den Build aus `.output/chrome-mv3-e2e`, der sich vom Produktions-Build nur durch den Zugriff auf `localhost` und eine Testschnittstelle im Hintergrundprozess unterscheidet.
 
 Das Icon liegt als SVG in `assets/icon/` (`icon.svg` ab 48 px, `icon-small.svg` für 16 und 32 px); die PNGs in `public/icon/` sind daraus gerendert.
 
