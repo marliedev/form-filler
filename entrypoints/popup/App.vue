@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { browser } from 'wxt/browser'
+import { QUICK_TEMPLATE_ID } from '../../src/fill/dispatch'
 import { isProblem, summarizeReport } from '../../src/fill/reportSummary'
 import type { FillMode } from '../../src/fill/messages'
 import type { Template } from '../../src/model/types'
@@ -15,7 +16,7 @@ import type { SegmentedOption } from '../../src/ui/segmented'
 
 const version = appVersion()
 const popup = usePopup()
-const { app, detected, apps, templates, mode, report, dataset, busy, error, notice, pageSupported, suggestedPattern, tabId, permissionMissing } = popup
+const { app, detected, apps, templates, mode, report, dataset, quickRun, busy, error, notice, pageSupported, suggestedPattern, tabId, permissionMissing } = popup
 
 const loaded = ref(false)
 const modeOptions: SegmentedOption<FillMode>[] = [
@@ -30,9 +31,15 @@ const showNewTemplate = ref(false)
 const newTemplateName = ref('')
 const newAppName = ref('')
 const newAppPattern = ref('')
+/** Name for the template a new app takes over from the quick run; empty means none. */
+const newAppTemplateName = ref('')
+const showQuickTemplate = ref(false)
+const quickTemplateName = ref('')
 const shortcut = ref('')
 
 const newTemplateInput = ref<HTMLInputElement | null>(null)
+const newAppNameInput = ref<HTMLInputElement | null>(null)
+const quickTemplateInput = ref<HTMLInputElement | null>(null)
 const appPicker = ref<HTMLSelectElement | null>(null)
 const pickedAppId = ref('')
 const heading = ref<HTMLHeadingElement | null>(null)
@@ -70,13 +77,23 @@ const statusText = computed(() => {
   if (notice.value) return notice.value
   const r = report.value
   if (!r || r.error !== undefined) return ''
-  const name = templates.value.find((t) => t.id === r.templateId)?.name
+  const name = r.templateId === QUICK_TEMPLATE_ID ? 'Schnellfüllen' : templates.value.find((t) => t.id === r.templateId)?.name
   return name ? `${name}: ${summarizeReport(r)}` : summarizeReport(r)
 })
 
 // A new run replaces the report; keep the protocol closed until asked for again.
 watch(report, () => {
   showReport.value = false
+})
+
+// The offer to save follows the run: prefill the names once, close the form when the run is gone.
+watch(quickRun, (run) => {
+  if (run === null) {
+    showQuickTemplate.value = false
+    return
+  }
+  if (newAppTemplateName.value === '') newAppTemplateName.value = run.title
+  if (quickTemplateName.value === '') quickTemplateName.value = run.title
 })
 
 function processLabel(t: Template): string {
@@ -138,9 +155,32 @@ async function confirmAppPick(): Promise<void> {
 
 function submitNewApp(): void {
   // Called straight from the submit event: the permission prompt needs the user gesture.
-  void popup.createAppForCurrentPage(newAppName.value, newAppPattern.value).then(async (created) => {
+  void popup.createAppForCurrentPage(newAppName.value, newAppPattern.value, newAppTemplateName.value).then(async (created) => {
     if (created) await focusHeading()
   })
+}
+
+/** "Als Vorlage speichern": with an app an inline name form, without one the new-app form takes the run. */
+async function offerSave(): Promise<void> {
+  const run = quickRun.value
+  if (run === null) return
+  if (app.value) {
+    if (quickTemplateName.value === '') quickTemplateName.value = run.title
+    showQuickTemplate.value = true
+    await nextTick()
+    quickTemplateInput.value?.focus()
+    return
+  }
+  if (newAppTemplateName.value === '') newAppTemplateName.value = run.title
+  await nextTick()
+  newAppNameInput.value?.focus()
+}
+
+async function submitQuickTemplate(): Promise<void> {
+  if (await popup.saveQuickTemplate(quickTemplateName.value)) {
+    quickTemplateName.value = ''
+    showQuickTemplate.value = false
+  }
 }
 
 const focusRing = 'focus-visible:focus-ring'
@@ -204,9 +244,9 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
         Auf dieser Seite können keine Formulare befüllt werden.
       </p>
 
-      <template v-else-if="loaded && app">
+      <template v-else-if="loaded">
         <div
-          v-if="permissionMissing"
+          v-if="app && permissionMissing"
           class="flex items-start gap-2.5 rounded-xl border border-border-subtle bg-surface px-3 py-2.5"
         >
           <span
@@ -271,21 +311,33 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
           </p>
         </section>
 
-        <section aria-labelledby="templates-heading">
+        <div
+          v-if="!app || templates.length === 0"
+          class="grid gap-1.5"
+        >
+          <button
+            type="button"
+            :class="`w-full ${primaryButton}`"
+            @click="popup.quickFill()"
+          >
+            Ohne Vorlage füllen
+          </button>
+          <p class="text-xs text-muted">
+            Erkennt die Felder selbst und füllt sie mit Testdaten.
+          </p>
+        </div>
+
+        <section
+          v-if="app && templates.length > 0"
+          aria-labelledby="templates-heading"
+        >
           <h2
             id="templates-heading"
             class="mb-2 text-xs font-medium text-muted"
           >
             Vorlagen
           </h2>
-          <p
-            v-if="templates.length === 0"
-            class="text-muted"
-          >
-            Noch keine Vorlagen für diese App.
-          </p>
           <ul
-            v-else
             class="grid gap-2"
             :aria-busy="busy"
           >
@@ -352,7 +404,7 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
           </ul>
         </section>
 
-        <div>
+        <div v-if="app">
           <button
             type="button"
             :class="`w-full rounded-xl border border-dashed border-brand-fg px-3 py-2.5 font-medium text-brand-fg hover:bg-surface hover:text-brand-fg-strong ${focusRing}`"
@@ -397,14 +449,24 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
               </button>
             </div>
           </form>
+          <button
+            v-if="templates.length > 0"
+            type="button"
+            :class="`mt-2 ${linkButton}`"
+            @click="popup.quickFill()"
+          >
+            Ohne Vorlage füllen
+          </button>
         </div>
-      </template>
 
-      <template v-else-if="loaded">
-        <p class="text-muted">
+        <p
+          v-if="!app"
+          class="text-muted"
+        >
           Für diese Seite ist keine App hinterlegt.
         </p>
         <form
+          v-if="!app"
           class="grid gap-2"
           aria-labelledby="new-app-heading"
           @submit.prevent="submitNewApp()"
@@ -421,6 +483,7 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
           >Name</label>
           <input
             id="new-app-name"
+            ref="newAppNameInput"
             v-model="newAppName"
             type="text"
             autocomplete="off"
@@ -447,11 +510,24 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
           >
             * steht für beliebige Zeichen. Der Browser fragt danach nach der Berechtigung für diese Adresse.
           </p>
+          <template v-if="quickRun">
+            <label
+              for="new-app-template"
+              class="font-medium"
+            >Vorlage aus Schnellfüllen</label>
+            <input
+              id="new-app-template"
+              v-model="newAppTemplateName"
+              type="text"
+              autocomplete="off"
+              :class="textInput"
+            >
+          </template>
           <button
             type="submit"
             :class="`justify-self-start ${primaryButton}`"
           >
-            App anlegen
+            {{ quickRun ? 'App und Vorlage anlegen' : 'App anlegen' }}
           </button>
         </form>
       </template>
@@ -515,6 +591,51 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
           id="fill-report"
           :report="report"
         />
+        <button
+          v-if="quickRun && !busy"
+          type="button"
+          :class="`justify-self-start ${secondaryButton}`"
+          :aria-expanded="app ? showQuickTemplate : undefined"
+          :aria-controls="app ? 'quick-template-form' : undefined"
+          @click="offerSave()"
+        >
+          Als Vorlage speichern
+        </button>
+        <form
+          v-if="showQuickTemplate && app"
+          id="quick-template-form"
+          class="grid gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2.5"
+          @submit.prevent="submitQuickTemplate()"
+        >
+          <label
+            for="quick-template-name"
+            class="font-medium"
+          >Name der Vorlage</label>
+          <input
+            id="quick-template-name"
+            ref="quickTemplateInput"
+            v-model="quickTemplateName"
+            type="text"
+            autocomplete="off"
+            required
+            :class="textInput"
+          >
+          <div class="flex gap-2">
+            <button
+              type="submit"
+              :class="primaryButton"
+            >
+              Speichern
+            </button>
+            <button
+              type="button"
+              :class="secondaryButton"
+              @click="showQuickTemplate = false"
+            >
+              Abbrechen
+            </button>
+          </div>
+        </form>
       </div>
     </main>
 

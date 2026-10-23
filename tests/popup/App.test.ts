@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeBrowser } from 'wxt/testing/fake-browser'
 import App from '../../entrypoints/popup/App.vue'
 import { recordFillResult } from '../../src/fill/lastReport'
+import type { ContentMessage } from '../../src/fill/messages'
 import type { FillReport } from '../../src/fill/runFill'
+import type { FieldRule } from '../../src/model/types'
 import { saveApp, saveTemplate } from '../../src/storage/repository'
 import { fakerDE } from '@faker-js/faker'
 import { createDataset } from '../../src/generators/dataset'
@@ -18,8 +20,8 @@ const report: FillReport = {
   ],
 }
 
-function mockActiveTab(url: string, id = 7) {
-  const query = vi.fn<(info: unknown) => Promise<{ id: number; url: string }[]>>(async () => [{ id, url }])
+function mockActiveTab(url: string, id = 7, title = 'Seite') {
+  const query = vi.fn<(info: unknown) => Promise<{ id: number; url: string; title: string }[]>>(async () => [{ id, url, title }])
   vi.spyOn(fakeBrowser.tabs, 'query').mockImplementation(query as unknown as typeof fakeBrowser.tabs.query)
 }
 
@@ -28,6 +30,28 @@ function mockPermission(api: 'request' | 'contains', granted: boolean) {
   const fn = vi.fn<(p: unknown) => Promise<boolean>>(async () => granted)
   vi.spyOn(fakeBrowser.permissions, api).mockImplementation(fn as unknown as typeof fakeBrowser.permissions.request)
   return fn
+}
+
+/** runFill reports the id of the template it ran with, so a quick fill answers with 'quick'. */
+const quickReport: FillReport = { ...report, templateId: 'quick' }
+
+/** Answers `scan` with the given fields and every other message with `response`. */
+function mockScanAndFill(fields: FieldRule[], response: unknown = quickReport) {
+  const execute = vi.fn<(injection: unknown) => Promise<unknown[]>>(async () => [])
+  const send = vi.fn<(tabId: number, message: ContentMessage) => Promise<unknown>>(async (_tab, message) =>
+    message.type === 'scan' ? { ok: true, fields } : response,
+  )
+  vi.spyOn(fakeBrowser.scripting, 'executeScript').mockImplementation(execute as unknown as typeof fakeBrowser.scripting.executeScript)
+  vi.spyOn(fakeBrowser.tabs, 'sendMessage').mockImplementation(send as unknown as typeof fakeBrowser.tabs.sendMessage)
+  return { execute, send }
+}
+
+const scanned: FieldRule = {
+  id: 'a', label: 'A', locator: { kind: 'text', name: 'a' }, config: { type: 'companyName' }, slot: null, required: false, appendRunId: false,
+}
+
+function buttonByText(w: ReturnType<typeof mount>, text: string) {
+  return w.findAll('button').find((b) => b.text() === text)
 }
 
 async function mountApp() {
@@ -173,6 +197,69 @@ describe('popup App', () => {
     await flushPromises()
     expect(request).toHaveBeenCalled()
     expect(w.text()).not.toContain('Berechtigung fehlt.')
+    w.unmount()
+  })
+
+  it('offers quick fill as the main action without an app, with mode switch and dataset line', async () => {
+    mockActiveTab('https://new.example.com/')
+    mockScanAndFill([scanned])
+    const w = await mountApp()
+    expect(w.find('[data-testid="dataset"]').exists()).toBe(true)
+    expect(w.text()).toContain('Alle Felder')
+    const button = buttonByText(w, 'Ohne Vorlage füllen')
+    expect(button?.classes()).toContain('bg-brand')
+    expect(w.text()).toContain('Erkennt die Felder selbst und füllt sie mit Testdaten.')
+    await button?.trigger('click')
+    await flushPromises()
+    expect(w.get('[role="status"]').text()).toBe('Schnellfüllen: 1 von 2 befüllt · 1 nicht gefunden')
+    const save = buttonByText(w, 'Als Vorlage speichern')
+    expect(save).toBeDefined()
+    await save?.trigger('click')
+    await flushPromises()
+    expect(w.get<HTMLInputElement>('#new-app-template').element.value).toBe('Seite')
+    expect(document.activeElement).toBe(w.get('#new-app-name').element)
+    expect(w.get('form[aria-labelledby="new-app-heading"] button[type="submit"]').text()).toBe('App und Vorlage anlegen')
+    w.unmount()
+  })
+
+  it('offers quick fill as a secondary action next to templates and saves the run as template', async () => {
+    mockActiveTab('https://crm.example.com/x')
+    mockScanAndFill([scanned])
+    const w = await mountApp()
+    const button = buttonByText(w, 'Ohne Vorlage füllen')
+    expect(button).toBeDefined()
+    expect(button?.classes()).not.toContain('bg-brand')
+    await button?.trigger('click')
+    await flushPromises()
+    await buttonByText(w, 'Als Vorlage speichern')?.trigger('click')
+    await flushPromises()
+    const name = w.get<HTMLInputElement>('#quick-template-name')
+    expect(name.element.value).toBe('Seite')
+    expect(document.activeElement).toBe(name.element)
+    await name.setValue('Lieferant')
+    await w.get('#quick-template-form').trigger('submit')
+    await flushPromises()
+    expect(w.text()).toContain('Lieferant')
+    expect(w.get('[role="status"]').text()).toBe('Vorlage „Lieferant“ gespeichert – Felder im Pflege-Tab prüfen.')
+    expect(w.find('#quick-template-form').exists()).toBe(false)
+    expect(buttonByText(w, 'Als Vorlage speichern')).toBeUndefined()
+    w.unmount()
+  })
+
+  it('offers quick fill as the main action for an app without templates', async () => {
+    await saveApp({ id: 'shop', name: 'Shop', urlPatterns: ['https://shop.example.com/*'] })
+    mockActiveTab('https://shop.example.com/')
+    const w = await mountApp()
+    expect(buttonByText(w, 'Ohne Vorlage füllen')?.classes()).toContain('bg-brand')
+    expect(w.text()).not.toContain('Noch keine Vorlagen für diese App.')
+    expect(buttonByText(w, '+ Neue Vorlage')).toBeDefined()
+    w.unmount()
+  })
+
+  it('hides "Als Vorlage speichern" without a run', async () => {
+    mockActiveTab('https://crm.example.com/x')
+    const w = await mountApp()
+    expect(buttonByText(w, 'Als Vorlage speichern')).toBeUndefined()
     w.unmount()
   })
 })
