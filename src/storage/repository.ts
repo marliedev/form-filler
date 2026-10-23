@@ -55,10 +55,13 @@ export async function deleteTemplate(id: string): Promise<void> {
   await write('templates', templates.filter((t) => t.id !== id));
 }
 
-/** Replaces the templates of one app; those of other apps stay as they are. */
-export async function replaceTemplatesOfApp(appId: string, templates: readonly Template[]): Promise<void> {
-  const others = (await listTemplates()).filter((t) => t.appId !== appId);
-  await write('templates', [...others, ...templates]);
+/** Writes an app and its complete template list in one go, so the two cannot drift apart; other apps' templates stay. */
+export async function saveAppWithTemplates(app: AppDef, templates: readonly Template[]): Promise<void> {
+  const [apps, all] = await Promise.all([listApps(), listTemplates()]);
+  await browser.storage.local.set({
+    apps: upsert(apps, app),
+    templates: [...all.filter((t) => t.appId !== app.id), ...templates],
+  });
 }
 
 /** Expects data already validated by `parseExport`. */

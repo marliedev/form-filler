@@ -64,6 +64,23 @@ describe('planSync', () => {
     expect(planSync([edited], [r1]).actions).toEqual([{ kind: 'copyAndReplace', local: edited, source: r1 }])
   })
 
+  it('re-marks a locally edited template that now equals the source version instead of copying it', () => {
+    // The maintainer edits, exports and uploads: the local edit and the new source version are the same.
+    const edited = remote('src-1', 'Kunde neu')
+    const local: Template = { ...edited, id: 'local-1', appId: 'local', source: { templateId: 'src-1', fingerprint: fingerprintOf(r1) } }
+    const plan = planSync([local], [edited])
+    expect(plan.actions).toEqual([{ kind: 'adopt', local, source: edited }])
+    expect(plan.summary).toEqual({ created: 0, updated: 0, copied: 0, removed: 0 })
+  })
+
+  it('treats a detached template (address changed) like an imported one: re-adopts by file id, never removes', () => {
+    const detached: Template = { ...synced(r1), source: { templateId: 'src-1', fingerprint: fingerprintOf(r1), detached: true } }
+    expect(planSync([detached], [r1]).actions).toEqual([{ kind: 'adopt', local: detached, source: r1 }])
+    const changed = remote('src-1', 'Kunde neu')
+    expect(planSync([detached], [changed]).actions).toEqual([{ kind: 'copyAndReplace', local: detached, source: changed }])
+    expect(planSync([detached], [r2]).actions).toEqual([{ kind: 'unchanged', local: detached }, { kind: 'create', source: r2 }])
+  })
+
   it('removes synced templates gone from the source and keeps changed ones as a copy', () => {
     const gone = synced(r2)
     const changedGone = { ...synced(r2, 'local-2b'), name: 'Kontakt (meins)' }
@@ -83,10 +100,12 @@ describe('planSync', () => {
 })
 
 describe('applyPlan', () => {
-  it('marks adopted templates and gives created ones a new local id with the source marker', () => {
+  it('marks adopted templates (also detached ones) and gives created ones a new local id with the source marker', () => {
     const same: Template = { ...r1, appId: 'local' }
     const result = applyPlan(planSync([same], [r1, r2]), 'local')
     expect(result[0]).toEqual({ ...same, source: { templateId: 'src-1', fingerprint: fingerprintOf(r1) } })
+    const detached: Template = { ...synced(r1), source: { templateId: 'src-1', fingerprint: 'old', detached: true } }
+    expect(applyPlan(planSync([detached], [r1]), 'local')[0]?.source).toEqual({ templateId: 'src-1', fingerprint: fingerprintOf(r1) })
     expect(result[1]?.id).not.toBe('src-2')
     expect(result[1]).toMatchObject({ appId: 'local', name: 'Kontakt', fields: r2.fields, lastMissing: [], source: { templateId: 'src-2', fingerprint: fingerprintOf(r2) } })
   })

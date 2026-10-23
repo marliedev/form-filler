@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useId, watch } from 'vue'
+import { isSynced } from '../model/source'
 import type { AppDef, Template } from '../model/types'
 import ConfirmDialog from '../ui/ConfirmDialog.vue'
 import { useDialog } from '../ui/dialog'
@@ -154,7 +155,7 @@ const labelClass = 'block text-xs font-medium text-muted'
           >
             <span class="font-medium">{{ t.name }}</span>
             <span class="text-xs text-muted">
-              {{ t.fields.length }} {{ t.fields.length === 1 ? 'Feld' : 'Felder' }}<template v-if="processText(t)"> · {{ processText(t) }}</template><template v-if="t.source"> · Quelle</template>
+              {{ t.fields.length }} {{ t.fields.length === 1 ? 'Feld' : 'Felder' }}<template v-if="processText(t)"> · {{ processText(t) }}</template><template v-if="isSynced(t)"> · Quelle</template>
             </span>
             <span
               v-if="t.lastMissing.length > 0"

@@ -88,10 +88,12 @@ describe('AppList – template source', () => {
     expect(spy).toHaveBeenCalledWith('crm')
   })
 
-  it('marks synced templates with „Quelle“', async () => {
+  it('marks synced templates with „Quelle“, but not detached or local ones', async () => {
+    await saveTemplate({ ...own, id: 't3', name: 'Gelöst', source: { templateId: 'ft3', fingerprint: 'fp', detached: true } })
     const { w } = await mountList()
     const items = w.findAll('li button').map((b) => b.text())
     expect(items.find((t) => t.startsWith('Kunde'))).toContain('Quelle')
     expect(items.find((t) => t.startsWith('Eigene'))).not.toContain('Quelle')
+    expect(items.find((t) => t.startsWith('Gelöst'))).not.toContain('Quelle')
   })
 })

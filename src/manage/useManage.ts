@@ -4,7 +4,7 @@ import { matchApp } from '../fill/appMatch'
 import { createId } from '../model/id'
 import { startRecording } from '../fill/dispatch'
 import { buildExport, parseExport } from '../model/schema'
-import { stripTemplateSource } from '../model/source'
+import { detachTemplateSource, stripTemplateSource } from '../model/source'
 import type { AppDef, ExportFile, FieldRule, Template } from '../model/types'
 import { toUserError, type UserError } from '../popup/userError'
 import { slotFor } from '../recorder/useRecorder'
@@ -16,8 +16,8 @@ import {
   importExport,
   listApps,
   listTemplates,
-  replaceTemplatesOfApp,
   saveApp as storeApp,
+  saveAppWithTemplates,
   saveTemplate,
   setPrefs,
 } from '../storage/repository'
@@ -340,9 +340,11 @@ export function useManage(): ManageState {
       // A new address starts unmapped; the first sync maps it.
       const source = sourceChanged ? (sourceUrl === '' ? undefined : { url: sourceUrl, appId: null }) : previous?.source
       await serialized(async () => {
-        await storeApp({ id: app.id, name, urlPatterns, ...(source === undefined ? {} : { source }) })
-        // A moved or removed source turns the synced templates into local ones; the next sync treats them as imported by hand.
-        if (sourceChanged) await replaceTemplatesOfApp(app.id, (await listTemplates(app.id)).map(stripTemplateSource))
+        const next: AppDef = { id: app.id, name, urlPatterns, ...(source === undefined ? {} : { source }) }
+        // A moved or removed source detaches the synced templates: they stay as local ones, and the next sync
+        // recognises them by their file id. App and templates go in one write so neither can be left behind.
+        if (sourceChanged) await saveAppWithTemplates(next, (await listTemplates(app.id)).map(detachTemplateSource))
+        else await storeApp(next)
         await refresh()
       })
       notice.value = `App „${name}“ gespeichert.`
@@ -365,8 +367,7 @@ export function useManage(): ManageState {
       if (app === undefined) throw new Error('App nicht gefunden')
       const local = await listTemplates(id)
       const result = syncFromFile(app, local, file)
-      await storeApp(result.app)
-      await replaceTemplatesOfApp(id, result.templates)
+      await saveAppWithTemplates(result.app, result.templates)
       const kept = new Set(result.templates.map((t) => t.id))
       await forgetLastTemplate(local.filter((t) => !kept.has(t.id)).map((t) => t.id))
       await refresh()

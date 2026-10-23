@@ -384,20 +384,42 @@ describe('useManage – template source', () => {
     expect((await listApps())[0]).toEqual({ ...crm, name: 'CRM neu', source: { url: SOURCE, appId: 'file-crm' } })
   })
 
-  it('saveApp with a changed or emptied address resets the mapping and strips the markers of the templates', async () => {
+  it('saveApp with a changed or emptied address resets the mapping and detaches the templates in one write', async () => {
     await saveApp({ ...crm, source: { url: SOURCE, appId: 'file-crm' } })
     await saveTemplate({ ...tpl, source: { templateId: 'ft1', fingerprint: 'fp' } })
     grant(true)
     const m = await loaded()
+    const writes = vi.spyOn(fakeBrowser.storage.local, 'set')
     expect(await m.saveApp({ ...crm, sourceUrl: '' })).toBe(true)
+    expect(writes).toHaveBeenCalledTimes(1)
+    expect(Object.keys(writes.mock.calls[0]?.[0] ?? {}).sort()).toEqual(['apps', 'templates'])
     expect((await listApps())[0]).not.toHaveProperty('source')
-    expect(await getTemplate('t1')).not.toHaveProperty('source')
+    expect((await getTemplate('t1'))?.source).toEqual({ templateId: 'ft1', fingerprint: 'fp', detached: true })
     expect((await getTemplate('t1'))?.fields.map((f) => f.id)).toEqual(['a', 'b', 'c'])
 
-    await saveTemplate({ ...tpl, source: { templateId: 'ft1', fingerprint: 'fp' } })
     expect(await m.saveApp({ ...crm, sourceUrl: 'https://new.example.com/t.json' })).toBe(true)
     expect((await listApps())[0]?.source).toEqual({ url: 'https://new.example.com/t.json', appId: null })
-    expect(await getTemplate('t1')).not.toHaveProperty('source')
+    expect((await getTemplate('t1'))?.source).toEqual({ templateId: 'ft1', fingerprint: 'fp', detached: true })
+  })
+
+  it('syncing after an address change against a file with another app keeps every template', async () => {
+    await saveApp({ ...crm, source: { url: SOURCE, appId: 'file-crm' } })
+    const syncedKunde: Template = { ...kunde, id: 's1', appId: 'crm', source: { templateId: 'ft1', fingerprint: fingerprintOf(kunde) } }
+    await saveTemplate(syncedKunde)
+    grant(true)
+    const m = await loaded()
+    expect(await m.saveApp({ ...crm, sourceUrl: 'https://new.example.com/t.json' })).toBe(true)
+    const other: AppDef = { id: 'file-other', name: 'Anderes CRM', urlPatterns: ['https://crm.example.com/*'] }
+    const vertrag: Template = { ...tpl, id: 'fo1', appId: 'file-other', name: 'Vertrag', fields: [] }
+    serving({ 'https://new.example.com/t.json': { apps: [other], templates: [vertrag, { ...kunde, appId: 'file-other' }] } })
+    expect(await m.syncApp('crm')).toBe(true)
+    expect(m.notice.value).toBe('Abgeglichen: 1 neu, 0 aktualisiert, 0 lokal geändert (Kopie), 0 entfernt.')
+    expect((await listTemplates('crm')).map((t) => [t.id === 's1' || t.id === 't1' || t.id === 't2' ? t.id : 'new', t.name, t.source?.templateId ?? null])).toEqual([
+      ['t1', 'Kunde', null],
+      ['t2', 'Kontakt', null],
+      ['s1', 'Kunde (Team)', 'ft1'],
+      ['new', 'Vertrag', 'fo1'],
+    ])
   })
 
   it('saveApp rejects a source address that is not http(s) and writes nothing', async () => {
@@ -452,7 +474,7 @@ describe('useManage – template source', () => {
     const m = await loaded()
     await m.syncAll()
     expect(m.notice.value).toBe('Kunden CRM – Abgeglichen: 1 neu, 0 aktualisiert, 0 lokal geändert (Kopie), 0 entfernt.')
-    expect(m.error.value?.message).toBe('Shop: Quelle nicht erreichbar.')
+    expect(m.error.value?.message).toBe('Shop: Quelle nicht erreichbar. Bei Freigabe-Links die direkte Download-Adresse eintragen.')
     expect((await listTemplates('crm')).map((t) => t.name)).toEqual(['Kunde', 'Kontakt', 'Kunde (Team)'])
     expect((await listTemplates('shop')).map((t) => t.id)).toEqual(['t3'])
   })

@@ -52,8 +52,12 @@ export interface Template {
   fields: FieldRule[];
   /** FieldRule ids not found/filled on the last run. */
   lastMissing: string[];
-  /** Set on templates synced from the app's source: the template's id in the file and the fingerprint of that version. */
-  source?: { templateId: string; fingerprint: string };
+  /**
+   * Set on templates synced from the app's source: the template's id in the file and the fingerprint of that
+   * version. `detached` after the app's address changed: the template counts as local again, but the next
+   * sync can still recognise it by its file id instead of creating a duplicate.
+   */
+  source?: { templateId: string; fingerprint: string; detached?: boolean };
 }
 
 /** `urlPatterns` use '*' as wildcard. */

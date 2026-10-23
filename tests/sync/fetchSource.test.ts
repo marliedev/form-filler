@@ -9,10 +9,13 @@ const NOT_EXPORT = 'Die Adresse liefert keine Form-Filler-Export-Datei. Bei Frei
 const UNREACHABLE = 'Quelle nicht erreichbar.'
 
 /** A fetch stand-in answering with `body`; only the members fetchSource reads are provided. */
-function responding(body: string, init: { status?: number; headers?: Record<string, string> } = {}): typeof fetch {
+function responding(body: string, init: { status?: number; headers?: Record<string, string>; redirectedTo?: string } = {}): typeof fetch {
   const status = init.status ?? 200
-  const response = { ok: status >= 200 && status < 300, status, headers: new Headers(init.headers), text: async () => body }
-  return async () => response as unknown as Response
+  return async (input) => {
+    const url = init.redirectedTo ?? String(input)
+    const response = { ok: status >= 200 && status < 300, status, headers: new Headers(init.headers), redirected: init.redirectedTo !== undefined, url, text: async () => body }
+    return response as unknown as Response
+  }
 }
 
 describe('fetchSource', () => {
@@ -46,10 +49,23 @@ describe('fetchSource', () => {
     await expect(fetchSource('https://x.example.com/f', big)).rejects.toThrow(new SourceError('Die Datei der Quelle ist größer als 5 MB.'))
   })
 
-  it('reports network failures and error statuses as unreachable', async () => {
-    const failing: typeof fetch = async () => { throw new TypeError('Failed to fetch') }
-    await expect(fetchSource('https://x.example.com/f', failing)).rejects.toThrow(new SourceError(UNREACHABLE))
+  it('reports error statuses as unreachable, and a blocked fetch with the download hint', async () => {
     await expect(fetchSource('https://x.example.com/f', responding('nope', { status: 404 }))).rejects.toThrow(new SourceError(UNREACHABLE))
+    // The browser blocks a fetch for DNS failures, missing host permissions and redirects to hosts it may not reach alike.
+    const failing: typeof fetch = async () => { throw new TypeError('Failed to fetch') }
+    await expect(fetchSource('https://x.example.com/f', failing)).rejects.toThrow(
+      new SourceError('Quelle nicht erreichbar. Bei Freigabe-Links die direkte Download-Adresse eintragen.'),
+    )
+  })
+
+  it('fails a redirect to another host with the download hint naming that host, follows one on the same host', async () => {
+    const body = buildExport([app], [tpl])
+    const elsewhere = responding(body, { redirectedTo: 'https://login.example.org/share/abc' })
+    await expect(fetchSource('https://team.example.com/share/abc', elsewhere)).rejects.toThrow(
+      new SourceError('Die Adresse leitet auf login.example.org weiter. Bitte die direkte Download-Adresse eintragen.'),
+    )
+    const sameHost = responding(body, { redirectedTo: 'https://team.example.com/files/templates.json?dl=1' })
+    expect((await fetchSource('http://team.example.com/share/abc', sameHost)).templates).toEqual([tpl])
   })
 
   it('allows only http and https addresses', async () => {

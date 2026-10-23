@@ -66,7 +66,7 @@ export const templateSchema = z.object({
   process: z.object({ name: z.string(), step: z.number() }).nullable(),
   fields: z.array(fieldRule),
   lastMissing: z.array(z.string()),
-  source: z.object({ templateId: z.string(), fingerprint: z.string() }).optional(),
+  source: z.object({ templateId: z.string(), fingerprint: z.string(), detached: z.boolean().optional() }).optional(),
 });
 
 const appDef = z.object({

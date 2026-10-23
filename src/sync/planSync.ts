@@ -1,7 +1,7 @@
 /* Pure planning of a sync: which local templates of one app change how, given the templates of
    the mapped app in the source file. Nothing here touches storage. */
 import { createId } from '../model/id'
-import { stripTemplateSource } from '../model/source'
+import { isSynced, stripTemplateSource } from '../model/source'
 import type { Template } from '../model/types'
 import { SourceError } from './fetchSource'
 
@@ -48,6 +48,11 @@ function changedLocally(local: Template): boolean {
   return local.source !== undefined && local.source.fingerprint !== fingerprintOf(local)
 }
 
+/** Same content: only the marker is renewed. Different content: the local version survives as a copy. */
+function adoptOrCopy(local: Template, source: Template): SyncAction {
+  return fingerprintOf(local) === fingerprintOf(source) ? { kind: 'adopt', local, source } : { kind: 'copyAndReplace', local, source }
+}
+
 function summarize(actions: readonly SyncAction[]): SyncSummary {
   const summary: SyncSummary = { created: 0, updated: 0, copied: 0, removed: 0 }
   for (const action of actions) {
@@ -79,8 +84,9 @@ function summarize(actions: readonly SyncAction[]): SyncSummary {
 
 /**
  * `local`: every template of the local app; `remote`: the templates of the mapped app in the file.
- * Synced templates are matched by the id they carry from the file, templates without a marker by their
- * own id (imported by hand earlier). Local-only templates stay untouched. An empty source is refused:
+ * Synced templates are matched by the id they carry from the file. Templates without a marker (imported
+ * by hand) are matched by their own id, detached ones (address changed) by their old file id; both are
+ * adopted or copied but never removed. Local-only templates stay untouched. An empty source is refused:
  * it would wipe the app.
  */
 export function planSync(local: readonly Template[], remote: readonly Template[]): SyncPlan {
@@ -89,22 +95,23 @@ export function planSync(local: readonly Template[], remote: readonly Template[]
   const matched = new Set<string>()
   const actions: SyncAction[] = []
   for (const l of local) {
-    if (l.source !== undefined) {
+    if (isSynced(l) && l.source !== undefined) {
       const r = byId.get(l.source.templateId)
       if (r === undefined) {
         actions.push(changedLocally(l) ? { kind: 'copyAndRemove', local: l } : { kind: 'remove', local: l })
         continue
       }
       matched.add(r.id)
-      if (changedLocally(l)) actions.push({ kind: 'copyAndReplace', local: l, source: r })
+      // A local edit that equals the new source version (the maintainer's own publish) needs no copy.
+      if (changedLocally(l)) actions.push(adoptOrCopy(l, r))
       else if (fingerprintOf(r) !== l.source.fingerprint) actions.push({ kind: 'replace', local: l, source: r })
       else actions.push({ kind: 'unchanged', local: l })
       continue
     }
-    const r = byId.get(l.id)
+    const r = byId.get(l.source?.templateId ?? l.id)
     if (r !== undefined && !matched.has(r.id)) {
       matched.add(r.id)
-      actions.push(fingerprintOf(l) === fingerprintOf(r) ? { kind: 'adopt', local: l, source: r } : { kind: 'copyAndReplace', local: l, source: r })
+      actions.push(adoptOrCopy(l, r))
       continue
     }
     actions.push({ kind: 'unchanged', local: l })
