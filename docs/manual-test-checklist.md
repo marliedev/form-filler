@@ -52,6 +52,9 @@ Die Punkte 3–5, 7 und 9 laufen automatisiert mit `npm run test:e2e` (Chromium)
 - [ ] Dialoge (`<dialog>`): Fokusfalle, Esc schließt, Fokus kehrt zum Auslöser zurück.
 - [ ] „+ Felder aufnehmen“ im echten Browser: Tab-/Fensterwechsel, Recorder startet, nach Speichern aktualisiert sich die Tabelle.
 - [ ] Export-Dateiname, Import mit echter Export-Datei inkl. Konfliktdialog.
+- [ ] Vorlagen-Quelle (Adresse einer Export-Datei, z. B. `http://localhost:5179/templates.json` der Testseite) eintragen und speichern → Berechtigungsabfrage für den Host; danach „Abgleichen“ neben „Exportieren“ und „Alle abgleichen“ in der Kopfzeile. Abgleich meldet „Abgeglichen: 2 neu, …“, die Vorlagen tragen den Hinweis „Quelle“.
+- [ ] Abgeglichene Vorlage umbenennen, erneut abgleichen → Original wieder wie in der Quelle, eigene Fassung als „… (lokal)“ ohne „Quelle“. Adresse leeren und speichern → „Quelle“-Hinweise verschwinden, Vorlagen bleiben.
+- [ ] Freigabe-Link (liefert HTML) oder falsche Adresse als Quelle → Meldung mit Hinweis auf die Download-Adresse bzw. „Quelle nicht erreichbar.“, nichts geändert.
 
 ## 5. Tastatur und Screenreader
 

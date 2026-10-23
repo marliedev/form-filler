@@ -29,6 +29,10 @@ export interface Extension {
   seed(apps: AppDef[], templates: Template[]): Promise<void>
   /** Opens the test site in a new tab and returns the page with its browser tab id. */
   open(): Promise<{ page: Page; tabId: number }>
+  /** Opens the extension's manage tab ("Vorlagen verwalten"). */
+  openManage(): Promise<Page>
+  /** Renames the stored template synced from `sourceTemplateId`, as editing it in the manage tab would. */
+  renameSynced(sourceTemplateId: string, name: string): Promise<void>
   fill(tabId: number, templateId: string, mode?: FillMode): Promise<FillReport>
   record(tabId: number, templateId: string): Promise<void>
   /** Fills without a template, as the popup's "Ohne Vorlage füllen" would on the test site. */
@@ -69,6 +73,18 @@ export const test = base.extend<{ context: BrowserContext; extension: Extension 
         }, SITE_URL)
         return { page, tabId }
       },
+      async openManage() {
+        const page = await context.newPage()
+        await page.goto(new URL('/manage.html', worker.url()).toString())
+        return page
+      },
+      renameSynced: (sourceTemplateId, name) =>
+        worker.evaluate(async (args) => {
+          const { templates } = (await chrome.storage.local.get('templates')) as { templates: Template[] }
+          await chrome.storage.local.set({
+            templates: templates.map((t) => (t.source?.templateId === args.sourceTemplateId ? { ...t, name: args.name } : t)),
+          })
+        }, { sourceTemplateId, name }),
       fill: (tabId, templateId, mode = 'all') =>
         worker.evaluate(
           (args) => (globalThis as unknown as WorkerGlobal).__formFillerE2E.dispatchFill(args.tabId, args.templateId, args.mode),
