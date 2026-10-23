@@ -75,12 +75,13 @@ function isTag<K extends keyof HTMLElementTagNameMap>(el: Element, tag: K): el i
   return el.tagName.toLowerCase() === tag
 }
 
+// `composed` like real user events: bindings on a shadow host (v-model on <wc-text-field>) must see them.
 function fire(el: Element, type: string): void {
-  el.dispatchEvent(new Event(type, { bubbles: true }))
+  el.dispatchEvent(new Event(type, { bubbles: true, composed: true }))
 }
 
 function pointerPress(el: Element): void {
-  const init: MouseEventInit = { bubbles: true, cancelable: true, button: 0 }
+  const init: MouseEventInit = { bubbles: true, cancelable: true, composed: true, button: 0 }
   el.dispatchEvent(new MouseEvent('mousedown', init))
   el.dispatchEvent(new MouseEvent('mouseup', init))
   el.dispatchEvent(new MouseEvent('click', init))
@@ -269,7 +270,7 @@ async function waitForListbox(el: HTMLElement): Promise<HTMLElement | null> {
     if (performance.now() - start >= LISTBOX_TIMEOUT_MS) return null
     if (!arrowSent) {
       arrowSent = true
-      host.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true, cancelable: true }))
+      host.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true, cancelable: true, composed: true }))
     }
   }
 }

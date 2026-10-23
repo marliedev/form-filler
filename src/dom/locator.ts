@@ -1,5 +1,5 @@
 import type { ControlKind, FieldLocator } from '../model/types'
-import { byId, deepQuerySelectorAll, parentOf, rootOf, scopeOf, type Root } from './deep'
+import { byId, deepQuerySelectorAll, hostOf, parentOf, rootOf, scopeOf, type Root } from './deep'
 
 /** HTMLElement covers `[role=combobox]` and `[role=radiogroup]` hosts. */
 export type FormControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLElement
@@ -80,7 +80,21 @@ function rawLabel(el: Element): string {
   // aria-label is their visible group label, so it must count like one for re-finding.
   const role = el.getAttribute('role')
   if (role === 'radiogroup' || role === 'combobox') return el.getAttribute('aria-label') ?? ''
-  return componentLabel(el)
+  return componentLabel(el) || hostLabel(el)
+}
+
+/**
+ * Web components carry the label at the host: either a main-document <label for="host-id">
+ * or a `label` attribute (Ionic, Vaadin, UI5 and the like).
+ */
+function hostLabel(el: Element): string {
+  const host = hostOf(el)
+  if (!host) return ''
+  if (host.id) {
+    const forLabel = Array.from(rootOf(host).querySelectorAll('label')).find((l) => l.getAttribute('for') === host.id)
+    if (forLabel) return labelText(forLabel)
+  }
+  return host.getAttribute('label') ?? ''
 }
 
 const COMPONENT_DEPTH = 4
@@ -105,9 +119,17 @@ function attr(el: Element, name: string): string {
   return (el.getAttribute(name) ?? '').trim()
 }
 
+/** The element's own attribute, else the same attribute of its shadow host (web components keep name, aria-label, placeholder, autocomplete there). */
+export function effectiveAttr(el: Element, name: string): string {
+  const own = attr(el, name)
+  if (own) return own
+  const host = hostOf(el)
+  return host ? attr(host, name) : ''
+}
+
 /** An ARIA radiogroup has no name of its own; it takes the one of the native radios it wraps. */
 function nameOf(el: Element): string {
-  const own = attr(el, 'name')
+  const own = effectiveAttr(el, 'name')
   if (own || el.getAttribute('role') !== 'radiogroup') return own
   const inner = el.querySelector('input[type="radio"][name]')
   return inner ? attr(inner, 'name') : ''
@@ -121,8 +143,8 @@ export function describeElement(el: FormControl): FieldLocator {
   const name = nameOf(el)
   const id = kind === 'radiogroup' && isNativeRadio(el) ? '' : attr(el, 'id')
   const label = normalizeLabel(rawLabel(el))
-  const ariaLabel = normalizeLabel(attr(el, 'aria-label'))
-  const placeholder = normalizeLabel(attr(el, 'placeholder'))
+  const ariaLabel = normalizeLabel(effectiveAttr(el, 'aria-label'))
+  const placeholder = normalizeLabel(effectiveAttr(el, 'placeholder'))
   if (name) locator.name = name
   if (id) locator.id = id
   if (label) locator.label = label
@@ -149,7 +171,7 @@ function displayText(text: string): string {
  * unlike the normalized locator values which only serve as matching keys. '' if there is none.
  */
 export function displayLabel(el: FormControl): string {
-  const sources = [rawLabel(el), attr(el, 'aria-label'), attr(el, 'placeholder'), nameOf(el)]
+  const sources = [rawLabel(el), effectiveAttr(el, 'aria-label'), effectiveAttr(el, 'placeholder'), nameOf(el)]
   for (const source of sources) {
     const text = displayText(source)
     if (text) return text
@@ -177,8 +199,8 @@ function score(el: Element, loc: FieldLocator): number {
   if (loc.name !== undefined && nameOf(el) === loc.name) total += 4
   if (loc.id !== undefined && !(isNativeRadio(el)) && attr(el, 'id') === loc.id) total += 3
   if (loc.label !== undefined && normalizeLabel(rawLabel(el)) === normalizeLabel(loc.label)) total += 3
-  if (loc.ariaLabel !== undefined && normalizeLabel(attr(el, 'aria-label')) === normalizeLabel(loc.ariaLabel)) total += 2
-  if (loc.placeholder !== undefined && normalizeLabel(attr(el, 'placeholder')) === normalizeLabel(loc.placeholder)) total += 1
+  if (loc.ariaLabel !== undefined && normalizeLabel(effectiveAttr(el, 'aria-label')) === normalizeLabel(loc.ariaLabel)) total += 2
+  if (loc.placeholder !== undefined && normalizeLabel(effectiveAttr(el, 'placeholder')) === normalizeLabel(loc.placeholder)) total += 1
   // The place counts like a label, but only for a field that already matches on its own;
   // a weak or bare locator must not become a match just by being in the right tree.
   if (total >= MIN_SCORE && sameScope(loc.scope, scopeOf(el))) total += 3
@@ -231,5 +253,7 @@ export function findElement(root: ParentNode, loc: FieldLocator): FindResult {
 export function isRequired(el: FormControl): boolean {
   if ('required' in el && (el as HTMLInputElement).required === true) return true
   if (el.getAttribute('aria-required') === 'true') return true
+  const host = hostOf(el)
+  if (host && (host.hasAttribute('required') || host.getAttribute('aria-required') === 'true')) return true
   return rawLabel(el).trim().endsWith('*')
 }

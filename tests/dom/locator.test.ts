@@ -247,3 +247,38 @@ describe('deep lookup', () => {
     expect(listControls(document).map((el) => el.getAttribute('name'))).toEqual(['a', 'b', 'c'])
   })
 })
+
+describe('web component patterns', () => {
+  it('falls back to host attributes for name, label, placeholder and required', () => {
+    setup('<wc-text-field name="cost_center" label="Kostenstelle" placeholder="z. B. 4711" required></wc-text-field>')
+    const inner = deepQ<HTMLInputElement>('input', shadow(deepQ('wc-text-field'), '<input aria-label="Eingabe">'))
+    expect(describeElement(inner)).toEqual({
+      kind: 'text', name: 'cost_center', label: 'kostenstelle', ariaLabel: 'eingabe', placeholder: 'z. b. 4711', inputType: 'text', scope: ['wc-text-field'],
+    })
+    expect(isRequired(inner)).toBe(true)
+    expect(displayLabel(inner)).toBe('Kostenstelle')
+  })
+
+  it('uses a main-document label that points at the host', () => {
+    setup('<label for="po-number">Bestellnummer</label><wc-input id="po-number"></wc-input>')
+    const inner = deepQ<HTMLInputElement>('input', shadow(deepQ('wc-input'), '<input>'))
+    expect(describeElement(inner)).toEqual({ kind: 'text', label: 'bestellnummer', inputType: 'text', scope: ['wc-input#po-number'] })
+    expect(displayLabel(inner)).toBe('Bestellnummer')
+  })
+
+  it('refinds a host-named field whose inner input has only an aria-label', () => {
+    setup('<wc-text-field name="cost_center" label="Kostenstelle"></wc-text-field>')
+    const inner = deepQ<HTMLInputElement>('input', shadow(deepQ('wc-text-field'), '<input aria-label="Eingabe">'))
+    const found = findElement(document, describeElement(inner))
+    expect(found.status).toBe('found')
+    if (found.status === 'found') expect(found.el).toBe(inner)
+  })
+
+  it('lets the inner field’s own attributes win over the host’s', () => {
+    setup('<wc-text-field name="host_name" label="Vom Wirt" placeholder="Wirt"></wc-text-field>')
+    const root = shadow(deepQ('wc-text-field'), '<label for="i">Eigenes Label</label><input id="i" name="own" placeholder="Eigen">')
+    expect(describeElement(deepQ<HTMLInputElement>('input', root))).toEqual({
+      kind: 'text', name: 'own', id: 'i', label: 'eigenes label', placeholder: 'eigen', inputType: 'text', scope: ['wc-text-field'],
+    })
+  })
+})

@@ -397,3 +397,23 @@ describe('fillElement – inside a shadow root', () => {
     expect(out).toEqual({ status: 'filled', shown: 'Deutschland' })
   })
 })
+
+describe('fillElement – composed events', () => {
+  it('lets listeners on the shadow host see input, change and click', async () => {
+    setup('<x-host></x-host>')
+    const host = deepQ('x-host')
+    const root = shadow(host, `
+      <input name="t">
+      <select name="s"><option value="">Bitte wählen</option><option value="a">A</option></select>
+      <input type="checkbox" name="c">
+      <label><input type="radio" name="r" value="x"> X</label>`)
+    const seen = countEvents(host, 'input', 'change', 'click')
+    await fillElement(deepQ('input[name="t"]', root), { kind: 'text', value: 'Hallo' }, 'text')
+    await fillElement(deepQ('select', root), { kind: 'choice', mode: 'fixed', values: ['A'] }, 'select')
+    await fillElement(deepQ('input[name="c"]', root), { kind: 'checkbox', checked: true }, 'checkbox')
+    await fillElement(deepQ('input[name="r"]', root), { kind: 'choice', mode: 'fixed', values: ['X'] }, 'radiogroup')
+    expect(seen.input).toBeGreaterThanOrEqual(2)
+    expect(seen.change).toBeGreaterThanOrEqual(2)
+    expect(seen.click).toBeGreaterThanOrEqual(2)
+  })
+})

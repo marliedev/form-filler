@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { suggestDataType } from '../../src/dom/suggest'
 import type { FormControl } from '../../src/dom/locator'
+import { q as deepQ, shadow } from './deepHelpers'
 
 function el(html: string): FormControl {
   document.body.innerHTML = html
@@ -35,6 +36,13 @@ describe('suggestDataType', () => {
 
   it('gives password fields a fixed value so repeated passwords match', () => {
     expect(suggestDataType(el('<label>Passwort <input type="password"></label>'))).toEqual({ type: 'fixed', value: 'Test1234!' })
+  })
+
+  it('suggests from the host name, label and autocomplete of a web component', () => {
+    document.body.innerHTML = '<wc-a name="iban"></wc-a><wc-b label="Nachname"></wc-b><wc-c autocomplete="email"></wc-c>'
+    expect(suggestDataType(deepQ<FormControl>('input', shadow(deepQ('wc-a'), '<input>')))).toEqual({ type: 'iban' })
+    expect(suggestDataType(deepQ<FormControl>('input', shadow(deepQ('wc-b'), '<input>')))).toEqual({ type: 'lastName' })
+    expect(suggestDataType(deepQ<FormControl>('input', shadow(deepQ('wc-c'), '<input>')))).toEqual({ type: 'email' })
   })
 
   it('throws for unsupported elements', () => {
