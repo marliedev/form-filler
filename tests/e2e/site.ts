@@ -54,3 +54,14 @@ export const WITH_MISSING = template(
   null,
 )
 export const EMPTY = template('tpl-empty', 'Aufnahme', [], null)
+
+/** Fields inside the test site's web components and its same-origin delivery frame; the main-document zip proves the tie-break. */
+const DEEP_FIELDS: FieldRule[] = [
+  rule('f-cost-center', 'Kostenstelle', { kind: 'text', name: 'cost_center', id: 'input', label: 'kostenstelle', inputType: 'text', scope: ['wc-text-field'] }, { type: 'pattern', pattern: 'KST-{zahl:4}' }),
+  rule('f-po-number', 'Bestellnummer', { kind: 'text', name: 'po_number', label: 'bestellnummer', inputType: 'text', scope: ['wc-input#po-number'] }, { type: 'pattern', pattern: 'PO-{zahl:5}' }),
+  rule('f-delivery-street', 'Lieferung: Straße', { ...text('street', 'street', 'straße'), scope: ['iframe:delivery'] }, { type: 'streetWithNumber' }, { slot: 'B' }),
+  rule('f-delivery-zip', 'Lieferung: PLZ', { ...text('zip', 'zip', 'plz'), scope: ['iframe:delivery'] }, { type: 'zip' }, { slot: 'B' }),
+  rule('f-delivery-city', 'Lieferung: Ort', { ...text('city', 'city', 'ort'), scope: ['iframe:delivery'] }, { type: 'city' }, { slot: 'B' }),
+  rule('f-main-zip', 'PLZ', text('zip', 'zip', 'plz'), { type: 'zip' }, { slot: 'A' }),
+]
+export const DEEP = template('tpl-deep', 'Komponenten und Rahmen', DEEP_FIELDS, null)

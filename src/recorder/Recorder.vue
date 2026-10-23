@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, type CSSProperties } from 'vue'
+import { frameDocuments, viewportRect } from '../dom/deep'
 import { findElement, type FormControl } from '../dom/locator'
 import { DATA_TYPES } from '../generators/catalog'
 import type { FieldRule } from '../model/types'
@@ -54,7 +55,8 @@ function rectStyle(rect: DOMRect, inset = 3): CSSProperties {
 }
 
 function measure(el: Element): DOMRect | null {
-  const rect = el.getBoundingClientRect()
+  // Relative to the top viewport, so fields inside frames get their boxes where they are seen.
+  const rect = viewportRect(el)
   return rect.width === 0 && rect.height === 0 ? null : rect
 }
 
@@ -84,7 +86,7 @@ const pendingStyle = computed(() => {
 const popoverStyle = computed<CSSProperties>(() => {
   void tick.value
   const el = pending.value?.el
-  return el ? popoverPlacement(el.getBoundingClientRect(), view.innerWidth, view.innerHeight) : {}
+  return el ? popoverPlacement(viewportRect(el), view.innerWidth, view.innerHeight) : {}
 })
 
 const count = computed(() => fields.value.length)
@@ -176,6 +178,11 @@ async function onSave(): Promise<void> {
   }
 }
 
+/** Elements inside a frame belong to another realm, where `instanceof Element` is false. */
+function isElement(target: EventTarget | undefined): target is Element {
+  return target !== undefined && 'nodeType' in target && (target as Node).nodeType === Node.ELEMENT_NODE
+}
+
 function fromOverlay(event: Event): boolean {
   return event.composedPath().includes(props.host)
 }
@@ -184,7 +191,7 @@ function onPageFocusIn(event: FocusEvent): void {
   if (fromOverlay(event)) return
   // composedPath()[0] is the real target even inside a page's own shadow DOM.
   const target = event.composedPath()[0]
-  if (!(target instanceof Element)) return
+  if (!isElement(target)) return
   if (target === skipFocusOf) return
   if (confirming.value || saved.value) return
   if (pending.value) {
@@ -206,7 +213,7 @@ function onPageMouseOver(event: MouseEvent): void {
     return
   }
   const target = event.composedPath()[0]
-  hoverEl.value = target instanceof Element ? resolveControl(target) : null
+  hoverEl.value = isElement(target) ? resolveControl(target) : null
 }
 
 function onPageKeydown(event: KeyboardEvent): void {
@@ -224,21 +231,44 @@ function onOverlayKeydown(event: KeyboardEvent): void {
   handleEscape()
 }
 
+/** Documents the page listeners are attached to: the page itself and every accessible frame. */
+const listening: Document[] = []
+
+function attachPageListeners(target: Document): void {
+  if (listening.includes(target)) return
+  listening.push(target)
+  target.addEventListener('focusin', onPageFocusIn, true)
+  target.addEventListener('mouseover', onPageMouseOver, true)
+  target.addEventListener('keydown', onPageKeydown, true)
+  target.defaultView?.addEventListener('scroll', scheduleMeasure, { capture: true, passive: true })
+}
+
+function detachPageListeners(target: Document): void {
+  target.removeEventListener('focusin', onPageFocusIn, true)
+  target.removeEventListener('mouseover', onPageMouseOver, true)
+  target.removeEventListener('keydown', onPageKeydown, true)
+  target.defaultView?.removeEventListener('scroll', scheduleMeasure, { capture: true })
+}
+
+/** Frames may load after the recorder started; every measure tick picks up new ones. */
+function attachFrames(): void {
+  for (const frameDoc of frameDocuments(doc)) attachPageListeners(frameDoc)
+}
+
 let frame = 0
 function scheduleMeasure(): void {
   if (frame) return
   frame = view.requestAnimationFrame(() => {
     frame = 0
+    attachFrames()
     tick.value++
   })
 }
 
 let interval = 0
 onMounted(() => {
-  doc.addEventListener('focusin', onPageFocusIn, true)
-  doc.addEventListener('mouseover', onPageMouseOver, true)
-  doc.addEventListener('keydown', onPageKeydown, true)
-  view.addEventListener('scroll', scheduleMeasure, { capture: true, passive: true })
+  attachPageListeners(doc)
+  attachFrames()
   view.addEventListener('resize', scheduleMeasure, { passive: true })
   // Pages show and hide fields without scroll/resize (e.g. conditional sections).
   interval = view.setInterval(scheduleMeasure, 1000)
@@ -246,10 +276,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  doc.removeEventListener('focusin', onPageFocusIn, true)
-  doc.removeEventListener('mouseover', onPageMouseOver, true)
-  doc.removeEventListener('keydown', onPageKeydown, true)
-  view.removeEventListener('scroll', scheduleMeasure, { capture: true })
+  for (const target of listening) detachPageListeners(target)
+  listening.length = 0
   view.removeEventListener('resize', scheduleMeasure)
   view.clearInterval(interval)
   if (frame) view.cancelAnimationFrame(frame)
