@@ -12,8 +12,6 @@ import { chooseShortcutTemplate } from './shortcutTemplate'
 import type { FillReport } from './runFill'
 
 const CONTENT_SCRIPT = '/content-scripts/content.js'
-export const NO_LAST_TEMPLATE = 'Noch keine Vorlage genutzt – zuerst im Popup füllen.'
-export const NO_APP_TEMPLATE = 'Keine Vorlage für diese App – zuerst im Popup eine aufnehmen.'
 export const NO_FIELDS_FOUND = 'Keine Formularfelder auf dieser Seite erkannt.'
 /** Id of the ad-hoc template a quick fill runs with; it is never stored. */
 export const QUICK_TEMPLATE_ID = 'quick'
@@ -139,8 +137,8 @@ export async function startRecording(tabId: number, templateId: string): Promise
 
 /**
  * Keyboard shortcut. On a page of a known app it fills the template that fits (see
- * `chooseShortcutTemplate`), elsewhere the template used last. Without a candidate the tab gets
- * an error report and badge instead, so the shortcut never fails silently.
+ * `chooseShortcutTemplate`), elsewhere the template used last. Without any candidate it fills the
+ * page without a template (quick fill), so the shortcut always does something useful.
  */
 export async function fillByShortcut(): Promise<FillReport | null> {
   const { mode, lastTemplateId } = await getPrefs()
@@ -149,10 +147,6 @@ export async function fillByShortcut(): Promise<FillReport | null> {
   const last = lastTemplateId === null ? null : ((await getTemplate(lastTemplateId)) ?? null)
   const app = tab.url === undefined ? null : matchApp(tab.url, await listApps())
   const chosen = app === null ? last : chooseShortcutTemplate(await listTemplates(app.id), last)
-  if (chosen === null) {
-    const error = app === null ? NO_LAST_TEMPLATE : NO_APP_TEMPLATE
-    await remember(tab.id, { templateId: lastTemplateId ?? '', filled: 0, total: 0, fields: [], error })
-    return null
-  }
+  if (chosen === null) return quickFill(tab.id, mode, { url: tab.url ?? '', title: tab.title ?? '' })
   return dispatchFill(tab.id, chosen.id, mode)
 }

@@ -707,7 +707,7 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
       <p v-if="app">
         <template v-if="shortcut">
           <kbd class="rounded-sm border border-line px-1.5 font-body text-[11px] font-medium text-text">{{ shortcut }}</kbd>
-          füllt mit der passenden Vorlage dieser App, bei Prozessen mit dem nächsten Schritt.
+          füllt mit der passenden Vorlage dieser App, bei Prozessen mit dem nächsten Schritt; ohne Vorlage füllt es die Seite direkt.
         </template>
         <template v-else>
           Tastenkürzel zum Füllen {{ SHORTCUTS_PAGE_HINT }} festlegen.
