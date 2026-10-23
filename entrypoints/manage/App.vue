@@ -7,7 +7,9 @@ import { useManage, type ConflictChoice, type ExportDownload } from '../../src/m
 import { toUserError } from '../../src/popup/userError'
 import ConfirmDialog from '../../src/ui/ConfirmDialog.vue'
 import { useDialog } from '../../src/ui/dialog'
+import { appVersion } from '../../src/ui/appVersion'
 
+const version = appVersion()
 const manage = useManage()
 const { apps, selectedApp, templates, selectedTemplate, busy, error, notice } = manage
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -86,9 +88,14 @@ const secondaryButton =
   <div class="min-h-screen bg-bg text-text">
     <header class="border-b border-line">
       <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <h1 class="font-display text-2xl font-bold tracking-[-0.01em]">
-          Vorlagen verwalten
-        </h1>
+        <div>
+          <h1 class="font-display text-2xl font-bold tracking-[-0.01em]">
+            Vorlagen verwalten
+          </h1>
+          <p class="text-xs text-muted">
+            Form Filler {{ version }}
+          </p>
+        </div>
         <div class="flex flex-wrap gap-2">
           <button
             type="button"

@@ -8,9 +8,11 @@ import { usePopup } from '../../src/popup/usePopup'
 import BrandSignet from '../../src/theme/BrandSignet.vue'
 import FillReportView from '../../src/ui/FillReportView.vue'
 import { SHORTCUTS_PAGE_HINT } from '../../src/popup/browserHints'
+import { appVersion } from '../../src/ui/appVersion'
 import Segmented from '../../src/ui/Segmented.vue'
 import type { SegmentedOption } from '../../src/ui/segmented'
 
+const version = appVersion()
 const popup = usePopup()
 const { app, detected, apps, templates, mode, report, busy, error, notice, pageSupported, suggestedPattern, tabId, permissionMissing } = popup
 
@@ -545,5 +547,8 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
         </template>
       </p>
     </footer>
+    <p class="px-4.5 pb-2.5 text-right text-[11px] text-muted">
+      Form Filler {{ version }}
+    </p>
   </div>
 </template>
