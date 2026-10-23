@@ -11,8 +11,12 @@ Chromium-Erweiterung (Manifest V3), die Webformulare mit zusammenhängenden deut
 - **Realistische deutsche Testdaten:** Namen, Adressen mit passender PLZ und Ort, Telefon, E-Mail, IBAN, Datum, Firmen und mehr. Jeder Durchlauf erzeugt neue Werte.
 - **Stimmige Datensätze:** Zusammengehörige Felder passen zueinander, auch über mehrere Formularschritte hinweg.
 - **Viele Feldarten:** Textfelder, Selects, Radio-Buttons, Checkboxen, Datumsfelder sowie eigene, barrierefreie Komponenten (ARIA-Combobox, ARIA-Radiogroup, Auswahl-Buttons mit `aria-haspopup="listbox"` wie in Headless UI oder Nuxt UI), auch in Web-Components (offenes Shadow DOM) und in eingebetteten Formularen derselben Adresse.
-- **Pflegbar:** Felder ergänzen, entfernen, umsortieren und als Pflicht oder optional markieren. Export und Import als JSON.
+- **Mitdenkendes Tastenkürzel:** Alt+Shift+F füllt mit der passenden Vorlage der erkannten App, bei Prozessen mit dem nächsten Schritt; ohne App oder Vorlage füllt es die Seite ohne Vorlage.
+- **Datensatz im Blick:** Das Popup zeigt Kennung, Firma und Person des aktiven Datensatzes; „Neuer Datensatz“ beginnt einen neuen Durchlauf.
+- **Pflegbar:** Felder ergänzen, entfernen, umsortieren und als Pflicht oder optional markieren; Vorlagen duplizieren. Export und Import als JSON.
 - **Lokal:** Keine Server, kein Tracking, keine Synchronisierung.
+
+Was sich von Version zu Version ändert, steht im [Changelog](CHANGELOG.md).
 
 ## Video
 
