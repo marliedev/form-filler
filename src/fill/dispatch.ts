@@ -1,7 +1,8 @@
 import { fakerDE } from '@faker-js/faker'
 import { browser } from 'wxt/browser'
+import type { Dataset } from '../generators/dataset'
 import type { FieldRule, Template } from '../model/types'
-import { getOrCreateDataset } from '../storage/datasetStore'
+import { getOrCreateDataset, reuseDataset } from '../storage/datasetStore'
 import { saveQuickRun } from '../storage/quickRunStore'
 import { getPrefs, getTemplate, listApps, listTemplates, saveTemplate, setPrefs } from '../storage/repository'
 import { matchApp } from './appMatch'
@@ -51,8 +52,8 @@ async function remember(tabId: number, report: FillReport): Promise<void> {
 }
 
 /** Shared fill path of stored templates and quick fills: dataset, injection, fill message, answer check. */
-async function fillWithTemplate(tabId: number, template: Template, mode: FillMode): Promise<FillReport> {
-  const dataset = await getOrCreateDataset(tabId, template, fakerDE)
+async function fillWithTemplate(tabId: number, template: Template, mode: FillMode, dataset?: Dataset): Promise<FillReport> {
+  dataset ??= await getOrCreateDataset(tabId, template, fakerDE)
   await injectContentScript(tabId)
   const message: ContentMessage = { type: 'fill', template, dataset, mode }
   const report: unknown = await browser.tabs.sendMessage(tabId, message)
@@ -117,11 +118,32 @@ export async function quickFill(tabId: number, mode: FillMode, page: { url: stri
   return report
 }
 
+/** Fields that only appear after a value was set (a billing address behind a checkbox) get up to this many extra passes. */
+const EXTRA_PASSES = 2
+
+function quickTemplate(fields: FieldRule[]): Template {
+  return { id: QUICK_TEMPLATE_ID, appId: '', name: 'Schnellfüllen', process: null, fields, lastMissing: [] }
+}
+
+function mergeReports(first: FillReport, more: FillReport): FillReport {
+  return { ...first, filled: first.filled + more.filled, total: first.total + more.total, fields: [...first.fields, ...more.fields] }
+}
+
 async function runQuickFill(tabId: number, mode: FillMode, page: { url: string; title: string }): Promise<FillReport> {
-  const fields = await scanPage(tabId)
+  let fields = await scanPage(tabId)
   if (fields.length === 0) throw new Error(NO_FIELDS_FOUND)
-  const template: Template = { id: QUICK_TEMPLATE_ID, appId: '', name: 'Schnellfüllen', process: null, fields, lastMissing: [] }
-  const report = await fillWithTemplate(tabId, template, mode)
+  const dataset = await getOrCreateDataset(tabId, quickTemplate(fields), fakerDE)
+  let report = await fillWithTemplate(tabId, quickTemplate(fields), mode, dataset)
+  const seen = new Set(fields.map((f) => JSON.stringify(f.locator)))
+  for (let pass = 0; pass < EXTRA_PASSES && report.error === undefined; pass++) {
+    const added = (await scanPage(tabId)).filter((f) => !seen.has(JSON.stringify(f.locator)))
+    if (added.length === 0) break
+    for (const f of added) seen.add(JSON.stringify(f.locator))
+    fields = [...fields, ...added]
+    // Same dataset as the first pass, extended by the slots the new fields need (e.g. address B).
+    const extended = await reuseDataset(tabId, quickTemplate(fields), fakerDE)
+    report = mergeReports(report, await fillWithTemplate(tabId, quickTemplate(added), mode, extended))
+  }
   const problems = report.fields.filter((f) => isProblem(f.status)).map((f) => f.fieldId)
   await saveQuickRun(tabId, { fields, problems, url: page.url, title: page.title })
   return report
