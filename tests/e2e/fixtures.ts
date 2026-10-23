@@ -18,6 +18,7 @@ declare const chrome: WxtBrowser
 interface E2EApi {
   dispatchFill(tabId: number, templateId: string, mode: FillMode): Promise<FillReport>
   startRecording(tabId: number, templateId: string): Promise<void>
+  quickFill(tabId: number, mode: FillMode, page: { url: string; title: string }): Promise<FillReport>
 }
 type WorkerGlobal = { __formFillerE2E: E2EApi }
 
@@ -29,6 +30,8 @@ export interface Extension {
   open(): Promise<{ page: Page; tabId: number }>
   fill(tabId: number, templateId: string, mode?: FillMode): Promise<FillReport>
   record(tabId: number, templateId: string): Promise<void>
+  /** Fills without a template, as the popup's "Ohne Vorlage füllen" would on the test site. */
+  quickFill(tabId: number, mode?: FillMode): Promise<FillReport>
   badge(tabId: number): Promise<string>
   local(): Promise<Record<string, unknown>>
   session(): Promise<Record<string, unknown>>
@@ -70,6 +73,11 @@ export const test = base.extend<{ context: BrowserContext; extension: Extension 
         worker.evaluate(
           (args) => (globalThis as unknown as WorkerGlobal).__formFillerE2E.startRecording(args.tabId, args.templateId),
           { tabId, templateId },
+        ),
+      quickFill: (tabId, mode = 'all') =>
+        worker.evaluate(
+          (args) => (globalThis as unknown as WorkerGlobal).__formFillerE2E.quickFill(args.tabId, args.mode, args.page),
+          { tabId, mode, page: { url: `${SITE_URL}/`, title: 'Musterformular' } },
         ),
       badge: (tabId) => worker.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId),
       local: () => worker.evaluate(() => chrome.storage.local.get(null)),

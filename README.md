@@ -7,6 +7,7 @@ Chromium-Erweiterung (Manifest V3), die Webformulare mit zusammenhängenden deut
 ## Funktionen
 
 - **Vorlagen per Aufnahme:** Felder einer Seite anklicken, Datentyp prüfen, speichern. Kein Code, keine Selektoren von Hand.
+- **Schnellfüllen:** „Ohne Vorlage füllen“ erkennt die Felder einer Seite selbst und füllt sie sofort, ohne App und ohne Berechtigung. Die Erkennung lässt sich danach als Vorlage speichern.
 - **Realistische deutsche Testdaten:** Namen, Adressen mit passender PLZ und Ort, Telefon, E-Mail, IBAN, Datum, Firmen und mehr. Jeder Durchlauf erzeugt neue Werte.
 - **Stimmige Datensätze:** Zusammengehörige Felder passen zueinander, auch über mehrere Formularschritte hinweg.
 - **Viele Feldarten:** Textfelder, Selects, Radio-Buttons, Checkboxen, Datumsfelder sowie eigene, barrierefreie Komponenten (ARIA-Combobox, ARIA-Radiogroup).
@@ -94,6 +95,8 @@ Danach auf der Erweiterungsseite bei Form Filler auf **Neu laden** klicken und o
 - **`npm ci` schlägt fehl:** Node.js-Version prüfen (`node -v`) und gegebenenfalls auf die aktuelle LTS-Version aktualisieren.
 
 ## Erste Schritte
+
+Zum Ausprobieren reicht ein Klick: Zielseite öffnen, Popup starten, **Ohne Vorlage füllen**. Der Bericht zeigt, welche Felder erkannt wurden; **Als Vorlage speichern** übernimmt die Erkennung in eine Vorlage (und legt bei Bedarf die App an), die sich im Pflege-Tab verfeinern lässt. Für mehrstufige Prozesse und Sonderfälle führt der Weg über eine aufgenommene Vorlage:
 
 1. Die Zielseite öffnen und das Popup der Erweiterung starten.
 2. **Neue App für diese Seite** anlegen (Name und URL-Muster) und die angeforderte Berechtigung für die Seite erteilen.
