@@ -4,6 +4,7 @@ import { matchApp } from '../fill/appMatch'
 import { createId } from '../model/id'
 import { startRecording } from '../fill/dispatch'
 import { buildExport, parseExport } from '../model/schema'
+import { detachTemplateSource, stripTemplateSource } from '../model/source'
 import type { AppDef, ExportFile, FieldRule, Template } from '../model/types'
 import { toUserError, type UserError } from '../popup/userError'
 import { slotFor } from '../recorder/useRecorder'
@@ -16,9 +17,13 @@ import {
   listApps,
   listTemplates,
   saveApp as storeApp,
+  saveAppWithTemplates,
   saveTemplate,
   setPrefs,
 } from '../storage/repository'
+import { fetchSource, ONLY_HTTP, SourceError, sourceOrigin } from '../sync/fetchSource'
+import { summaryText, type SyncSummary } from '../sync/planSync'
+import { NO_SOURCE, syncFromFile } from '../sync/sync'
 
 export type ConflictChoice = 'overwrite' | 'copy'
 
@@ -46,8 +51,13 @@ export interface ManageState {
   removeField(id: string): Promise<boolean>
   /** `to` is the zero-based target index; out-of-range values are clamped. */
   moveField(id: string, to: number): Promise<boolean>
-  saveApp(app: AppDef): Promise<boolean>
+  /** `sourceUrl` is the address of the team's export file: empty removes the source, undefined leaves it as it is. */
+  saveApp(app: AppDef & { sourceUrl?: string }): Promise<boolean>
   removeApp(id: string): Promise<boolean>
+  /** Brings the app's templates to the state of its source; false with `error` set means nothing changed. */
+  syncApp(id: string): Promise<boolean>
+  /** Syncs every app with a source: summaries in `notice`, failures in `error`; one app's failure does not stop the others. */
+  syncAll(): Promise<void>
   saveTemplateMeta(patch: Pick<Template, 'name' | 'process'>): Promise<boolean>
   removeTemplate(id: string): Promise<boolean>
   /** Copies a template into the same app (fields with fresh ids, no missing markers) and selects the copy. */
@@ -253,7 +263,7 @@ export function useManage(): ManageState {
         const source = await getTemplate(id)
         if (!source) return null
         const created: Template = {
-          ...source,
+          ...stripTemplateSource(source),
           id: createId(),
           name: `${source.name} (Kopie)`,
           fields: source.fields.map((field) => ({ ...structuredClone(field), id: createId() })),
@@ -293,20 +303,25 @@ export function useManage(): ManageState {
 
   /**
    * `permissions.request` runs before the first await so the click's user gesture still counts.
-   * Without the permission for an added pattern nothing is saved, like when creating the app in the popup.
+   * Without the permission for an added pattern or a new source nothing is saved, like when creating the app in the popup.
    */
-  async function saveApp(app: AppDef): Promise<boolean> {
+  async function saveApp(app: AppDef & { sourceUrl?: string }): Promise<boolean> {
     resetStatus()
     const name = app.name.trim()
     const urlPatterns = [...new Set(app.urlPatterns.map((p) => p.trim()).filter((p) => p !== ''))]
     if (name === '') return fail('Bitte einen Namen für die App eingeben.')
     if (urlPatterns.length === 0) return fail('Bitte mindestens ein URL-Muster eingeben.')
     const previous = apps.value.find((a) => a.id === app.id)
+    const sourceUrl = app.sourceUrl === undefined ? (previous?.source?.url ?? '') : app.sourceUrl.trim()
+    const origin = sourceUrl === '' ? null : sourceOrigin(sourceUrl)
+    if (sourceUrl !== '' && origin === null) return fail(ONLY_HTTP)
+    const sourceChanged = sourceUrl !== (previous?.source?.url ?? '')
     const added = urlPatterns.filter((p) => !previous?.urlPatterns.includes(p))
+    const origins = sourceChanged && origin !== null ? [...added, `${origin}/*`] : added
     let permission: Promise<boolean> = Promise.resolve(true)
-    if (added.length > 0) {
+    if (origins.length > 0) {
       try {
-        permission = browser.permissions.request({ origins: added })
+        permission = browser.permissions.request({ origins })
       } catch (e) {
         error.value = toUserError(e, INVALID_PATTERN)
         return false
@@ -322,8 +337,14 @@ export function useManage(): ManageState {
         return false
       }
       if (!granted) return fail('Ohne Berechtigung für die neue Adresse wurde nichts geändert.')
+      // A new address starts unmapped; the first sync maps it.
+      const source = sourceChanged ? (sourceUrl === '' ? undefined : { url: sourceUrl, appId: null }) : previous?.source
       await serialized(async () => {
-        await storeApp({ id: app.id, name, urlPatterns })
+        const next: AppDef = { id: app.id, name, urlPatterns, ...(source === undefined ? {} : { source }) }
+        // A moved or removed source detaches the synced templates: they stay as local ones, and the next sync
+        // recognises them by their file id. App and templates go in one write so neither can be left behind.
+        if (sourceChanged) await saveAppWithTemplates(next, (await listTemplates(app.id)).map(detachTemplateSource))
+        else await storeApp(next)
         await refresh()
       })
       notice.value = `App „${name}“ gespeichert.`
@@ -331,6 +352,62 @@ export function useManage(): ManageState {
     } catch (e) {
       error.value = toUserError(e, 'App konnte nicht gespeichert werden.')
       return false
+    } finally {
+      busy.value = false
+    }
+  }
+
+  /** Downloads outside the write queue, then plans and writes against the stored state. */
+  async function runSync(id: string): Promise<SyncSummary> {
+    const known = apps.value.find((a) => a.id === id)
+    if (known?.source === undefined) throw new SourceError(NO_SOURCE)
+    const file = await fetchSource(known.source.url)
+    return serialized(async () => {
+      const app = (await listApps()).find((a) => a.id === id)
+      if (app === undefined) throw new Error('App nicht gefunden')
+      const local = await listTemplates(id)
+      const result = syncFromFile(app, local, file)
+      await saveAppWithTemplates(result.app, result.templates)
+      const kept = new Set(result.templates.map((t) => t.id))
+      await forgetLastTemplate(local.filter((t) => !kept.has(t.id)).map((t) => t.id))
+      await refresh()
+      return result.summary
+    })
+  }
+
+  function syncError(e: unknown): UserError {
+    return e instanceof SourceError ? { message: e.message } : toUserError(e, 'Abgleich fehlgeschlagen.')
+  }
+
+  async function syncApp(id: string): Promise<boolean> {
+    resetStatus()
+    busy.value = true
+    try {
+      notice.value = summaryText(await runSync(id))
+      return true
+    } catch (e) {
+      error.value = syncError(e)
+      return false
+    } finally {
+      busy.value = false
+    }
+  }
+
+  async function syncAll(): Promise<void> {
+    resetStatus()
+    busy.value = true
+    const notices: string[] = []
+    const failures: string[] = []
+    try {
+      for (const app of apps.value.filter((a) => a.source !== undefined)) {
+        try {
+          notices.push(`${app.name} – ${summaryText(await runSync(app.id))}`)
+        } catch (e) {
+          failures.push(`${app.name}: ${syncError(e).message}`)
+        }
+      }
+      notice.value = notices.join(' · ')
+      if (failures.length > 0) error.value = { message: failures.join(' · ') }
     } finally {
       busy.value = false
     }
@@ -415,6 +492,6 @@ export function useManage(): ManageState {
   return {
     apps, selectedApp, templates, selectedTemplate, busy, error, notice,
     load, refresh, selectApp, selectTemplate, updateField, removeField, moveField,
-    saveApp, removeApp, saveTemplateMeta, removeTemplate, duplicateTemplate, exportAll, exportApp, importFile, recordFields,
+    saveApp, removeApp, syncApp, syncAll, saveTemplateMeta, removeTemplate, duplicateTemplate, exportAll, exportApp, importFile, recordFields,
   }
 }

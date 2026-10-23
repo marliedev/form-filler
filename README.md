@@ -15,7 +15,8 @@ Chromium-Erweiterung (Manifest V3), die Webformulare mit zusammenhängenden deut
 - **Datensatz im Blick:** Das Popup zeigt Kennung, Firma und Person des aktiven Datensatzes; „Neuer Datensatz“ beginnt einen neuen Durchlauf.
 - **Nichts geht verloren:** Füllen lässt Eingaben stehen, die nicht von Form Filler stammen (Bericht: „bereits ausgefüllt“), und ersetzt nur seine eigenen Werte. Vorbelegte Textfelder bleiben, vorbelegte Auswahlfelder werden gefüllt. „Rückgängig“ setzt die Felder des letzten Laufs zurück.
 - **Pflegbar:** Felder ergänzen, entfernen, umsortieren und als Pflicht oder optional markieren; Vorlagen duplizieren. Export und Import als JSON.
-- **Lokal:** Keine Server, kein Tracking, keine Synchronisierung.
+- **Vorlagen im Team:** Eine App kann eine Vorlagen-Quelle haben, die Adresse einer Export-Datei. „Abgleichen“ holt den Stand des Teams; eigene Änderungen bleiben als Kopie erhalten.
+- **Lokal:** Keine Server des Herstellers, kein Tracking. Netzwerkzugriffe gibt es nur auf Knopfdruck und nur auf die selbst eingetragene Vorlagen-Quelle.
 
 Was sich von Version zu Version ändert, steht im [Changelog](CHANGELOG.md).
 
@@ -117,11 +118,25 @@ Standard: **Alt+Shift+F** füllt die aktuelle Seite. Auf einer Seite mit erkannt
 
 ## Datenschutz
 
-Alle Daten bleiben lokal im Browser: Apps und Vorlagen in `storage.local`, Füllstände und Berichte pro Tab in `storage.session`. Es gibt keine Synchronisierung (`storage.sync` wird nicht verwendet) und keine Netzwerkzugriffe zur Laufzeit.
+Alle Daten bleiben lokal im Browser: Apps und Vorlagen in `storage.local`, Füllstände und Berichte pro Tab in `storage.session`. Es gibt keine Synchronisierung über Browser-Konten (`storage.sync` wird nicht verwendet). Der einzige Netzwerkzugriff ist der Abgleich mit einer Vorlagen-Quelle, und nur dann, wenn du eine Adresse eingetragen hast und auf „Abgleichen“ klickst.
 
 ## Export und Import
 
-Im Pflege-Tab („Vorlagen verwalten“, Zahnrad im Popup) lassen sich Apps und Vorlagen als JSON-Datei exportieren und wieder importieren. Bei Konflikten fragt der Import nach.
+Im Pflege-Tab („Vorlagen verwalten“, Zahnrad im Popup) lassen sich Apps und Vorlagen als JSON-Datei exportieren und wieder importieren. Bei Konflikten fragt der Import nach. Eine Export-Datei enthält keine Quellen-Kennzeichen und taugt damit selbst als Vorlagen-Quelle für andere.
+
+## Vorlagen im Team
+
+Statt Export-Dateien von Hand zu verteilen, pflegt eine Person die Datei an einem Ort, den alle erreichen, und trägt deren Adresse bei den anderen als **Vorlagen-Quelle** ein (Pflege-Tab, App-Einstellungen). Beim Speichern fragt der Browser einmal die Berechtigung für diese Adresse ab. Danach bringt **Abgleichen** die Vorlagen der App auf den Stand der Quelle, **Alle abgleichen** in der Kopfzeile tut das für jede App mit Quelle. Die Statuszeile fasst zusammen: „Abgeglichen: 2 neu, 1 aktualisiert, 1 lokal geändert (Kopie), 0 entfernt.“
+
+Regeln beim Abgleich:
+
+- Neue Vorlagen der Quelle werden angelegt, geänderte ersetzt, in der Quelle entfernte lokal entfernt. Abgeglichene Vorlagen tragen in der Liste den Hinweis „Quelle“.
+- Eine abgeglichene Vorlage, die du lokal verändert hast, geht nicht verloren: Deine Fassung bleibt als „… (lokal)“ stehen, die Fassung der Quelle kommt daneben.
+- Eigene Vorlagen ohne Quelle werden nie angefasst. Enthält die Datei die zugeordnete App nicht mehr oder keine Vorlagen dafür, bricht der Abgleich ab und ändert nichts.
+- Beim ersten Abgleich wird die App der Datei über das URL-Muster zugeordnet, sonst über die einzige App in der Datei. Dieselbe Datei kann mehrere lokale Apps versorgen (Test- und Staging-Umgebung).
+- Eine geänderte oder geleerte Adresse macht die abgeglichenen Vorlagen wieder zu lokalen; nichts wird gelöscht.
+
+Die Adresse muss die Datei selbst liefern, keine Webseite drumherum. Bei GitHub ist das der „Raw“-Link der Datei, bei Nextcloud oder SharePoint der Direktlink zum Herunterladen (bei Nextcloud etwa der Freigabe-Link mit angehängtem `/download`). Liefert die Adresse eine Anmelde- oder Freigabeseite, meldet der Abgleich das und ändert nichts.
 
 ## Keine App-Vorlagen im Repository
 

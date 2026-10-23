@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useId, watch } from 'vue'
+import { isSynced } from '../model/source'
 import type { AppDef, Template } from '../model/types'
 import ConfirmDialog from '../ui/ConfirmDialog.vue'
 import { useDialog } from '../ui/dialog'
@@ -14,7 +15,7 @@ const props = defineProps<{
   templates: Template[]
   selectedTemplateId: string | null
   busy: boolean
-  actions: Pick<ManageState, 'selectApp' | 'selectTemplate' | 'saveApp' | 'removeApp'>
+  actions: Pick<ManageState, 'selectApp' | 'selectTemplate' | 'saveApp' | 'removeApp' | 'syncApp'>
 }>()
 
 const emit = defineEmits<{ 'export-app': [id: string] }>()
@@ -23,14 +24,14 @@ const uid = useId()
 const appsHeading = ref<HTMLElement | null>(null)
 const confirm = useDialog<'delete'>()
 
-const form = ref({ name: '', patterns: '' })
+const form = ref({ name: '', patterns: '', source: '' })
 
 // Compared by value: every storage refresh hands in a new app object, which must not wipe typing.
 watch(
   () => JSON.stringify(props.selectedApp),
   () => {
     const app = props.selectedApp
-    form.value = { name: app?.name ?? '', patterns: app?.urlPatterns.join('\n') ?? '' }
+    form.value = { name: app?.name ?? '', patterns: app?.urlPatterns.join('\n') ?? '', source: app?.source?.url ?? '' }
   },
   { immediate: true },
 )
@@ -42,14 +43,24 @@ function patternsOf(text: string): string[] {
 const dirty = computed(() => {
   const app = props.selectedApp
   if (app === null) return false
-  return form.value.name.trim() !== app.name || patternsOf(form.value.patterns).join('\n') !== app.urlPatterns.join('\n')
+  return (
+    form.value.name.trim() !== app.name ||
+    patternsOf(form.value.patterns).join('\n') !== app.urlPatterns.join('\n') ||
+    form.value.source.trim() !== (app.source?.url ?? '')
+  )
 })
 
 function save(): void {
   const app = props.selectedApp
   if (app === null) return
   // No await before saveApp: it requests host permissions, which needs the click's user gesture.
-  void props.actions.saveApp({ id: app.id, name: form.value.name, urlPatterns: patternsOf(form.value.patterns) })
+  void props.actions.saveApp({ id: app.id, name: form.value.name, urlPatterns: patternsOf(form.value.patterns), sourceUrl: form.value.source })
+}
+
+function sync(): void {
+  const app = props.selectedApp
+  if (app === null) return
+  void props.actions.syncApp(app.id)
 }
 
 async function remove(): Promise<void> {
@@ -144,7 +155,7 @@ const labelClass = 'block text-xs font-medium text-muted'
           >
             <span class="font-medium">{{ t.name }}</span>
             <span class="text-xs text-muted">
-              {{ t.fields.length }} {{ t.fields.length === 1 ? 'Feld' : 'Felder' }}<template v-if="processText(t)"> · {{ processText(t) }}</template>
+              {{ t.fields.length }} {{ t.fields.length === 1 ? 'Feld' : 'Felder' }}<template v-if="processText(t)"> · {{ processText(t) }}</template><template v-if="isSynced(t)"> · Quelle</template>
             </span>
             <span
               v-if="t.lastMissing.length > 0"
@@ -204,6 +215,28 @@ const labelClass = 'block text-xs font-medium text-muted'
             * steht für beliebige Zeichen, z. B. https://app.example.com/*
           </p>
         </div>
+        <div>
+          <label
+            :for="`${uid}-source`"
+            :class="labelClass"
+          >Vorlagen-Quelle (Adresse)</label>
+          <input
+            :id="`${uid}-source`"
+            v-model="form.source"
+            type="url"
+            inputmode="url"
+            autocomplete="off"
+            spellcheck="false"
+            :aria-describedby="`${uid}-source-hint`"
+            :class="[control, 'font-mono text-xs']"
+          >
+          <p
+            :id="`${uid}-source-hint`"
+            class="mt-1 text-xs text-muted"
+          >
+            Adresse einer Export-Datei des Teams (Raw- oder Direktlink). Leer lassen, wenn die Vorlagen nur hier gepflegt werden.
+          </p>
+        </div>
         <div class="flex flex-wrap gap-2">
           <button
             type="submit"
@@ -211,6 +244,15 @@ const labelClass = 'block text-xs font-medium text-muted'
             class="rounded-sm bg-brand px-3 py-1.5 text-sm font-medium text-on-brand hover:brightness-125 disabled:opacity-60 disabled:hover:brightness-100 focus-visible:focus-ring"
           >
             Speichern
+          </button>
+          <button
+            v-if="selectedApp.source"
+            type="button"
+            :disabled="busy"
+            class="rounded-sm border border-line px-3 py-1.5 text-sm font-medium text-text hover:bg-line disabled:opacity-60 focus-visible:focus-ring"
+            @click="sync"
+          >
+            Abgleichen
           </button>
           <button
             type="button"

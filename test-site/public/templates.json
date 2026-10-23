@@ -1,0 +1,72 @@
+{
+  "format": "form-filler",
+  "version": 1,
+  "apps": [
+    { "id": "team-site", "name": "Testseite (Team)", "urlPatterns": ["http://localhost:5179/*"] }
+  ],
+  "templates": [
+    {
+      "id": "team-firma",
+      "appId": "team-site",
+      "name": "Firma (Team)",
+      "process": null,
+      "fields": [
+        {
+          "id": "f-company",
+          "label": "Firmenname",
+          "locator": { "kind": "text", "name": "company", "id": "company", "label": "firmenname", "inputType": "text" },
+          "config": { "type": "companyName" },
+          "slot": null,
+          "required": true,
+          "appendRunId": true
+        },
+        {
+          "id": "f-customer-no",
+          "label": "Kundennummer",
+          "locator": { "kind": "text", "name": "customer_no", "id": "customer-no", "label": "kundennummer", "inputType": "text" },
+          "config": { "type": "pattern", "pattern": "K-{zahl:4}" },
+          "slot": null,
+          "required": false,
+          "appendRunId": false
+        }
+      ],
+      "lastMissing": []
+    },
+    {
+      "id": "team-adresse",
+      "appId": "team-site",
+      "name": "Adresse (Team)",
+      "process": null,
+      "fields": [
+        {
+          "id": "f-street",
+          "label": "Straße",
+          "locator": { "kind": "text", "name": "street", "id": "street", "label": "straße", "inputType": "text" },
+          "config": { "type": "streetWithNumber" },
+          "slot": "A",
+          "required": true,
+          "appendRunId": false
+        },
+        {
+          "id": "f-zip",
+          "label": "PLZ",
+          "locator": { "kind": "text", "name": "zip", "id": "zip", "label": "plz", "inputType": "text" },
+          "config": { "type": "zip" },
+          "slot": "A",
+          "required": true,
+          "appendRunId": false
+        },
+        {
+          "id": "f-city",
+          "label": "Ort",
+          "locator": { "kind": "text", "name": "city", "id": "city", "label": "ort", "inputType": "text" },
+          "config": { "type": "city" },
+          "slot": "A",
+          "required": true,
+          "appendRunId": false
+        }
+      ],
+      "lastMissing": []
+    }
+  ]
+}

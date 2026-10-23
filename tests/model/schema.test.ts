@@ -79,6 +79,23 @@ describe('parseExport', () => {
     if (!result.ok) expect(result.error).toContain('fields');
   });
 
+  it('accepts source markers on apps and templates and drops them on export', () => {
+    const sourced: AppDef = { ...app, source: { url: 'https://team.example.com/templates.json', appId: null } };
+    const synced: Template = { ...template, source: { templateId: 'src-1', fingerprint: 'fp' } };
+    const json = JSON.stringify({ format: 'form-filler', version: 1, apps: [sourced], templates: [synced] });
+    const result = parseExport(json);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.apps[0]?.source).toEqual({ url: 'https://team.example.com/templates.json', appId: null });
+      expect(result.data.templates[0]?.source).toEqual({ templateId: 'src-1', fingerprint: 'fp' });
+    }
+    const exported = JSON.parse(buildExport([sourced], [synced])) as { apps: unknown[]; templates: unknown[] };
+    expect(exported.apps[0]).toEqual(app);
+    expect(exported.apps[0]).not.toHaveProperty('source');
+    expect(exported.templates[0]).toEqual(template);
+    expect(exported.templates[0]).not.toHaveProperty('source');
+  });
+
   it('rejects an unknown data type config', () => {
     const bad = { ...template, fields: [{ ...template.fields[0], config: { type: 'bogus' } }] };
     const json = JSON.stringify({ format: 'form-filler', version: 1, apps: [app], templates: [bad] });

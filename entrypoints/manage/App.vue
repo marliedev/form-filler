@@ -98,6 +98,15 @@ const secondaryButton =
         </div>
         <div class="flex flex-wrap gap-2">
           <button
+            v-if="apps.some((a) => a.source !== undefined)"
+            type="button"
+            :class="secondaryButton"
+            :disabled="busy"
+            @click="manage.syncAll()"
+          >
+            Alle abgleichen
+          </button>
+          <button
             type="button"
             :class="secondaryButton"
             :disabled="apps.length === 0"
