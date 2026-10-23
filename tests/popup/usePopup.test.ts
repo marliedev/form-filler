@@ -153,6 +153,26 @@ describe('usePopup', () => {
     expect(p.notice.value).toMatch(/Neuer Datensatz/)
   })
 
+  it('shows the latest dataset of the tab on open and drops it with newDataset', async () => {
+    await fakeBrowser.storage.session.set({ 'ds:7:x': { runId: 'T0001', createdAt: '2026-01-01T00:00:00.000Z' } })
+    mockActiveTab('https://crm.example.com/')
+    const p = usePopup()
+    await p.load()
+    expect(p.dataset.value?.runId).toBe('T0001')
+    await p.newDataset()
+    expect(p.dataset.value).toBeNull()
+  })
+
+  it('fill loads the dataset the run created', async () => {
+    mockActiveTab('https://crm.example.com/')
+    mockMessaging()
+    const p = usePopup()
+    await p.load()
+    expect(p.dataset.value).toBeNull()
+    await p.fill('t1')
+    expect(p.dataset.value?.runId).toMatch(/^T\d{4}$/)
+  })
+
   it('chooseApp switches to another app and its templates', async () => {
     mockActiveTab('https://crm.example.com/')
     const p = usePopup()

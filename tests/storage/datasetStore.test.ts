@@ -2,7 +2,7 @@ import { fakerDE } from '@faker-js/faker'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { fakeBrowser } from 'wxt/testing/fake-browser'
 import type { FieldRule, Template } from '../../src/model/types'
-import { clearDatasetsForTab, getOrCreateDataset } from '../../src/storage/datasetStore'
+import { clearDatasetsForTab, getLatestDataset, getOrCreateDataset } from '../../src/storage/datasetStore'
 
 const rule = (id: string, slot: string | null): FieldRule => ({
   id, label: id, locator: { kind: 'text', name: id }, config: { type: 'firstName' }, slot, required: false, appendRunId: false,
@@ -80,5 +80,20 @@ describe('clearDatasetsForTab', () => {
     await clearDatasetsForTab(1)
     const all = await fakeBrowser.storage.session.get(null)
     expect(Object.keys(all).sort()).toEqual(['ds:11:Kundenanlage', 'ds:2:Kundenanlage', 'other'])
+  })
+})
+
+describe('getLatestDataset', () => {
+  it('returns null when the tab has no dataset', async () => {
+    expect(await getLatestDataset(1)).toBeNull()
+  })
+
+  it('returns the most recently created dataset of that tab only', async () => {
+    const older = { ...(await getOrCreateDataset(1, step1, fakerDE)), createdAt: '2026-01-01T00:00:00.000Z' }
+    const newer = { ...(await getOrCreateDataset(1, template('solo', null), fakerDE)), createdAt: '2026-02-01T00:00:00.000Z' }
+    await fakeBrowser.storage.session.set({ 'ds:1:Kundenanlage': older, 'ds:1:solo': newer })
+    const other = { ...(await getOrCreateDataset(2, step1, fakerDE)), createdAt: '2026-03-01T00:00:00.000Z' }
+    await fakeBrowser.storage.session.set({ 'ds:2:Kundenanlage': other })
+    expect((await getLatestDataset(1))?.createdAt).toBe(newer.createdAt)
   })
 })

@@ -5,9 +5,10 @@ import { dispatchFill, startRecording } from '../fill/dispatch'
 import { clearBadge, getLastReport } from '../fill/lastReport'
 import type { FillMode } from '../fill/messages'
 import type { FillReport } from '../fill/runFill'
+import type { Dataset } from '../generators/dataset'
 import type { AppDef, Template } from '../model/types'
 import { createId } from '../model/id'
-import { clearDatasetsForTab } from '../storage/datasetStore'
+import { clearDatasetsForTab, getLatestDataset } from '../storage/datasetStore'
 import { deleteApp, getPrefs, listApps, listTemplates, saveApp, saveTemplate, setPrefs } from '../storage/repository'
 import { toUserError, type UserError } from './userError'
 
@@ -24,6 +25,8 @@ export interface PopupState {
   templates: Ref<Template[]>
   mode: Ref<FillMode>
   report: Ref<FillReport | null>
+  /** Test data of the tab as shown in the popup; null before the first fill. */
+  dataset: Ref<Dataset | null>
   busy: Ref<boolean>
   error: Ref<UserError | null>
   /** Short confirmation for the live status line. */
@@ -65,6 +68,7 @@ export function usePopup(): PopupState {
   const templates = ref<Template[]>([])
   const mode = ref<FillMode>('all')
   const report = ref<FillReport | null>(null)
+  const dataset = ref<Dataset | null>(null)
   const busy = ref(false)
   const error = ref<UserError | null>(null)
   const notice = ref('')
@@ -127,6 +131,7 @@ export function usePopup(): PopupState {
     const match = url.value === null ? null : matchApp(url.value, allApps)
     await selectApp(match, match !== null)
     if (tabId.value !== null) {
+      dataset.value = await getLatestDataset(tabId.value)
       report.value = await getLastReport(tabId.value)
       if (report.value?.error !== undefined) error.value = toUserError(report.value.error, 'Befüllen fehlgeschlagen.')
     }
@@ -142,9 +147,14 @@ export function usePopup(): PopupState {
     if (id === null || busy.value) return
     report.value = null
     await run('Befüllen fehlgeschlagen.', async () => {
-      const result = await dispatchFill(id, templateId, mode.value)
-      report.value = result
-      if (result.error !== undefined) error.value = toUserError(result.error, 'Befüllen fehlgeschlagen.')
+      try {
+        const result = await dispatchFill(id, templateId, mode.value)
+        report.value = result
+        if (result.error !== undefined) error.value = toUserError(result.error, 'Befüllen fehlgeschlagen.')
+      } finally {
+        // Even a failed run may have created the tab's dataset; show whatever exists now.
+        dataset.value = await getLatestDataset(id)
+      }
     })
   }
 
@@ -155,6 +165,7 @@ export function usePopup(): PopupState {
       await clearDatasetsForTab(id)
       await clearBadge(id)
       report.value = null
+      dataset.value = null
       notice.value = 'Neuer Datensatz – beim nächsten Füllen werden neue Daten erzeugt.'
     })
   }
@@ -285,7 +296,7 @@ export function usePopup(): PopupState {
   }
 
   return {
-    tabId, url, pageSupported, suggestedPattern, app, detected, apps, templates, mode, report, busy, error, notice, permissionMissing,
+    tabId, url, pageSupported, suggestedPattern, app, detected, apps, templates, mode, report, dataset, busy, error, notice, permissionMissing,
     load, setMode, fill, newDataset, chooseApp, createAppForCurrentPage, grantPermission, newTemplate, record, openManage,
   }
 }
