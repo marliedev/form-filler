@@ -8,10 +8,13 @@ export default defineConfig({
   vite: () => ({
     plugins: [tailwindcss()],
   }),
-  manifest: ({ browser }) => ({
+  manifest: ({ browser, mode }) => ({
     name: 'Form Filler',
     permissions: ['storage', 'activeTab', 'scripting', 'tabs'],
     optional_host_permissions: ['<all_urls>'],
+    // The browser test (`npm run test:e2e`) cannot answer the permission prompt, so the e2e build
+    // may script the local test site right away. Production builds keep asking per app.
+    ...(mode === 'e2e' ? { host_permissions: ['http://localhost/*'] } : {}),
     commands: {
       'fill-last': {
         suggested_key: { default: 'Alt+Shift+F' },
