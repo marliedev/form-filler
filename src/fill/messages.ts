@@ -5,7 +5,8 @@ export type FillMode = 'all' | 'required'
 
 /** Messages the extension sends to the injected content script. */
 export type ContentMessage =
-  | { type: 'fill'; template: Template; dataset: Dataset; mode: FillMode }
+  /** `continueRun`: add to the page's last run instead of starting a new one (extra quick-fill passes). */
+  | { type: 'fill'; template: Template; dataset: Dataset; mode: FillMode; continueRun?: boolean }
   | { type: 'record:start'; templateId: string }
   | { type: 'scan' }
   | { type: 'undo' }

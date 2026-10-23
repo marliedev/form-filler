@@ -2,6 +2,7 @@ import { fakerDE } from '@faker-js/faker'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createDataset } from '../../src/generators/dataset'
 import { handleFillMessage } from '../../src/fill/handleFillMessage'
+import { pageOwnership } from '../../src/fill/ownership'
 import type { Template } from '../../src/model/types'
 
 const template: Template = {
@@ -25,6 +26,15 @@ describe('handleFillMessage', () => {
     const report = await handleFillMessage({ type: 'fill', template: broken, dataset: createDataset(fakerDE), mode: 'all' }, document, fakerDE)
     expect(report).toEqual({ templateId: 't1', filled: 0, total: 0, fields: [], error: 'Ungültige Vorlage – Befüllen nicht möglich' })
     expect(document.querySelector<HTMLInputElement>('[name="f"]')?.value).toBe('')
+  })
+
+  it('continues the page run when the message says so', async () => {
+    document.body.innerHTML = '<input name="f"><input name="g">'
+    const dataset = createDataset(fakerDE)
+    await handleFillMessage({ type: 'fill', template, dataset, mode: 'all' }, document, fakerDE)
+    const second = { ...template, fields: [{ ...template.fields[0]!, id: 'g', label: 'G', locator: { kind: 'text', name: 'g' } }] }
+    await handleFillMessage({ type: 'fill', template: second, dataset, mode: 'all', continueRun: true }, document, fakerDE)
+    expect(pageOwnership().lastRun().map((e) => e.fieldId)).toEqual(['f', 'g'])
   })
 
   it('returns an error report for a missing dataset', async () => {

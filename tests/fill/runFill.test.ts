@@ -237,4 +237,14 @@ describe('runFill – own values', () => {
       { fieldId: 'company', label: 'Feld company', kind: 'text', key: '{"kind":"text","name":"company"}', before: ds.company.name, written: other.company.name },
     ])
   })
+
+  it('continues the last run when asked, so undo covers a second pass', async () => {
+    document.body.innerHTML = '<input name="zip"><input name="city">'
+    const own = createOwnership()
+    const first = template([rule('zip', { type: 'zip' })])
+    await runFill(document.body, first, ensureSlots(ds, first, fakerDE), 'all', fakerDE, own)
+    const second = template([rule('city', { type: 'city' })])
+    await runFill(document.body, second, ensureSlots(ds, second, fakerDE), 'all', fakerDE, own, true)
+    expect(own.lastRun().map((e) => e.fieldId)).toEqual(['zip', 'city'])
+  })
 })

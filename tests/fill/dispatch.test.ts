@@ -308,6 +308,9 @@ describe('quickFill – conditional fields', () => {
     expect(second.template.fields.map((f) => f.locator.name)).toEqual(['billing_zip'])
     expect(second.dataset.runId).toBe(first.dataset.runId)
     expect(second.dataset.addresses.B).toBeDefined()
+    // The extra pass continues the page's run, so undo takes both passes back.
+    expect(first.continueRun).toBeUndefined()
+    expect(second.continueRun).toBe(true)
     expect(result.fields.map((f) => f.label)).toEqual(['A', 'Rechnung: PLZ'])
     expect(result.filled).toBe(2)
     expect((await getQuickRun(5))?.fields.map((f) => f.locator.name)).toEqual(['a', 'billing_zip'])

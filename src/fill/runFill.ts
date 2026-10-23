@@ -99,6 +99,7 @@ async function fillField(root: ParentNode, rule: FieldRule, ds: Dataset, f: Fake
  * Fills the template's fields in order, waiting a frame between fields so that
  * conditionally rendered fields (e.g. `v-if`) exist before they are looked up.
  * Every field ends up in the report; skipped fields do not count towards `total`.
+ * `continueRun` adds the fields to the page's last run instead of starting a new one.
  */
 export async function runFill(
   root: ParentNode,
@@ -107,10 +108,11 @@ export async function runFill(
   mode: FillMode,
   f: Faker,
   ownership: Ownership = pageOwnership(),
+  continueRun = false,
 ): Promise<FillReport> {
   const fields: FieldReport[] = []
   let processed = 0
-  ownership.beginRun()
+  if (!continueRun) ownership.beginRun()
   for (const rule of t.fields) {
     if (mode === 'required' && !rule.required) {
       fields.push({ fieldId: rule.id, label: rule.label, status: 'skipped', detail: 'Optional' })

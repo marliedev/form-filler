@@ -2,6 +2,7 @@ import type { Faker } from '@faker-js/faker'
 import { z } from 'zod'
 import type { Dataset } from '../generators/dataset'
 import { templateSchema } from '../model/schema'
+import { pageOwnership } from './ownership'
 import { runFill, type FillReport } from './runFill'
 
 const fillMessageSchema = z.object({
@@ -9,6 +10,7 @@ const fillMessageSchema = z.object({
   template: templateSchema,
   dataset: z.unknown(),
   mode: z.enum(['all', 'required']),
+  continueRun: z.boolean().optional(),
 })
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
@@ -29,9 +31,9 @@ export async function handleFillMessage(raw: unknown, root: ParentNode, f: Faker
     const template = isObject(raw) && isObject(raw.template) ? raw.template : {}
     return errorReport(typeof template.id === 'string' ? template.id : '', 'Ungültige Vorlage – Befüllen nicht möglich')
   }
-  const { template, dataset, mode } = parsed.data
+  const { template, dataset, mode, continueRun } = parsed.data
   try {
-    return await runFill(root, template, dataset, mode, f)
+    return await runFill(root, template, dataset, mode, f, pageOwnership(), continueRun ?? false)
   } catch (e) {
     return errorReport(template.id, e instanceof Error ? e.message : String(e))
   }

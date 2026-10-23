@@ -44,5 +44,12 @@ test.describe('Schnellfüllen', () => {
     expect(run.fields).toHaveLength(22)
     expect(run.problems).toEqual([])
     expect(run.title).toBe('Musterformular')
+
+    // Undo covers both passes; only the choices that cannot go back to "nothing" stay.
+    expect(await extension.undo(tabId)).toEqual({ ok: true, restored: 19, kept: ['Rolle', 'Land', 'Anliegen'] })
+    const after = await model(page)
+    expect(after.company).toBe('')
+    expect(after.billingDiffers).toBe(false)
+    expect(after.billing.zip).toBe('')
   })
 })

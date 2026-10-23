@@ -52,10 +52,10 @@ async function remember(tabId: number, report: FillReport): Promise<void> {
 }
 
 /** Shared fill path of stored templates and quick fills: dataset, injection, fill message, answer check. */
-async function fillWithTemplate(tabId: number, template: Template, mode: FillMode, dataset?: Dataset): Promise<FillReport> {
+async function fillWithTemplate(tabId: number, template: Template, mode: FillMode, dataset?: Dataset, continueRun = false): Promise<FillReport> {
   dataset ??= await getOrCreateDataset(tabId, template, fakerDE)
   await injectContentScript(tabId)
-  const message: ContentMessage = { type: 'fill', template, dataset, mode }
+  const message: ContentMessage = { type: 'fill', template, dataset, mode, ...(continueRun ? { continueRun } : {}) }
   const report: unknown = await browser.tabs.sendMessage(tabId, message)
   if (!isFillReport(report)) throw new Error('Die Seite hat nicht geantwortet')
   return report
@@ -142,7 +142,8 @@ async function runQuickFill(tabId: number, mode: FillMode, page: { url: string; 
     fields = [...fields, ...added]
     // Same dataset as the first pass, extended by the slots the new fields need (e.g. address B).
     const extended = await reuseDataset(tabId, quickTemplate(fields), fakerDE)
-    report = mergeReports(report, await fillWithTemplate(tabId, quickTemplate(added), mode, extended))
+    // The extra pass continues the page's run, so one undo takes every pass back.
+    report = mergeReports(report, await fillWithTemplate(tabId, quickTemplate(added), mode, extended, true))
   }
   const problems = report.fields.filter((f) => isProblem(f.status)).map((f) => f.fieldId)
   await saveQuickRun(tabId, { fields, problems, url: page.url, title: page.title })
