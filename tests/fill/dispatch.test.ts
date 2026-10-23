@@ -178,24 +178,37 @@ describe('startRecording', () => {
 })
 
 describe('fillByShortcut', () => {
-  it('fills the active tab with the last template and the saved mode', async () => {
+  it('fills the active tab of a known app with its template and the saved mode', async () => {
+    await saveApp({ id: 'app', name: 'CRM', urlPatterns: ['https://crm.example.com/*'] })
     await saveTemplate(tpl)
     await setPrefs({ lastTemplateId: 't1', mode: 'required' })
-    mockActiveTab(5)
+    mockActiveTab(5, 'https://crm.example.com/kunden')
     const { send } = mockMessaging()
     await fillByShortcut()
     const [tabId, message] = firstMessage(send)
     expect(tabId).toBe(5)
-    expect(message).toMatchObject({ type: 'fill', mode: 'required' })
+    expect(message).toMatchObject({ type: 'fill', mode: 'required', template: { id: 't1' } })
   })
 
   it('queries the active tab of the last focused window', async () => {
+    await saveApp({ id: 'app', name: 'CRM', urlPatterns: ['https://crm.example.com/*'] })
     await saveTemplate(tpl)
     await setPrefs({ lastTemplateId: 't1' })
-    const query = mockActiveTab(5)
+    const query = mockActiveTab(5, 'https://crm.example.com/')
     mockMessaging()
     await fillByShortcut()
     expect(query).toHaveBeenCalledWith({ active: true, lastFocusedWindow: true })
+  })
+
+  it('on a page without a known app fills without a template, even when a template was used last', async () => {
+    await saveApp({ id: 'app', name: 'CRM', urlPatterns: ['https://crm.example.com/*'] })
+    await saveTemplate(tpl)
+    await setPrefs({ lastTemplateId: 't1' })
+    mockActiveTab(5, 'https://other.example.com/kontakt')
+    const { send } = mockScanAndFill([scanned])
+    expect(await fillByShortcut()).toEqual(quickReport)
+    expect(send.mock.calls.map((c) => c[1].type)).toEqual(['scan', 'fill'])
+    expect((await getPrefs()).lastTemplateId).toBe('t1')
   })
 
   it('falls back to a quick fill when the last template was deleted', async () => {

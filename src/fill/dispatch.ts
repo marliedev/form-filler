@@ -137,16 +137,17 @@ export async function startRecording(tabId: number, templateId: string): Promise
 
 /**
  * Keyboard shortcut. On a page of a known app it fills the template that fits (see
- * `chooseShortcutTemplate`), elsewhere the template used last. Without any candidate it fills the
- * page without a template (quick fill), so the shortcut always does something useful.
+ * `chooseShortcutTemplate`). Everywhere else, and for an app without templates, it fills the page
+ * without a template (quick fill): templates belong to apps, so a page no app matches is not a
+ * page of any template.
  */
 export async function fillByShortcut(): Promise<FillReport | null> {
   const { mode, lastTemplateId } = await getPrefs()
   const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true })
   if (tab?.id === undefined) return null
-  const last = lastTemplateId === null ? null : ((await getTemplate(lastTemplateId)) ?? null)
   const app = tab.url === undefined ? null : matchApp(tab.url, await listApps())
-  const chosen = app === null ? last : chooseShortcutTemplate(await listTemplates(app.id), last)
+  const last = lastTemplateId === null ? null : ((await getTemplate(lastTemplateId)) ?? null)
+  const chosen = app === null ? null : chooseShortcutTemplate(await listTemplates(app.id), last)
   if (chosen === null) return quickFill(tab.id, mode, { url: tab.url ?? '', title: tab.title ?? '' })
   return dispatchFill(tab.id, chosen.id, mode)
 }

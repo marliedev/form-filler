@@ -15,7 +15,7 @@ Die Punkte 3–5, 7 und 9 laufen automatisiert mit `npm run test:e2e` (Chromium)
 - [ ] 7. Schritt 2 füllen → gleiche Kennung wie in Schritt 1.
 - [ ] 8. „Neuer Datensatz“, erneut füllen → neue Kennung; Badge geleert.
 - [ ] 9. Ein Feld in der Testseite umbenennen, füllen → ⚠ im Popup-Bericht, Badge zeigt Problemanzahl rot, im Pflege-Tab ist das Feld als fehlend markiert.
-- [ ] 10. Tastenkürzel Alt+Shift+F auf der Seite → Fill läuft, Badge aktualisiert; nach Schritt 1 füllt das Kürzel Schritt 2, nach dem letzten Schritt wieder Schritt 1. Auf einer Seite ohne Vorlage → Schnellfüllen, Statuszeile „Schnellfüllen: …“.
+- [ ] 10. Tastenkürzel Alt+Shift+F auf der Seite → Fill läuft, Badge aktualisiert; nach Schritt 1 füllt das Kürzel Schritt 2, nach dem letzten Schritt wieder Schritt 1. Auf einer Seite ohne erkannte App oder ohne Vorlage → Schnellfüllen, Statuszeile „Schnellfüllen: …“, auch wenn zuvor eine Vorlage genutzt wurde.
 - [ ] 11. Export im Pflege-Tab → JSON-Datei mit sinnvollem Dateinamen wird geladen.
 - [ ] 12. Erweiterung neu laden, Import der Datei → Apps und Vorlagen wieder vorhanden; Konfliktdialog erscheint bei vorhandenen Einträgen.
 
