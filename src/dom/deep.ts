@@ -76,12 +76,12 @@ function isFollowing(a: Element, b: Element): boolean {
 
 function collect(root: ParentNode, selector: string, out: Element[]): void {
   // Matches come from the engine; hosts and frames need a walk, but only cheap property checks.
-  const matches = Array.from(root.querySelectorAll(selector))
+  const matches = new Set(Array.from(root.querySelectorAll(selector)))
   const nested = Array.from(root.querySelectorAll('*')).filter((el) => el.shadowRoot !== null || isFrame(el))
   // A frame or host can match the selector itself; the set keeps it from being visited twice.
   const ordered = [...new Set([...matches, ...nested])].sort((a, b) => (isFollowing(a, b) ? -1 : 1))
   for (const el of ordered) {
-    if (matches.includes(el)) out.push(el)
+    if (matches.has(el)) out.push(el)
     if (el.shadowRoot) collect(el.shadowRoot, selector, out)
     if (isFrame(el)) {
       const doc = frameDocument(el)
@@ -140,16 +140,31 @@ export function scopeOf(el: Element): string[] {
   return chain
 }
 
-/** Bounding rect relative to the top document's viewport: adds the offsets of enclosing frames. */
+/**
+ * Bounding rect relative to the top document's viewport: moves the rect out through every
+ * enclosing frame (border included) and clips it to the frame, so a field scrolled out of its
+ * frame gets an empty rect instead of a box floating over the page.
+ */
 export function viewportRect(el: Element): DOMRect {
-  const own = el.getBoundingClientRect()
-  let left = own.left
-  let top = own.top
+  let { left, top, right, bottom } = el.getBoundingClientRect()
   for (let frame = frameElementOf(el); frame; frame = frameElementOf(frame)) {
-    const rect = frame.getBoundingClientRect()
-    left += rect.left
-    top += rect.top
+    const box = frame.getBoundingClientRect()
+    const x = box.left + frame.clientLeft
+    const y = box.top + frame.clientTop
+    // clientWidth/Height are 0 in test DOMs; the border box minus borders is the same thing without scrollbars.
+    const width = frame.clientWidth || box.width - 2 * frame.clientLeft
+    const height = frame.clientHeight || box.height - 2 * frame.clientTop
+    left = Math.max(x + left, x)
+    top = Math.max(y + top, y)
+    right = Math.min(x + right, x + width)
+    bottom = Math.min(y + bottom, y + height)
+    if (right <= left || bottom <= top) return toRect(0, 0, 0, 0)
   }
-  const { width, height } = own
-  return { x: left, y: top, left, top, width, height, right: left + width, bottom: top + height, toJSON: () => ({ left, top, width, height }) } as DOMRect
+  return toRect(left, top, right, bottom)
+}
+
+function toRect(left: number, top: number, right: number, bottom: number): DOMRect {
+  const width = right - left
+  const height = bottom - top
+  return { x: left, y: top, left, top, width, height, right, bottom, toJSON: () => ({ left, top, width, height }) } as DOMRect
 }

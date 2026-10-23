@@ -73,6 +73,24 @@ describe('viewportRect', () => {
     expect([r.left, r.top, r.width, r.height, r.right, r.bottom]).toEqual([110, 70, 30, 10, 140, 80])
   })
 
+  it('adds the frame border and clips to the frame', async () => {
+    const f = await frame('<input name="x"><input name="y"><input name="z">')
+    Object.defineProperty(f, 'clientLeft', { value: 2 })
+    Object.defineProperty(f, 'clientTop', { value: 3 })
+    vi.spyOn(f, 'getBoundingClientRect').mockReturnValue(rect(100, 50, 300, 200))
+    const [x, y, z] = Array.from(frameDoc(f).querySelectorAll('input'))
+    if (!x || !y || !z) throw new Error('frame inputs')
+    vi.spyOn(x, 'getBoundingClientRect').mockReturnValue(rect(10, 20, 30, 10))
+    vi.spyOn(y, 'getBoundingClientRect').mockReturnValue(rect(-20, 20, 30, 10))
+    vi.spyOn(z, 'getBoundingClientRect').mockReturnValue(rect(400, 20, 30, 10))
+    const rx = viewportRect(x)
+    expect([rx.left, rx.top, rx.width, rx.height]).toEqual([112, 73, 30, 10])
+    const ry = viewportRect(y)
+    expect([ry.left, ry.width]).toEqual([102, 10])
+    const rz = viewportRect(z)
+    expect([rz.width, rz.height]).toEqual([0, 0])
+  })
+
   it('returns the plain rect for main-document and shadow elements', () => {
     document.body.innerHTML = '<x-host></x-host>'
     const inner = q('input', shadow(q('x-host'), '<input>'))

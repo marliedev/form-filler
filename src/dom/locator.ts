@@ -1,5 +1,5 @@
 import type { ControlKind, FieldLocator } from '../model/types'
-import { byId, deepQuerySelectorAll, hostOf, parentOf, rootOf, scopeOf, type Root } from './deep'
+import { byId, deepClosest, deepQuerySelectorAll, hostOf, parentOf, rootOf, scopeOf, type Root } from './deep'
 
 /** HTMLElement covers `[role=combobox]` and `[role=radiogroup]` hosts. */
 export type FormControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLElement
@@ -201,26 +201,30 @@ function score(el: Element, loc: FieldLocator): number {
   if (loc.label !== undefined && normalizeLabel(rawLabel(el)) === normalizeLabel(loc.label)) total += 3
   if (loc.ariaLabel !== undefined && normalizeLabel(effectiveAttr(el, 'aria-label')) === normalizeLabel(loc.ariaLabel)) total += 2
   if (loc.placeholder !== undefined && normalizeLabel(effectiveAttr(el, 'placeholder')) === normalizeLabel(loc.placeholder)) total += 1
-  // The place counts like a label, but only for a field that already matches on its own;
-  // a weak or bare locator must not become a match just by being in the right tree.
-  if (total >= MIN_SCORE && sameScope(loc.scope, scopeOf(el))) total += 3
   return total
 }
 
+/** The recorder's own overlay lives in this host; its controls are never page fields. */
+const OVERLAY_HOST = 'form-filler-recorder'
+
 /** Visible supported controls in document order; a native radio group is represented by its first radio. */
 export function listControls(root: ParentNode): FormControl[] {
-  // Radio names are only unique per form, so groups are tracked per form owner.
-  const seenRadioGroups = new Map<HTMLFormElement | null, Set<string>>()
+  // Radio names are only unique per form and per tree (a frame or shadow root has its own), so
+  // groups are tracked per tree and form owner.
+  const seenRadioGroups = new Map<Root, Map<HTMLFormElement | null, Set<string>>>()
   const controls: FormControl[] = []
   for (const el of deepQuerySelectorAll(root, CANDIDATE_SELECTOR) as HTMLElement[]) {
-    if (kindOf(el) === null || !isVisible(el)) continue
+    if (kindOf(el) === null || !isVisible(el) || deepClosest(el, OVERLAY_HOST) !== null) continue
     if (isNativeRadio(el)) {
       // An ARIA radiogroup wrapper is the group; its inner radios are not candidates.
       if (el.closest('[role="radiogroup"]')) continue
       if (el.name) {
         // Only the first visible radio represents its group.
-        const names = seenRadioGroups.get(el.form) ?? new Set<string>()
-        seenRadioGroups.set(el.form, names)
+        const tree = rootOf(el)
+        const forms = seenRadioGroups.get(tree) ?? new Map<HTMLFormElement | null, Set<string>>()
+        seenRadioGroups.set(tree, forms)
+        const names = forms.get(el.form) ?? new Set<string>()
+        forms.set(el.form, names)
         if (names.has(el.name)) continue
         names.add(el.name)
       }
@@ -230,24 +234,30 @@ export function listControls(root: ParentNode): FormControl[] {
   return controls
 }
 
-export function findElement(root: ParentNode, loc: FieldLocator): FindResult {
-  const candidates = listControls(root).filter((el) => kindOf(el) === loc.kind)
-
-  let best = 0
-  let top: FormControl[] = []
-  for (const el of candidates) {
-    const s = score(el, loc)
-    if (s < MIN_SCORE || s < best) continue
-    if (s > best) {
-      best = s
-      top = []
-    }
-    top.push(el)
-  }
+/**
+ * Best match among given candidates (one `listControls` call can serve many locators). Among the
+ * candidates that match at all, those in the locator's place (the main document for locators
+ * without `scope`) come first: an old template keeps finding its main-document field even when a
+ * frame or component holds a twin that matches better, and a field recorded in a frame is found
+ * there. Without any candidate in place, the best match anywhere wins.
+ */
+export function findAmong(candidates: readonly FormControl[], loc: FieldLocator): FindResult {
+  const matching = candidates
+    .filter((el) => kindOf(el) === loc.kind)
+    .map((el) => ({ el, score: score(el, loc) }))
+    .filter((m) => m.score >= MIN_SCORE)
+  const inPlace = matching.filter((m) => sameScope(loc.scope, scopeOf(m.el)))
+  const pool = inPlace.length > 0 ? inPlace : matching
+  const best = Math.max(0, ...pool.map((m) => m.score))
+  const top = pool.filter((m) => m.score === best).map((m) => m.el)
   const [only] = top
   if (!only) return { status: 'missing' }
   if (top.length > 1) return { status: 'ambiguous', count: top.length }
   return { status: 'found', el: only }
+}
+
+export function findElement(root: ParentNode, loc: FieldLocator): FindResult {
+  return findAmong(listControls(root), loc)
 }
 
 export function isRequired(el: FormControl): boolean {

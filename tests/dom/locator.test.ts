@@ -282,3 +282,52 @@ describe('web component patterns', () => {
     })
   })
 })
+
+describe('review fixes – trees, place and overlay', () => {
+  const radio = '<label><input type="radio" name="anrede" value="h"> Herr</label><label><input type="radio" name="anrede" value="f"> Frau</label>'
+
+  it('lists a radio group per tree, not once per page', async () => {
+    setup(`${radio}<wc-a></wc-a><wc-b></wc-b>`)
+    shadow(deepQ('wc-a'), radio)
+    shadow(deepQ('wc-b'), radio)
+    await frame(radio, 'name="delivery"')
+    const where = (el: Element) => (el.ownerDocument !== document ? 'frame' : (el.getRootNode() as Node & { host?: Element }).host?.localName ?? 'main')
+    expect(listControls(document).map(where)).toEqual(['main', 'wc-a', 'wc-b', 'frame'])
+  })
+
+  it('finds the radio group of the frame a locator was recorded in', async () => {
+    setup(radio)
+    const f = await frame(radio, 'name="delivery"')
+    const found = findElement(document, { kind: 'radiogroup', name: 'anrede', scope: ['iframe:delivery'] })
+    expect(found.status).toBe('found')
+    if (found.status === 'found') expect(found.el.ownerDocument).toBe(frameDoc(f))
+  })
+
+  it('prefers candidates in the locator’s place even when a twin elsewhere matches better', async () => {
+    setup('<label for="e">E-Mail-Adresse</label><input id="e" name="email">')
+    await frame('<label for="e">E-Mail</label><input id="e" name="email">', 'name="newsletter"')
+    const relabelled = findElement(document, { kind: 'text', name: 'email', id: 'e', label: 'e-mail' })
+    expect(relabelled.status).toBe('found')
+    if (relabelled.status === 'found') expect(relabelled.el.ownerDocument).toBe(document)
+
+    setup('<input name="email">')
+    await frame('<label for="e">E-Mail</label><input id="e" name="email">', 'name="newsletter"')
+    const weak = findElement(document, { kind: 'text', name: 'email', id: 'e', label: 'e-mail' })
+    expect(weak.status).toBe('found')
+    if (weak.status === 'found') expect(weak.el.ownerDocument).toBe(document)
+  })
+
+  it('falls back to the best match anywhere when nothing sits in the locator’s place', async () => {
+    setup('')
+    const f = await frame('<label for="e">E-Mail</label><input id="e" name="email">', 'name="newsletter"')
+    const found = findElement(document, { kind: 'text', name: 'email', id: 'e', label: 'e-mail', scope: ['iframe:gone'] })
+    expect(found.status).toBe('found')
+    if (found.status === 'found') expect(found.el.ownerDocument).toBe(frameDoc(f))
+  })
+
+  it('ignores the controls of the recorder overlay', () => {
+    setup('<input name="a"><form-filler-recorder></form-filler-recorder>')
+    shadow(deepQ('form-filler-recorder'), '<select name="type"><option>x</option></select><input name="label">')
+    expect(listControls(document).map((el) => el.getAttribute('name'))).toEqual(['a'])
+  })
+})
