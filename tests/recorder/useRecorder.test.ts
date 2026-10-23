@@ -311,3 +311,11 @@ describe('useRecorder – shadow DOM', () => {
     expect(r.fields.value).toHaveLength(2)
   })
 })
+
+describe('resolveControl – listbox buttons', () => {
+  it('maps a click inside a listbox button to the button', () => {
+    document.body.innerHTML = '<button id="topic" type="button" aria-haspopup="listbox"><span id="inner">Anliegen</span></button>'
+    expect(resolveControl(q('#inner'))).toBe(q('#topic'))
+    expect(resolveControl(q('#topic'))).toBe(q('#topic'))
+  })
+})

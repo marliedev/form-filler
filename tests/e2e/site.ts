@@ -25,6 +25,7 @@ const STEP1_FIELDS: FieldRule[] = [
   rule('f-industry', 'Branche', { kind: 'select', name: 'industry', id: 'industry', label: 'branche' }, { type: 'choice', mode: 'random', values: [] }),
   rule('f-role', 'Rolle', { kind: 'radiogroup', name: 'role', label: 'rolle' }, { type: 'choice', mode: 'fixed', values: ['Lernmanager'] }),
   rule('f-country', 'Land', { kind: 'combobox', label: 'land' }, { type: 'country' }, { slot: 'A' }),
+  rule('f-topic', 'Anliegen', { kind: 'combobox', id: 'topic', label: 'anliegen' }, { type: 'choice', mode: 'fixed', values: ['Presse'] }, { required: true }),
   rule('f-street', 'Straße', text('street', 'street', 'straße'), { type: 'streetWithNumber' }, { slot: 'A', required: true }),
   rule('f-zip', 'PLZ', text('zip', 'zip', 'plz'), { type: 'zip' }, { slot: 'A', required: true }),
   rule('f-city', 'Ort', text('city', 'city', 'ort'), { type: 'city' }, { slot: 'A', required: true }),

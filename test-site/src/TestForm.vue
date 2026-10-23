@@ -23,6 +23,7 @@ const model = reactive({
   billing: { street: '', zip: '', city: '' } as Address,
   contactFirstName: '',
   contactEmail: '',
+  topic: '',
   costCenter: '',
   poNumber: '',
   delivery: { street: '', zip: '', city: '' } as Address,
@@ -40,6 +41,14 @@ window.addEventListener('message', (event: MessageEvent) => {
   const data = event.data as { type?: string; value?: Partial<Address> } | null
   if (data?.type === 'delivery' && data.value) Object.assign(model.delivery, data.value)
 })
+
+const topics = ['Allgemeine Anfrage', 'Technischer Support', 'Partnerschaft', 'Presse', 'Sonstiges']
+const topicOpen = ref(false)
+
+function chooseTopic(topic: string): void {
+  model.topic = topic
+  topicOpen.value = false
+}
 
 const countries: ComboOption[] = [
   { value: 'de', label: 'Deutschland' },
@@ -138,6 +147,36 @@ const roles = ['Teilnehmer', 'Lernmanager', 'Admin']
         name="country"
         :options="countries"
       />
+
+      <label for="topic">Anliegen *</label>
+      <div class="field">
+        <button
+          id="topic"
+          type="button"
+          class="combo"
+          aria-haspopup="listbox"
+          :aria-expanded="topicOpen"
+          required
+          @click="topicOpen = !topicOpen"
+        >
+          {{ model.topic || 'Anliegen auswählen' }}
+        </button>
+        <div
+          v-if="topicOpen"
+          class="list"
+        >
+          <div
+            v-for="t in topics"
+            :key="t"
+            role="option"
+            tabindex="0"
+            :aria-selected="model.topic === t"
+            @click="chooseTopic(t)"
+          >
+            {{ t }}
+          </div>
+        </div>
+      </div>
 
       <fieldset>
         <legend>Firmenadresse</legend>
@@ -250,6 +289,8 @@ const roles = ['Teilnehmer', 'Lernmanager', 'Admin']
 main { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
 form { display: grid; gap: 0.5rem; }
 fieldset { display: grid; gap: 0.5rem; }
+.list [role='option'] { padding: 0.4rem; cursor: pointer; }
+.list [role='option'][aria-selected='true'] { background: #dbe7ff; }
 input, select, textarea, .combo { font: inherit; padding: 0.4rem; border: 1px solid #555; border-radius: 4px; }
 :focus-visible { outline: 3px solid #1a56db; outline-offset: 2px; }
 .field { display: grid; gap: 0.25rem; position: relative; }

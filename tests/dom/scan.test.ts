@@ -87,6 +87,13 @@ describe('scanControls', () => {
     ])
   })
 
+  it('scans a listbox button as a required choice control', () => {
+    setup('<label for="topic">Anliegen</label><button id="topic" type="button" aria-haspopup="listbox" required>Anliegen auswählen</button>')
+    expect(scanControls(document.body).map((r) => [r.label, r.locator.kind, r.config, r.required])).toEqual([
+      ['Anliegen', 'combobox', { type: 'choice', mode: 'random', values: [] }, true],
+    ])
+  })
+
   it('names unlabeled fields by their name attribute, else "Feld"', () => {
     setup('<input name="customer_no"><input>')
     expect(scanControls(document.body).map((r) => r.label)).toEqual(['customer_no', 'Feld'])

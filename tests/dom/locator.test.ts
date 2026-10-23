@@ -331,3 +331,19 @@ describe('review fixes – trees, place and overlay', () => {
     expect(listControls(document).map((el) => el.getAttribute('name'))).toEqual(['a'])
   })
 })
+
+describe('listbox buttons', () => {
+  it('treats a button with aria-haspopup="listbox" as a combobox with label and required', () => {
+    setup(`
+      <label for="topic">Anliegen *</label>
+      <div><button id="topic" type="button" aria-haspopup="listbox" aria-expanded="false" required><span>Anliegen auswählen</span></button></div>
+      <button type="submit">Senden</button>
+      <button type="button" aria-haspopup="menu">Menü</button>`)
+    const button = q<HTMLButtonElement>('#topic')
+    expect(describeElement(button)).toEqual({ kind: 'combobox', id: 'topic', label: 'anliegen' })
+    expect(isRequired(button)).toBe(true)
+    expect(displayLabel(button)).toBe('Anliegen')
+    expect(listControls(document).map((el) => el.id)).toEqual(['topic'])
+    expect(findElement(document, { kind: 'combobox', id: 'topic', label: 'anliegen' }).status).toBe('found')
+  })
+})

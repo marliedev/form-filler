@@ -40,6 +40,7 @@ Die Punkte 3–5, 7 und 9 laufen automatisiert mit `npm run test:e2e` (Chromium)
 - [ ] Esc im Popover → Popover zu, Fokus auf „Speichern“; Esc ohne Popover → Beenden, bei Änderungen mit Rückfrage.
 - [ ] Zweites Radio einer Gruppe anklicken → bearbeitet vorhandenes Feld statt Duplikat.
 - [ ] Freitext-Combobox (Autocomplete) mit Texttyp aufnehmen und füllen → wird als „nicht in der Auswahl“ gemeldet; ggf. Typ „Auswahl“ nutzen.
+- [ ] Auswahl-Button „Anliegen“ (`aria-haspopup="listbox"`) anklicken → Popover mit Typ „Auswahl“; Füllen öffnet die Liste, wählt den Eintrag, der Button zeigt ihn an.
 - [ ] Feld in einer Web-Component (Kostenstelle, Bestellnummer) anklicken → Popover mit Beschriftung vom Wirt bzw. vom äußeren Label, Markierung am Feld, nach Speichern Füllen möglich.
 - [ ] Feld im Rahmen „Lieferadresse“ anklicken → Popover neben dem Feld, Markierung an der richtigen Stelle (auch nach Scrollen im Rahmen); gespeicherte Vorlage füllt Haupt- und Rahmen-PLZ getrennt.
 

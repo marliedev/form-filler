@@ -1,6 +1,6 @@
 import type { FieldValue } from '../generators/resolve'
 import type { ControlKind } from '../model/types'
-import { byId, rootOf } from './deep'
+import { byId, deepQuerySelectorAll, rootOf } from './deep'
 import { isVisible, type FormControl } from './locator'
 
 export type FillOutcome = { status: 'filled'; shown: string } | { status: 'failed'; reason: string }
@@ -244,19 +244,37 @@ function comboboxInput(el: HTMLElement): HTMLElement {
   return el.querySelector<HTMLElement>('[aria-controls], [aria-owns]') ?? el
 }
 
-function openListbox(el: HTMLElement): HTMLElement | null {
+/** Options of the listbox the combobox points at with aria-controls/aria-owns, once it is open. */
+function linkedOptions(el: HTMLElement): HTMLElement[] | null {
   const host = comboboxInput(el)
   const ids = `${host.getAttribute('aria-controls') ?? ''} ${host.getAttribute('aria-owns') ?? ''}`.split(/\s+/).filter(Boolean)
   for (const id of ids) {
     const target = byId(rootOf(el), id)
     const listbox = target?.getAttribute('role') === 'listbox' ? target : target?.querySelector<HTMLElement>('[role="listbox"]')
-    if (listbox && isVisible(listbox) && listbox.querySelector('[role="option"]')) return listbox
+    const options = listbox && isVisible(listbox) ? Array.from(listbox.querySelectorAll<HTMLElement>('[role="option"]')) : []
+    if (options.length > 0) return options
   }
   return null
 }
 
-async function waitForListbox(el: HTMLElement): Promise<HTMLElement | null> {
-  const already = openListbox(el)
+/**
+ * Options a popup rendered without linking them (listbox buttons, many comboboxes): the visible
+ * `role="option"` elements next to the control, else anywhere in its tree (teleported lists).
+ */
+function nearbyOptions(el: HTMLElement): HTMLElement[] | null {
+  const all = deepQuerySelectorAll(rootOf(el), '[role="option"]').filter((o): o is HTMLElement => isVisible(o))
+  const wrapper = el.parentElement?.parentElement ?? el.parentElement
+  const near = all.filter((o) => wrapper?.contains(o))
+  const options = near.length > 0 ? near : all
+  return options.length > 0 ? options : null
+}
+
+function openOptions(el: HTMLElement): HTMLElement[] | null {
+  return linkedOptions(el) ?? nearbyOptions(el)
+}
+
+async function waitForOptions(el: HTMLElement): Promise<HTMLElement[] | null> {
+  const already = openOptions(el)
   if (already) return already
   const host = comboboxInput(el)
   focusQuietly(host)
@@ -265,8 +283,8 @@ async function waitForListbox(el: HTMLElement): Promise<HTMLElement | null> {
   let arrowSent = false
   for (;;) {
     await nextFrame()
-    const listbox = openListbox(el)
-    if (listbox) return listbox
+    const options = openOptions(el)
+    if (options) return options
     if (performance.now() - start >= LISTBOX_TIMEOUT_MS) return null
     if (!arrowSent) {
       arrowSent = true
@@ -286,9 +304,9 @@ function displayedText(el: HTMLElement): string {
 }
 
 async function fillCombobox(el: FormControl, choice: Choice, rand: Rand): Promise<FillOutcome> {
-  const listbox = await waitForListbox(el)
-  if (!listbox) return failed('Auswahlliste nicht geöffnet')
-  const options = Array.from(listbox.querySelectorAll<HTMLElement>('[role="option"]'))
+  const rendered = await waitForOptions(el)
+  if (!rendered) return failed('Auswahlliste nicht geöffnet')
+  const options = rendered
     .filter((o) => o.getAttribute('aria-disabled') !== 'true')
     .map((o) => {
       const text = (o.textContent ?? '').trim()
