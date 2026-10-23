@@ -23,6 +23,16 @@ export async function getOrCreateDataset(tabId: number, t: Template, f: Faker): 
   return dataset
 }
 
+/** The dataset created last in the tab (a tab can hold one per process); null before the first fill. */
+export async function getLatestDataset(tabId: number): Promise<Dataset | null> {
+  const prefix = tabPrefix(tabId)
+  const stored = await browser.storage.session.get(null)
+  const datasets = Object.entries(stored)
+    .filter(([key]) => key.startsWith(prefix))
+    .map(([, value]) => value as Dataset)
+  return datasets.reduce<Dataset | null>((latest, ds) => (latest === null || ds.createdAt > latest.createdAt ? ds : latest), null)
+}
+
 /** Also drops the tab's last fill report, which belongs to the discarded dataset. */
 export async function clearDatasetsForTab(tabId: number): Promise<void> {
   const prefix = tabPrefix(tabId)

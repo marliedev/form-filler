@@ -8,13 +8,14 @@ import { usePopup } from '../../src/popup/usePopup'
 import BrandSignet from '../../src/theme/BrandSignet.vue'
 import FillReportView from '../../src/ui/FillReportView.vue'
 import { SHORTCUTS_PAGE_HINT } from '../../src/popup/browserHints'
+import { describeDataset } from '../../src/popup/datasetLabel'
 import { appVersion } from '../../src/ui/appVersion'
 import Segmented from '../../src/ui/Segmented.vue'
 import type { SegmentedOption } from '../../src/ui/segmented'
 
 const version = appVersion()
 const popup = usePopup()
-const { app, detected, apps, templates, mode, report, busy, error, notice, pageSupported, suggestedPattern, tabId, permissionMissing } = popup
+const { app, detected, apps, templates, mode, report, dataset, busy, error, notice, pageSupported, suggestedPattern, tabId, permissionMissing } = popup
 
 const loaded = ref(false)
 const modeOptions: SegmentedOption<FillMode>[] = [
@@ -55,6 +56,7 @@ onMounted(async () => {
 })
 
 const otherApps = computed(() => apps.value.filter((a) => a.id !== app.value?.id))
+const datasetLabel = computed(() => (dataset.value ? describeDataset(dataset.value) : ''))
 const hasProblems = computed(() => report.value?.fields.some((f) => isProblem(f.status)) ?? false)
 
 /** Dot color of the status line; the text itself stays neutral. */
@@ -233,6 +235,42 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
           @update:model-value="popup.setMode"
         />
 
+        <section
+          aria-labelledby="dataset-heading"
+          data-testid="dataset"
+          class="min-w-0 rounded-xl border border-border-subtle bg-surface px-3.5 py-2.5"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <h2
+              id="dataset-heading"
+              class="text-xs font-medium text-muted"
+            >
+              Datensatz
+            </h2>
+            <button
+              v-if="dataset"
+              type="button"
+              :class="`rounded-sm border border-line px-2.5 py-1 text-xs font-medium text-text hover:bg-line ${focusRing}`"
+              title="Verwirft die Testdaten dieses Tabs; beim nächsten Füllen entstehen neue."
+              @click="popup.newDataset()"
+            >
+              Neuer Datensatz
+            </button>
+          </div>
+          <p
+            v-if="dataset"
+            class="mt-1 break-words"
+          >
+            {{ datasetLabel }}
+          </p>
+          <p
+            v-else
+            class="mt-1 text-muted"
+          >
+            Noch kein Datensatz – entsteht beim ersten Füllen.
+          </p>
+        </section>
+
         <section aria-labelledby="templates-heading">
           <h2
             id="templates-heading"
@@ -308,14 +346,6 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
                   @click="edit()"
                 >
                   Bearbeiten
-                </button>
-                <button
-                  type="button"
-                  :class="secondaryButton"
-                  title="Verwirft die Testdaten dieses Tabs; beim nächsten Füllen entstehen neue."
-                  @click="popup.newDataset()"
-                >
-                  Neuer Datensatz
                 </button>
               </div>
             </li>

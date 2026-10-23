@@ -5,6 +5,8 @@ import App from '../../entrypoints/popup/App.vue'
 import { recordFillResult } from '../../src/fill/lastReport'
 import type { FillReport } from '../../src/fill/runFill'
 import { saveApp, saveTemplate } from '../../src/storage/repository'
+import { fakerDE } from '@faker-js/faker'
+import { createDataset } from '../../src/generators/dataset'
 
 const report: FillReport = {
   templateId: 't1',
@@ -62,6 +64,24 @@ describe('popup App', () => {
     w.unmount()
   })
 
+  it('shows the active dataset with a reset button, or a hint before the first fill', async () => {
+    mockActiveTab('https://crm.example.com/x')
+    const before = await mountApp()
+    expect(before.get('[data-testid="dataset"]').text()).toContain('Noch kein Datensatz')
+    expect(before.findAll('button').some((b) => b.text() === 'Neuer Datensatz')).toBe(false)
+    before.unmount()
+
+    await fakeBrowser.storage.session.set({ 'ds:7:Kundenanlage': { ...createDataset(fakerDE), runId: 'T4821' } })
+    const w = await mountApp()
+    expect(w.get('[data-testid="dataset"]').text()).toContain('T4821 · ')
+    const reset = w.findAll('button').find((b) => b.text() === 'Neuer Datensatz')
+    expect(reset).toBeDefined()
+    await reset?.trigger('click')
+    await flushPromises()
+    expect(w.get('[data-testid="dataset"]').text()).toContain('Noch kein Datensatz')
+    w.unmount()
+  })
+
   it('expands the status line into the field report', async () => {
     await recordFillResult(7, report)
     mockActiveTab('https://crm.example.com/x')
@@ -82,7 +102,7 @@ describe('popup App', () => {
     await more.trigger('click')
     expect(more.attributes('aria-expanded')).toBe('true')
     const menu = w.get('#menu-t1')
-    expect(menu.findAll('button').map((b) => b.text())).toEqual(['Felder aufnehmen', 'Bearbeiten', 'Neuer Datensatz'])
+    expect(menu.findAll('button').map((b) => b.text())).toEqual(['Felder aufnehmen', 'Bearbeiten'])
     await menu.findAll('button')[0]?.trigger('keydown', { key: 'Escape' })
     expect(w.find('#menu-t1').exists()).toBe(false)
     expect(document.activeElement).toBe(more.element)
