@@ -9,6 +9,8 @@ export interface RunEntry {
   fieldId: string
   label: string
   kind: ControlKind
+  /** Locator key of the field, see `locatorKey`. */
+  key: string
   /** State before the run wrote the field. */
   before: FieldState
   /** State right after writing; the field counts as own while it still shows this. */
@@ -18,10 +20,12 @@ export interface RunEntry {
 export interface Ownership {
   /** Whether `state` is what Form Filler last wrote into this element, or into a field with the same locator (re-rendered pages). */
   isOwn(el: Element, key: string, state: FieldState): boolean
-  /** The text an ARIA control showed when Form Filler first met it on this page, i.e. its placeholder. */
-  placeholderOf(el: Element, shown: string): string
+  /** The state a control showed when Form Filler first met it on this page: the page's own preset, however it was made. */
+  firstSeen(el: Element, key: string, state: FieldState): FieldState
   beginRun(): void
-  record(entry: RunEntry, key: string): void
+  record(entry: RunEntry): void
+  /** After undo put the field back: the state before the run is Form Filler's again. */
+  restored(entry: RunEntry): void
   lastRun(): readonly RunEntry[]
   clearRun(): void
 }
@@ -29,26 +33,45 @@ export interface Ownership {
 /** Locators are plain data; their JSON identifies a field across re-renders. */
 export const locatorKey = (locator: FieldLocator): string => JSON.stringify(locator)
 
-export function createOwnership(): Ownership {
+/** A value remembered per element and, for re-rendered pages, per locator key. */
+interface Memory {
+  get(el: Element, key: string): FieldState | undefined
+  set(el: Element, key: string, state: FieldState): void
+}
+
+function createMemory(): Memory {
   const byElement = new WeakMap<Element, FieldState>()
   const byKey = new Map<string, FieldState>()
-  const placeholders = new WeakMap<Element, string>()
+  return {
+    get: (el, key) => byElement.get(el) ?? byKey.get(key),
+    set(el, key, state) {
+      byElement.set(el, state)
+      byKey.set(key, state)
+    },
+  }
+}
+
+export function createOwnership(): Ownership {
+  const written = createMemory()
+  const presets = createMemory()
   let run: RunEntry[] = []
   return {
-    isOwn: (el, key, state) => byElement.get(el) === state || byKey.get(key) === state,
-    placeholderOf(el, shown) {
-      const known = placeholders.get(el)
+    isOwn: (el, key, state) => written.get(el, key) === state,
+    firstSeen(el, key, state) {
+      const known = presets.get(el, key)
       if (known !== undefined) return known
-      placeholders.set(el, shown)
-      return shown
+      presets.set(el, key, state)
+      return state
     },
     beginRun() {
       run = []
     },
-    record(entry, key) {
-      byElement.set(entry.el, entry.written)
-      byKey.set(key, entry.written)
+    record(entry) {
+      written.set(entry.el, entry.key, entry.written)
       run.push(entry)
+    },
+    restored(entry) {
+      written.set(entry.el, entry.key, entry.before)
     },
     lastRun: () => run,
     clearRun() {

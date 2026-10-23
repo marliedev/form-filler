@@ -158,42 +158,83 @@ describe('runFill – own values', () => {
     expect(report.total).toBe(2)
   })
 
-  it('fills empty fields, HTML defaults and its own values', async () => {
-    document.body.innerHTML = '<input name="company" value="Vorbelegt"><input name="first">'
+  it('fills empty fields and its own values, keeps a text field the page preset', async () => {
+    document.body.innerHTML = '<input name="company"><input name="first" value="Vorbelegt">'
     const t = template([rule('company', { type: 'companyName' }), rule('first', { type: 'firstName' })])
     const own = createOwnership()
     const first = await runFill(document.body, t, ensureSlots(ds, t, fakerDE), 'all', fakerDE, own)
-    expect(first.filled).toBe(2)
+    expect(first.fields.map((f) => f.status)).toEqual(['filled', 'kept'])
     expect(input('company').value).toBe(ds.company.name)
     fakerDE.seed(7)
     const other = createDataset(fakerDE)
     const second = await runFill(document.body, t, ensureSlots(other, t, fakerDE), 'all', fakerDE, own)
-    expect(second.filled).toBe(2)
+    expect(second.fields.map((f) => f.status)).toEqual(['filled', 'kept'])
     expect(input('company').value).toBe(other.company.name)
+    expect(input('first').value).toBe('Vorbelegt')
   })
 
-  it('fills a select without placeholder and a checkbox checked by the page, keeps a checkbox ticked by hand', async () => {
+  it('fills choice controls that still show what the page preset, by HTML or by script', async () => {
     document.body.innerHTML = `
       <select name="industry"><option value="it">IT</option><option value="bau">Bau</option></select>
+      <label><input type="radio" name="role" value="a"> A</label><label><input type="radio" name="role" value="b"> B</label>
       <input type="checkbox" name="agb" checked><input type="checkbox" name="news">`
+    const select = document.querySelector<HTMLSelectElement>('select')
+    if (!select) throw new Error('missing select')
+    select.value = 'bau'
     input('news').checked = true
+    document.querySelector<HTMLInputElement>('[value="b"]')!.checked = true
     const t = template([
-      rule('industry', { type: 'choice', mode: 'fixed', values: ['Bau'] }, { locator: { kind: 'select', name: 'industry' } }),
+      rule('industry', { type: 'choice', mode: 'fixed', values: ['IT'] }, { locator: { kind: 'select', name: 'industry' } }),
+      rule('role', { type: 'choice', mode: 'fixed', values: ['A'] }, { locator: { kind: 'radiogroup', name: 'role' } }),
       rule('agb', { type: 'checkbox', checked: false }, { locator: { kind: 'checkbox', name: 'agb' } }),
       rule('news', { type: 'checkbox', checked: false }, { locator: { kind: 'checkbox', name: 'news' } }),
     ])
     const report = await runFill(document.body, t, ds, 'all', fakerDE, createOwnership())
-    expect(report.fields.map((f) => f.status)).toEqual(['filled', 'filled', 'kept'])
-    expect(document.querySelector<HTMLSelectElement>('select')?.value).toBe('bau')
+    expect(report.fields.map((f) => f.status)).toEqual(['filled', 'filled', 'filled', 'filled'])
+    expect(select.value).toBe('it')
+    expect(document.querySelector<HTMLInputElement>('[value="a"]')?.checked).toBe(true)
     expect(input('agb').checked).toBe(false)
+    expect(input('news').checked).toBe(false)
+  })
+
+  it('keeps a choice made by hand after the first run, also in a combobox that was empty at first contact', async () => {
+    document.body.innerHTML = `
+      <input type="checkbox" name="news">
+      <div role="combobox" id="cb" tabindex="0" aria-controls="lb"><span id="shown"></span></div>
+      <ul role="listbox" id="lb" hidden><li role="option">Deutschland</li><li role="option">Österreich</li></ul>`
+    const shown = document.querySelector<HTMLElement>('#shown')!
+    const lb = document.querySelector<HTMLElement>('#lb')!
+    document.querySelector<HTMLElement>('#cb')!.addEventListener('click', () => { lb.hidden = false })
+    for (const li of document.querySelectorAll<HTMLElement>('li')) {
+      li.addEventListener('mousedown', () => { shown.textContent = li.textContent; lb.hidden = true })
+    }
+    const t = template([
+      rule('news', { type: 'checkbox', checked: false }, { locator: { kind: 'checkbox', name: 'news' } }),
+      rule('country', { type: 'choice', mode: 'fixed', values: ['Deutschland'] }, { locator: { kind: 'combobox', id: 'cb' } }),
+    ])
+    const own = createOwnership()
+    const first = await runFill(document.body, t, ds, 'all', fakerDE, own)
+    expect(first.fields.map((f) => f.status)).toEqual(['filled', 'filled'])
+    expect(shown.textContent).toBe('Deutschland')
+
+    input('news').checked = true
+    shown.textContent = 'Österreich'
+    const second = await runFill(document.body, t, ds, 'all', fakerDE, own)
+    expect(second.fields.map((f) => f.status)).toEqual(['kept', 'kept'])
     expect(input('news').checked).toBe(true)
+    expect(shown.textContent).toBe('Österreich')
   })
 
   it('records before and written state for undo', async () => {
-    document.body.innerHTML = '<input name="company" value="alt">'
+    document.body.innerHTML = '<input name="company">'
     const t = template([rule('company', { type: 'companyName' })])
     const own = createOwnership()
     await runFill(document.body, t, ds, 'all', fakerDE, own)
-    expect(own.lastRun()).toMatchObject([{ fieldId: 'company', label: 'Feld company', kind: 'text', before: 'alt', written: ds.company.name }])
+    fakerDE.seed(7)
+    const other = createDataset(fakerDE)
+    await runFill(document.body, t, other, 'all', fakerDE, own)
+    expect(own.lastRun()).toMatchObject([
+      { fieldId: 'company', label: 'Feld company', kind: 'text', key: '{"kind":"text","name":"company"}', before: ds.company.name, written: other.company.name },
+    ])
   })
 })

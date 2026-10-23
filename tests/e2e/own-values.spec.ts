@@ -46,6 +46,12 @@ test.describe('Eigene Werte und Rückgängig', () => {
     expect(m3.address.zip).toBe(m1.address.zip)
     expect(m3.customerNo).toBe('K-MANUELL')
     expect(await extension.badge(tabId)).toBe('')
+
+    // The restored values are Form Filler's own again: a further run replaces them.
+    await extension.newDataset(tabId)
+    const third = await extension.fill(tabId, STEP1.id)
+    expect(third.fields.filter((f) => f.status === 'kept').map((f) => f.fieldId)).toEqual(['f-customer-no'])
+    expect((await model(page)).company).not.toBe(m1.company)
   })
 
   test('erkennt eigene Werte nach einem Schrittwechsel wieder', async ({ extension }) => {

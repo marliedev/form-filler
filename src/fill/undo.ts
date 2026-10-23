@@ -11,17 +11,19 @@ function fire(el: Element, type: string): void {
 
 /** Selects are restored directly: the placeholder option (empty value) is never offered by the filler. */
 function restoreSelect(el: FormControl, value: string): boolean {
-  if (!(el instanceof HTMLSelectElement)) return false
-  const index = Array.from(el.options).findIndex((o) => o.value === value)
-  el.selectedIndex = index
-  fire(el, 'input')
-  fire(el, 'change')
-  return el.value === value || (index === -1 && el.selectedIndex === -1)
+  // Tag check instead of instanceof: a select inside a frame belongs to another realm.
+  if (el.localName !== 'select') return false
+  const select = el as HTMLSelectElement
+  const index = Array.from(select.options).findIndex((o) => o.value === value)
+  select.selectedIndex = index
+  fire(select, 'input')
+  fire(select, 'change')
+  return select.value === value || (index === -1 && select.selectedIndex === -1)
 }
 
 /** Writes the state before the run back; false when the kind cannot show that state again. */
 async function restore(entry: RunEntry, ownership: Ownership): Promise<boolean> {
-  const { el, kind, before } = entry
+  const { el, kind, key, before } = entry
   switch (kind) {
     case 'select':
       return restoreSelect(el, before)
@@ -33,7 +35,7 @@ async function restore(entry: RunEntry, ownership: Ownership): Promise<boolean> 
       return (await fillElement(el, { kind: 'choice', mode: 'fixed', values: [before] }, kind)).status === 'filled'
     case 'combobox':
       // The placeholder is not an option; a real previous value is chosen again.
-      if (before === '' || before === ownership.placeholderOf(el, before)) return false
+      if (before === '' || before === ownership.firstSeen(el, key, before)) return false
       return (await fillElement(el, { kind: 'text', value: before }, kind)).status === 'filled'
     default:
       return (await fillElement(el, { kind: 'text', value: before }, kind)).status === 'filled'
@@ -41,20 +43,26 @@ async function restore(entry: RunEntry, ownership: Ownership): Promise<boolean> 
 }
 
 /**
- * Puts the fields of the last run back to their state before it. Fields the user changed since
- * (state differs from what was written) and fields whose old state cannot be shown again stay
- * and are named in `kept`.
+ * Puts the fields of the last run back to their state before it, last field first so that fields
+ * which depend on an earlier one (a section a checkbox reveals) are still there when their turn
+ * comes. Fields the user changed since (state differs from what was written), fields that left the
+ * page and fields whose old state cannot be shown again stay and are named in `kept`, in form order.
  */
 export async function undoLastRun(ownership: Ownership): Promise<UndoResponse> {
   const entries = ownership.lastRun()
   if (entries.length === 0) return { ok: false, error: NOTHING_TO_UNDO }
   let restored = 0
-  const kept: string[] = []
-  for (const entry of entries) {
-    const untouched = currentState(entry.el, entry.kind) === entry.written
-    if (untouched && (await restore(entry, ownership))) restored++
-    else kept.push(entry.label)
+  const keptAt: number[] = []
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i]!
+    const untouched = entry.el.isConnected && currentState(entry.el, entry.kind) === entry.written
+    if (untouched && (await restore(entry, ownership))) {
+      ownership.restored(entry)
+      restored++
+    } else {
+      keptAt.unshift(i)
+    }
   }
   ownership.clearRun()
-  return { ok: true, restored, kept }
+  return { ok: true, restored, kept: keptAt.map((i) => entries[i]!.label) }
 }

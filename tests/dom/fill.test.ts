@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { currentState, defaultState, fillElement, nextFrame } from '../../src/dom/fill'
+import { currentState, fillElement, nextFrame } from '../../src/dom/fill'
 import type { FormControl } from '../../src/dom/locator'
 import { q as deepQ, shadow } from './deepHelpers'
 
@@ -473,7 +473,7 @@ describe('fillElement – listbox button', () => {
   })
 })
 
-describe('currentState / defaultState', () => {
+describe('currentState', () => {
   it('reads text, select, radio, checkbox and combobox states', () => {
     setup(`<input id="t" value="x"><select id="s"><option value="">Bitte wählen</option><option value="a" selected>A</option></select>
       <label><input type="radio" name="r" value="1"> 1</label><label><input type="radio" name="r" value="2" checked> 2</label>
@@ -483,16 +483,5 @@ describe('currentState / defaultState', () => {
     expect(currentState(q('input[name="r"]'), 'radiogroup')).toBe('2')
     expect(currentState(q('#c'), 'checkbox')).toBe('on')
     expect(currentState(q('#cb'), 'combobox')).toBe('Deutschland')
-  })
-
-  it('treats the HTML default as the default state', () => {
-    setup(`<input id="t" value="vorbelegt"><select id="s"><option value="a">A</option><option value="b">B</option></select>
-      <label><input type="radio" name="r" value="1" checked> 1</label><input id="c" type="checkbox">
-      <div id="cb" role="combobox" aria-controls="lb"><span>Deutschland</span></div>`)
-    expect(defaultState(q('#t'), 'text', '')).toBe('vorbelegt')
-    expect(defaultState(q('#s'), 'select', '')).toBe('a')
-    expect(defaultState(q('input[name="r"]'), 'radiogroup', '')).toBe('1')
-    expect(defaultState(q('#c'), 'checkbox', '')).toBe('')
-    expect(defaultState(q('#cb'), 'combobox', 'Bitte wählen')).toBe('Bitte wählen')
   })
 })

@@ -388,11 +388,12 @@ describe('undoLastRun', () => {
     expect(await fakeBrowser.action.getBadgeText({ tabId: 5 })).toBe('')
   })
 
-  it('passes a failed undo through without touching the report', async () => {
+  it('drops the stale report and badge when the page has nothing to undo', async () => {
     await recordFillResult(5, report)
     mockMessaging({ ok: false, error: 'Nichts zum Zurücknehmen – die Seite wurde seit dem letzten Lauf neu geladen.' })
     const result = await undoLastRun(5)
     expect(result.ok).toBe(false)
-    expect(await getLastReport(5)).toEqual(report)
+    expect(await getLastReport(5)).toBeNull()
+    expect(await fakeBrowser.action.getBadgeText({ tabId: 5 })).toBe('')
   })
 })

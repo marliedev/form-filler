@@ -353,33 +353,6 @@ export function currentState(el: FormControl, kind: ControlKind): FieldState {
 }
 
 /**
- * What the page itself preset: the HTML default (`defaultValue`, `defaultChecked`, `defaultSelected`,
- * else the first option of a select). ARIA controls have no HTML default; `placeholder` is the text
- * they showed when Form Filler first met them.
- */
-export function defaultState(el: FormControl, kind: ControlKind, placeholder: string): FieldState {
-  switch (kind) {
-    case 'text':
-    case 'textarea':
-    case 'date':
-      return isTag(el, 'input') || isTag(el, 'textarea') ? el.defaultValue : ''
-    case 'select': {
-      if (!isTag(el, 'select')) return ''
-      const options = Array.from(el.options)
-      return (options.find((o) => o.defaultSelected) ?? options[0])?.value ?? ''
-    }
-    case 'checkbox':
-      return isTag(el, 'input') && el.defaultChecked ? 'on' : ''
-    case 'radiogroup': {
-      const natives = isNativeRadio(el) ? nativeGroup(el) : Array.from(el.querySelectorAll<HTMLInputElement>('input[type="radio"]'))
-      return natives.find((r) => r.defaultChecked)?.value ?? ''
-    }
-    case 'combobox':
-      return placeholder
-  }
-}
-
-/**
  * Writes `v` into `el` the way a user would, so framework bindings (Vue v-model) register it.
  * `skip` must be handled by the caller; passing it is a programming error and throws.
  */

@@ -31,7 +31,7 @@ beforeEach(() => {
 describe('undoLastRun', () => {
   it('restores text, select and checkbox to their state before the run', async () => {
     document.body.innerHTML = `
-      <input name="company" value="alt">
+      <input name="company">
       <select name="industry"><option value="">Bitte wählen</option><option value="bau">Bau</option></select>
       <input type="checkbox" name="agb">`
     const t = template([
@@ -44,7 +44,7 @@ describe('undoLastRun', () => {
     expect(q('[name="company"]').value).toBe(ds.company.name)
 
     expect(await undoLastRun(own)).toEqual({ ok: true, restored: 3, kept: [] })
-    expect(q('[name="company"]').value).toBe('alt')
+    expect(q('[name="company"]').value).toBe('')
     expect(q<HTMLSelectElement>('select').value).toBe('')
     expect(q('[name="agb"]').checked).toBe(false)
     expect(own.lastRun()).toEqual([])
@@ -85,6 +85,49 @@ describe('undoLastRun', () => {
     expect(await undoLastRun(own)).toEqual({ ok: true, restored: 0, kept: ['Feld role', 'Feld country'] })
     expect(q('[name="role"][value="b"]').checked).toBe(true)
     expect(q<HTMLElement>('#shown').textContent).toBe('Deutschland')
+  })
+
+  it('makes restored values own again so the next run replaces them', async () => {
+    document.body.innerHTML = '<input name="company">'
+    const t = template([rule('company', { type: 'companyName' })])
+    const own = createOwnership()
+    await runFill(document.body, t, ds, 'all', fakerDE, own)
+    fakerDE.seed(7)
+    const second = createDataset(fakerDE)
+    await runFill(document.body, t, second, 'all', fakerDE, own)
+    expect(await undoLastRun(own)).toEqual({ ok: true, restored: 1, kept: [] })
+    expect(q('[name="company"]').value).toBe(ds.company.name)
+
+    fakerDE.seed(9)
+    const third = createDataset(fakerDE)
+    const report = await runFill(document.body, t, third, 'all', fakerDE, own)
+    expect(report.fields[0]?.status).toBe('filled')
+    expect(q('[name="company"]').value).toBe(third.company.name)
+  })
+
+  it('restores in reverse order and names fields that left the page, in form order', async () => {
+    document.body.innerHTML = '<input name="zip"><input name="city"><input name="first">'
+    const t = template([rule('zip', { type: 'zip' }), rule('city', { type: 'city' }), rule('first', { type: 'firstName' })])
+    const own = createOwnership()
+    await runFill(document.body, t, ensureSlots(ds, t, fakerDE), 'all', fakerDE, own)
+    const order: string[] = []
+    for (const el of document.querySelectorAll('input')) el.addEventListener('input', () => order.push(el.name))
+    q('[name="zip"]').remove()
+    q('[name="first"]').remove()
+
+    expect(await undoLastRun(own)).toEqual({ ok: true, restored: 1, kept: ['Feld zip', 'Feld first'] })
+    expect(order).toEqual(['city'])
+  })
+
+  it('restores every field of a run in reverse order', async () => {
+    document.body.innerHTML = '<input name="zip"><input name="city">'
+    const t = template([rule('zip', { type: 'zip' }), rule('city', { type: 'city' })])
+    const own = createOwnership()
+    await runFill(document.body, t, ensureSlots(ds, t, fakerDE), 'all', fakerDE, own)
+    const order: string[] = []
+    for (const el of document.querySelectorAll('input')) el.addEventListener('input', () => order.push(el.name))
+    expect(await undoLastRun(own)).toEqual({ ok: true, restored: 2, kept: [] })
+    expect(order).toEqual(['city', 'zip'])
   })
 
   it('answers with an error when there is nothing to undo', async () => {

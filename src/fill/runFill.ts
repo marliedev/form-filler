@@ -1,10 +1,10 @@
 import type { Faker } from '@faker-js/faker'
-import { currentState, defaultState, fillElement, nextFrame } from '../dom/fill'
+import { currentState, fillElement, nextFrame } from '../dom/fill'
 import { findElement, type FormControl } from '../dom/locator'
 import { locatorKey, pageOwnership, type Ownership } from './ownership'
 import type { Dataset } from '../generators/dataset'
 import { applyRunId, resolveValue, type FieldValue } from '../generators/resolve'
-import type { FieldRule, Template } from '../model/types'
+import type { ControlKind, FieldRule, Template } from '../model/types'
 import { validateConfig } from '../model/validateConfig'
 import type { FillMode } from './messages'
 
@@ -40,13 +40,20 @@ function maxLengthOf(el: FormControl): number | null {
   return null
 }
 
-/** Fillable: empty, still the page's own default, or what Form Filler wrote last. Anything else is someone's input. */
+const CHOICE_KINDS: ReadonlySet<ControlKind> = new Set(['select', 'radiogroup', 'checkbox', 'combobox'])
+
+/**
+ * Fillable: empty, or what Form Filler wrote last; anything else is someone's input. Choice controls
+ * cannot be emptied by hand, so what they showed at first contact counts as the page's preset and is
+ * fillable too, however the page made it (HTML or script). Text the page preset stays, like typed text.
+ */
 function isFillable(el: FormControl, rule: FieldRule, ownership: Ownership): boolean {
   const kind = rule.locator.kind
+  const key = locatorKey(rule.locator)
   const state = currentState(el, kind)
-  if (state === '') return true
-  const placeholder = kind === 'combobox' ? ownership.placeholderOf(el, state) : ''
-  return state === defaultState(el, kind, placeholder) || ownership.isOwn(el, locatorKey(rule.locator), state)
+  // Recorded before the empty check: an empty combobox at first contact must not learn a later choice as its preset.
+  const preset = CHOICE_KINDS.has(kind) ? ownership.firstSeen(el, key, state) : ''
+  return state === '' || state === preset || ownership.isOwn(el, key, state)
 }
 
 async function fillField(root: ParentNode, rule: FieldRule, ds: Dataset, f: Faker, ownership: Ownership): Promise<FieldReport> {
@@ -73,10 +80,15 @@ async function fillField(root: ParentNode, rule: FieldRule, ds: Dataset, f: Fake
     const before = currentState(found.el, rule.locator.kind)
     const outcome = await fillElement(found.el, value, rule.locator.kind, () => f.number.float({ min: 0, max: 0.999999 }))
     if (outcome.status !== 'filled') return { ...base, status: 'failed', detail: outcome.reason }
-    ownership.record(
-      { el: found.el, fieldId: rule.id, label: rule.label, kind: rule.locator.kind, before, written: currentState(found.el, rule.locator.kind) },
-      locatorKey(rule.locator),
-    )
+    ownership.record({
+      el: found.el,
+      fieldId: rule.id,
+      label: rule.label,
+      kind: rule.locator.kind,
+      key: locatorKey(rule.locator),
+      before,
+      written: currentState(found.el, rule.locator.kind),
+    })
     return { ...base, status: 'filled' }
   } catch (e) {
     return { ...base, status: 'failed', detail: errorMessage(e) }

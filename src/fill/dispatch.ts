@@ -155,13 +155,16 @@ function isUndoResponse(value: unknown): value is UndoResponse {
   return (ok === true && typeof restored === 'number' && Array.isArray(kept)) || (ok === false && typeof error === 'string')
 }
 
-/** Puts the last run on the tab back; a successful undo also drops the tab's report and badge. */
+/**
+ * Puts the last run on the tab back. The tab's report and badge go either way: after a successful
+ * undo they are obsolete, and when the page has nothing to undo they describe a page that is gone.
+ */
 export async function undoLastRun(tabId: number): Promise<UndoResponse> {
   await injectContentScript(tabId)
   const message: ContentMessage = { type: 'undo' }
   const response: unknown = await browser.tabs.sendMessage(tabId, message)
   if (!isUndoResponse(response)) throw new Error('Die Seite hat nicht geantwortet')
-  if (response.ok) await clearLastReport(tabId)
+  await clearLastReport(tabId)
   return response
 }
 

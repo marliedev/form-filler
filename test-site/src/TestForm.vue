@@ -26,7 +26,7 @@ const model = reactive({
   topic: '',
   costCenter: '',
   poNumber: '',
-  delivery: { street: '', zip: '', city: '' } as Address,
+  delivery: { street: '', zip: '', city: '', carrier: '' } as Address & { carrier: string },
 })
 
 /** Value of a web component; its input event is retargeted to the host. */
@@ -38,7 +38,7 @@ function componentValue(event: Event): string {
 // The delivery frame (same origin) reports its values with postMessage.
 window.addEventListener('message', (event: MessageEvent) => {
   if (event.origin !== location.origin) return
-  const data = event.data as { type?: string; value?: Partial<Address> } | null
+  const data = event.data as { type?: string; value?: Partial<Address & { carrier: string }> } | null
   if (data?.type === 'delivery' && data.value) Object.assign(model.delivery, data.value)
 })
 

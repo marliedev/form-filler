@@ -6,7 +6,7 @@
     <style>
       body { font-family: system-ui, sans-serif; margin: 0.5rem; color: #1a1a1a; }
       form { display: grid; gap: 0.5rem; }
-      input { font: inherit; padding: 0.4rem; border: 1px solid #555; border-radius: 4px; }
+      input, select { font: inherit; padding: 0.4rem; border: 1px solid #555; border-radius: 4px; }
       :focus-visible { outline: 3px solid #1a56db; outline-offset: 2px; }
     </style>
   </head>
@@ -18,6 +18,13 @@
       <input id="zip" name="zip">
       <label for="city">Ort</label>
       <input id="city" name="city">
+      <label for="carrier">Versanddienst</label>
+      <select id="carrier" name="carrier">
+        <option value="">Bitte wählen</option>
+        <option value="dhl">DHL</option>
+        <option value="dpd">DPD</option>
+        <option value="gls">GLS</option>
+      </select>
     </form>
     <script type="module" src="/src/frame.ts"></script>
   </body>
