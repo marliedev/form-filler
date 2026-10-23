@@ -55,6 +55,12 @@ export async function deleteTemplate(id: string): Promise<void> {
   await write('templates', templates.filter((t) => t.id !== id));
 }
 
+/** Replaces the templates of one app; those of other apps stay as they are. */
+export async function replaceTemplatesOfApp(appId: string, templates: readonly Template[]): Promise<void> {
+  const others = (await listTemplates()).filter((t) => t.appId !== appId);
+  await write('templates', [...others, ...templates]);
+}
+
 /** Expects data already validated by `parseExport`. */
 export async function importExport(
   data: ExportFile,

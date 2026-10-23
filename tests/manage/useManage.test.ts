@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeBrowser } from 'wxt/testing/fake-browser'
 import type { ContentMessage } from '../../src/fill/messages'
 import { useManage } from '../../src/manage/useManage'
-import { parseExport } from '../../src/model/schema'
+import { buildExport, parseExport } from '../../src/model/schema'
 import type { AppDef, FieldRule, Template } from '../../src/model/types'
 import { getPrefs, getTemplate, listApps, listTemplates, saveApp, saveTemplate, setPrefs } from '../../src/storage/repository'
+import { fingerprintOf } from '../../src/sync/planSync'
 
 const crm: AppDef = { id: 'crm', name: 'Kunden CRM', urlPatterns: ['https://crm.example.com/*'] }
 const shop: AppDef = { id: 'shop', name: 'Shop', urlPatterns: ['https://shop.example.com/*'] }
@@ -330,5 +331,147 @@ describe('useManage – recordFields', () => {
     await m.recordFields()
     expect(m.error.value?.message).toBe('Öffne zuerst die Seite der App.')
     expect(send).not.toHaveBeenCalled()
+  })
+})
+
+describe('useManage – template source', () => {
+  const SOURCE = 'https://team.example.com/files/templates.json'
+  const fileCrm: AppDef = { id: 'file-crm', name: 'CRM (Team)', urlPatterns: ['https://crm.example.com/*'] }
+  const fileShop: AppDef = { id: 'file-shop', name: 'Shop (Team)', urlPatterns: ['https://shop.example.com/*'] }
+  const kunde: Template = { ...tpl, id: 'ft1', appId: 'file-crm', name: 'Kunde (Team)' }
+  const kontakt: Template = { ...tpl, id: 'ft2', appId: 'file-crm', name: 'Kontakt (Team)', fields: [] }
+
+  function grant(ok: boolean) {
+    const request = vi.fn<(p: unknown) => Promise<boolean>>(async () => ok)
+    vi.spyOn(fakeBrowser.permissions, 'request').mockImplementation(request as unknown as typeof fakeBrowser.permissions.request)
+    return request
+  }
+
+  /** Serves `files` by address; any other address is unreachable. */
+  function serving(files: Record<string, { apps: AppDef[]; templates: Template[] }>) {
+    const impl = vi.fn(async (input: string | URL | Request) => {
+      const file = files[String(input)]
+      if (!file) throw new TypeError('Failed to fetch')
+      return { ok: true, status: 200, headers: new Headers(), text: async () => buildExport(file.apps, file.templates) } as unknown as Response
+    })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(impl as unknown as typeof fetch)
+    return impl
+  }
+
+  it('saveApp with a source address asks for the permission of its origin and stores the source', async () => {
+    const request = grant(true)
+    const m = await loaded()
+    expect(await m.saveApp({ ...crm, sourceUrl: ` ${SOURCE} ` })).toBe(true)
+    expect(request).toHaveBeenCalledWith({ origins: ['https://team.example.com/*'] })
+    expect((await listApps())[0]?.source).toEqual({ url: SOURCE, appId: null })
+  })
+
+  it('saveApp keeps the old source when the permission is denied', async () => {
+    await saveApp({ ...crm, source: { url: 'https://old.example.com/t.json', appId: 'file-crm' } })
+    grant(false)
+    const m = await loaded()
+    expect(await m.saveApp({ ...crm, sourceUrl: SOURCE })).toBe(false)
+    expect(m.error.value?.message).toBe('Ohne Berechtigung für die neue Adresse wurde nichts geändert.')
+    expect((await listApps())[0]?.source).toEqual({ url: 'https://old.example.com/t.json', appId: 'file-crm' })
+  })
+
+  it('saveApp with the unchanged address asks no permission and keeps the mapping', async () => {
+    await saveApp({ ...crm, source: { url: SOURCE, appId: 'file-crm' } })
+    const request = grant(true)
+    const m = await loaded()
+    expect(await m.saveApp({ ...crm, name: 'CRM neu', sourceUrl: SOURCE })).toBe(true)
+    expect(request).not.toHaveBeenCalled()
+    expect((await listApps())[0]).toEqual({ ...crm, name: 'CRM neu', source: { url: SOURCE, appId: 'file-crm' } })
+  })
+
+  it('saveApp with a changed or emptied address resets the mapping and strips the markers of the templates', async () => {
+    await saveApp({ ...crm, source: { url: SOURCE, appId: 'file-crm' } })
+    await saveTemplate({ ...tpl, source: { templateId: 'ft1', fingerprint: 'fp' } })
+    grant(true)
+    const m = await loaded()
+    expect(await m.saveApp({ ...crm, sourceUrl: '' })).toBe(true)
+    expect((await listApps())[0]).not.toHaveProperty('source')
+    expect(await getTemplate('t1')).not.toHaveProperty('source')
+    expect((await getTemplate('t1'))?.fields.map((f) => f.id)).toEqual(['a', 'b', 'c'])
+
+    await saveTemplate({ ...tpl, source: { templateId: 'ft1', fingerprint: 'fp' } })
+    expect(await m.saveApp({ ...crm, sourceUrl: 'https://new.example.com/t.json' })).toBe(true)
+    expect((await listApps())[0]?.source).toEqual({ url: 'https://new.example.com/t.json', appId: null })
+    expect(await getTemplate('t1')).not.toHaveProperty('source')
+  })
+
+  it('saveApp rejects a source address that is not http(s) and writes nothing', async () => {
+    grant(true)
+    const m = await loaded()
+    const before = await snapshot()
+    expect(await m.saveApp({ ...crm, sourceUrl: 'file:///tmp/t.json' })).toBe(false)
+    expect(m.error.value?.message).toBe('Nur http- und https-Adressen sind erlaubt.')
+    expect(await snapshot()).toEqual(before)
+  })
+
+  it('syncApp fetches the file, saves the mapped app and its templates and reports the summary', async () => {
+    await saveApp({ ...crm, source: { url: SOURCE, appId: null } })
+    serving({ [SOURCE]: { apps: [fileCrm, fileShop], templates: [kunde, kontakt] } })
+    const m = await loaded()
+    expect(await m.syncApp('crm')).toBe(true)
+    expect(m.notice.value).toBe('Abgeglichen: 2 neu, 0 aktualisiert, 0 lokal geändert (Kopie), 0 entfernt.')
+    expect((await listApps())[0]?.source).toEqual({ url: SOURCE, appId: 'file-crm' })
+    const own = await listTemplates('crm')
+    expect(own.map((t) => [t.name, t.source?.templateId])).toEqual([['Kunde', undefined], ['Kontakt', undefined], ['Kunde (Team)', 'ft1'], ['Kontakt (Team)', 'ft2']])
+    expect(m.templates.value.map((t) => t.name)).toEqual(['Kunde', 'Kontakt', 'Kunde (Team)', 'Kontakt (Team)'])
+    expect((await listTemplates('shop')).map((t) => t.id)).toEqual(['t3'])
+  })
+
+  it('syncApp shows the source error and changes nothing', async () => {
+    await saveApp({ ...crm, urlPatterns: ['https://staging.example.com/*'], source: { url: SOURCE, appId: null } })
+    serving({ [SOURCE]: { apps: [fileCrm, fileShop], templates: [kunde] } })
+    const m = await loaded()
+    const before = await snapshot()
+    expect(await m.syncApp('crm')).toBe(false)
+    expect(m.error.value?.message).toBe('Keine passende App in der Datei: CRM (Team), Shop (Team).')
+    expect(m.notice.value).toBe('')
+    expect(await snapshot()).toEqual(before)
+  })
+
+  it('syncApp forgets prefs.lastTemplateId of a removed template', async () => {
+    await saveApp({ ...crm, source: { url: SOURCE, appId: 'file-crm' } })
+    await saveTemplate({ ...tpl2, source: { templateId: 'gone', fingerprint: fingerprintOf(tpl2) } })
+    await setPrefs({ lastTemplateId: 't2' })
+    serving({ [SOURCE]: { apps: [fileCrm], templates: [kunde] } })
+    const m = await loaded()
+    expect(await m.syncApp('crm')).toBe(true)
+    expect(m.notice.value).toBe('Abgeglichen: 1 neu, 0 aktualisiert, 0 lokal geändert (Kopie), 1 entfernt.')
+    expect(await getTemplate('t2')).toBeUndefined()
+    expect((await getPrefs()).lastTemplateId).toBeNull()
+  })
+
+  it('syncAll syncs every app with a source and collects summaries and errors', async () => {
+    await saveApp({ ...crm, source: { url: SOURCE, appId: null } })
+    await saveApp({ ...shop, source: { url: 'https://team.example.com/shop.json', appId: null } })
+    serving({ [SOURCE]: { apps: [fileCrm], templates: [kunde] } })
+    const m = await loaded()
+    await m.syncAll()
+    expect(m.notice.value).toBe('Kunden CRM – Abgeglichen: 1 neu, 0 aktualisiert, 0 lokal geändert (Kopie), 0 entfernt.')
+    expect(m.error.value?.message).toBe('Shop: Quelle nicht erreichbar.')
+    expect((await listTemplates('crm')).map((t) => t.name)).toEqual(['Kunde', 'Kontakt', 'Kunde (Team)'])
+    expect((await listTemplates('shop')).map((t) => t.id)).toEqual(['t3'])
+  })
+
+  it('two apps with the same file keep their own templates across repeated syncs', async () => {
+    await saveApp({ ...crm, source: { url: SOURCE, appId: null } })
+    await saveApp({ ...shop, source: { url: SOURCE, appId: null } })
+    serving({ [SOURCE]: { apps: [fileCrm], templates: [kunde] } })
+    const m = await loaded()
+    await m.syncAll()
+    expect(m.error.value).toBeNull()
+    await m.syncAll()
+    expect(m.notice.value).toBe(
+      'Kunden CRM – Abgeglichen: 0 neu, 0 aktualisiert, 0 lokal geändert (Kopie), 0 entfernt. · Shop – Abgeglichen: 0 neu, 0 aktualisiert, 0 lokal geändert (Kopie), 0 entfernt.',
+    )
+    const crmSynced = (await listTemplates('crm')).filter((t) => t.source)
+    const shopSynced = (await listTemplates('shop')).filter((t) => t.source)
+    expect(crmSynced.map((t) => t.name)).toEqual(['Kunde (Team)'])
+    expect(shopSynced.map((t) => t.name)).toEqual(['Kunde (Team)'])
+    expect(crmSynced[0]?.id).not.toBe(shopSynced[0]?.id)
   })
 })
