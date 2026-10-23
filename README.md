@@ -105,7 +105,7 @@ Bei mehrteiligen Prozessen bleibt die Kennung zwischen den Schritten gleich; **N
 
 ## Tastenkürzel
 
-Standard: **Alt+Shift+F** füllt die aktuelle Seite mit der zuletzt genutzten Vorlage. Ändern lässt sich das Kürzel auf der Kürzel-Seite der Erweiterungsverwaltung des Browsers (bei Chromium-Browsern meist `chrome://extensions/shortcuts`, in Firefox unter `about:addons` → Zahnrad → „Tastenkürzel für Erweiterungen verwalten“).
+Standard: **Alt+Shift+F** füllt die aktuelle Seite. Auf einer Seite mit erkannter App nimmt das Kürzel deren einzige Vorlage; bei mehreren Vorlagen den nächsten Schritt des zuletzt gefüllten Prozesses (nach dem letzten Schritt wieder Schritt 1), sonst die zuletzt genutzte Vorlage. Ohne erkannte App gilt die zuletzt genutzte Vorlage. Ändern lässt sich das Kürzel auf der Kürzel-Seite der Erweiterungsverwaltung des Browsers (bei Chromium-Browsern meist `chrome://extensions/shortcuts`, in Firefox unter `about:addons` → Zahnrad → „Tastenkürzel für Erweiterungen verwalten“).
 
 ## Datenschutz
 

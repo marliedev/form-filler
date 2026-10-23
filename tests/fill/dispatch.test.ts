@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeBrowser } from 'wxt/testing/fake-browser'
-import { dispatchFill, fillLastUsed, startRecording } from '../../src/fill/dispatch'
+import { dispatchFill, fillByShortcut, startRecording } from '../../src/fill/dispatch'
 import { getLastReport } from '../../src/fill/lastReport'
 import type { FillReport } from '../../src/fill/runFill'
 import type { ContentMessage } from '../../src/fill/messages'
 import type { Template } from '../../src/model/types'
-import { getPrefs, getTemplate, saveTemplate, setPrefs } from '../../src/storage/repository'
+import { getPrefs, getTemplate, saveApp, saveTemplate, setPrefs } from '../../src/storage/repository'
 
 const tpl: Template = {
   id: 't1', appId: 'app', name: 'Vorlage', process: { name: 'Kundenanlage', step: 1 }, fields: [], lastMissing: ['old'],
@@ -39,8 +39,8 @@ function firstMessage(send: ReturnType<typeof mockMessaging>['send']): [number, 
   return call
 }
 
-function mockActiveTab(id?: number) {
-  const query = vi.fn<(info: unknown) => Promise<{ id: number }[]>>(async () => (id === undefined ? [] : [{ id }]))
+function mockActiveTab(id?: number, url?: string) {
+  const query = vi.fn<(info: unknown) => Promise<{ id: number; url?: string }[]>>(async () => (id === undefined ? [] : [{ id, url }]))
   vi.spyOn(fakeBrowser.tabs, 'query').mockImplementation(query as unknown as typeof fakeBrowser.tabs.query)
   return query
 }
@@ -161,13 +161,13 @@ describe('startRecording', () => {
   })
 })
 
-describe('fillLastUsed', () => {
+describe('fillByShortcut', () => {
   it('fills the active tab with the last template and the saved mode', async () => {
     await saveTemplate(tpl)
     await setPrefs({ lastTemplateId: 't1', mode: 'required' })
     mockActiveTab(5)
     const { send } = mockMessaging()
-    await fillLastUsed()
+    await fillByShortcut()
     const [tabId, message] = firstMessage(send)
     expect(tabId).toBe(5)
     expect(message).toMatchObject({ type: 'fill', mode: 'required' })
@@ -178,7 +178,7 @@ describe('fillLastUsed', () => {
     await setPrefs({ lastTemplateId: 't1' })
     const query = mockActiveTab(5)
     mockMessaging()
-    await fillLastUsed()
+    await fillByShortcut()
     expect(query).toHaveBeenCalledWith({ active: true, lastFocusedWindow: true })
   })
 
@@ -186,7 +186,7 @@ describe('fillLastUsed', () => {
     await setPrefs({ lastTemplateId: 'deleted' })
     mockActiveTab(5)
     const { execute } = mockMessaging()
-    expect(await fillLastUsed()).toBeNull()
+    expect(await fillByShortcut()).toBeNull()
     expect(execute).not.toHaveBeenCalled()
     expect((await getLastReport(5))?.error).toBe('Noch keine Vorlage genutzt – zuerst im Popup füllen.')
     expect(await fakeBrowser.action.getBadgeText({ tabId: 5 })).toBe('!')
@@ -195,7 +195,7 @@ describe('fillLastUsed', () => {
   it('reports an error on the tab without a last template', async () => {
     mockActiveTab(5)
     const { execute } = mockMessaging()
-    await fillLastUsed()
+    await fillByShortcut()
     expect(execute).not.toHaveBeenCalled()
     expect(await getLastReport(5)).toEqual({
       templateId: '', filled: 0, total: 0, fields: [], error: 'Noch keine Vorlage genutzt – zuerst im Popup füllen.',
@@ -206,7 +206,43 @@ describe('fillLastUsed', () => {
   it('does nothing without an active tab', async () => {
     mockActiveTab()
     const { execute } = mockMessaging()
-    expect(await fillLastUsed()).toBeNull()
+    expect(await fillByShortcut()).toBeNull()
     expect(execute).not.toHaveBeenCalled()
+  })
+
+  it('on a page of a known app continues with the next step of the process used last', async () => {
+    await saveApp({ id: 'app', name: 'CRM', urlPatterns: ['https://crm.example.com/*'] })
+    await saveTemplate(tpl)
+    await saveTemplate({ ...tpl, id: 't2', process: { name: 'Kundenanlage', step: 2 } })
+    await setPrefs({ lastTemplateId: 't1' })
+    mockActiveTab(5, 'https://crm.example.com/kunden/neu')
+    const { send } = mockMessaging()
+    await fillByShortcut()
+    expect(firstMessage(send)[1]).toMatchObject({ type: 'fill', template: { id: 't2' } })
+    expect((await getPrefs()).lastTemplateId).toBe('t2')
+  })
+
+  it('on a page of a known app takes its only template even when another app was used last', async () => {
+    await saveApp({ id: 'app', name: 'CRM', urlPatterns: ['https://crm.example.com/*'] })
+    await saveApp({ id: 'shop', name: 'Shop', urlPatterns: ['https://shop.example.com/*'] })
+    await saveTemplate(tpl)
+    await saveTemplate({ ...tpl, id: 'order', appId: 'shop', process: null })
+    await setPrefs({ lastTemplateId: 't1' })
+    mockActiveTab(5, 'https://shop.example.com/checkout')
+    const { send } = mockMessaging()
+    await fillByShortcut()
+    expect(firstMessage(send)[1]).toMatchObject({ type: 'fill', template: { id: 'order' } })
+  })
+
+  it('reports an error on the tab when the detected app has no template yet', async () => {
+    await saveApp({ id: 'app', name: 'CRM', urlPatterns: ['https://crm.example.com/*'] })
+    await saveTemplate({ ...tpl, id: 'order', appId: 'shop', process: null })
+    await setPrefs({ lastTemplateId: 'order' })
+    mockActiveTab(5, 'https://crm.example.com/')
+    const { execute } = mockMessaging()
+    expect(await fillByShortcut()).toBeNull()
+    expect(execute).not.toHaveBeenCalled()
+    expect((await getLastReport(5))?.error).toBe('Keine Vorlage für diese App – zuerst im Popup eine aufnehmen.')
+    expect(await fakeBrowser.action.getBadgeText({ tabId: 5 })).toBe('!')
   })
 })

@@ -18,7 +18,7 @@ export default defineConfig({
     commands: {
       'fill-last': {
         suggested_key: { default: 'Alt+Shift+F' },
-        description: 'Fill with last used template',
+        description: 'Fill the page with the matching template',
       },
     },
     ...(browser === 'firefox'
