@@ -2,6 +2,7 @@ import { slotKindFor, type SlotKind } from '../generators/catalog'
 import { createId } from '../model/id'
 import type { ControlKind, DataTypeConfig, FieldRule } from '../model/types'
 import { slotSequence } from '../recorder/useRecorder'
+import { deepClosest } from './deep'
 import { describeElement, displayLabel, isRequired, listControls, type FormControl } from './locator'
 import { suggestDataType } from './suggest'
 
@@ -13,8 +14,10 @@ function isSearch(el: FormControl): boolean {
 }
 
 function isInert(el: FormControl): boolean {
-  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return el.disabled || el.readOnly
-  if (el instanceof HTMLSelectElement) return el.disabled
+  // Tag checks instead of instanceof: elements inside a frame belong to another realm.
+  const tag = el.localName
+  if (tag === 'input' || tag === 'textarea') return (el as HTMLInputElement).disabled || (el as HTMLInputElement).readOnly
+  if (tag === 'select') return (el as HTMLSelectElement).disabled
   return false
 }
 
@@ -62,7 +65,7 @@ export function assignSlots(rules: readonly FieldRule[]): FieldRule[] {
 /** Builds the rules the recorder would suggest for every fillable form control of the page. */
 export function scanControls(root: ParentNode): FieldRule[] {
   const rules = listControls(root)
-    .filter((el) => el.closest(EXCLUDED_ANCESTORS) === null && !isSearch(el) && !isInert(el))
+    .filter((el) => deepClosest(el, EXCLUDED_ANCESTORS) === null && !isSearch(el) && !isInert(el))
     .map((el): FieldRule => {
       const locator = describeElement(el)
       return {

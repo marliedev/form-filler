@@ -10,7 +10,7 @@ Chromium-Erweiterung (Manifest V3), die Webformulare mit zusammenhängenden deut
 - **Schnellfüllen:** „Ohne Vorlage füllen“ erkennt die Felder einer Seite selbst und füllt sie sofort, ohne App und ohne Berechtigung. Die Erkennung lässt sich danach als Vorlage speichern.
 - **Realistische deutsche Testdaten:** Namen, Adressen mit passender PLZ und Ort, Telefon, E-Mail, IBAN, Datum, Firmen und mehr. Jeder Durchlauf erzeugt neue Werte.
 - **Stimmige Datensätze:** Zusammengehörige Felder passen zueinander, auch über mehrere Formularschritte hinweg.
-- **Viele Feldarten:** Textfelder, Selects, Radio-Buttons, Checkboxen, Datumsfelder sowie eigene, barrierefreie Komponenten (ARIA-Combobox, ARIA-Radiogroup).
+- **Viele Feldarten:** Textfelder, Selects, Radio-Buttons, Checkboxen, Datumsfelder sowie eigene, barrierefreie Komponenten (ARIA-Combobox, ARIA-Radiogroup), auch in Web-Components (offenes Shadow DOM) und in eingebetteten Formularen derselben Adresse.
 - **Pflegbar:** Felder ergänzen, entfernen, umsortieren und als Pflicht oder optional markieren. Export und Import als JSON.
 - **Lokal:** Keine Server, kein Tracking, keine Synchronisierung.
 

@@ -1,5 +1,5 @@
 import type { DataTypeConfig } from '../model/types'
-import { describeElement, type FormControl } from './locator'
+import { describeElement, effectiveAttr, type FormControl } from './locator'
 
 interface SuggestRule {
   /** Matched against folded label/name/autocomplete; short keywords (< 5 chars) must equal a whole word. */
@@ -88,7 +88,7 @@ export function suggestDataType(el: FormControl): DataTypeConfig {
 
   // The visible label is the strongest signal; name/autocomplete only decide when it yields nothing.
   const rule =
-    findRule([loc.label, loc.ariaLabel]) ?? findRule([loc.name, el.getAttribute('autocomplete')])
+    findRule([loc.label, loc.ariaLabel]) ?? findRule([loc.name, effectiveAttr(el, 'autocomplete')])
 
   if (loc.kind === 'date') return rule?.config.type === 'birthDate' ? clone(rule.config) : { type: 'date', range: 'past' }
   if (rule) return clone(rule.config)

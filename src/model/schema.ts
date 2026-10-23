@@ -11,6 +11,7 @@ const locator = z.object({
   ariaLabel: z.string().optional(),
   placeholder: z.string().optional(),
   inputType: z.string().optional(),
+  scope: z.array(z.string()).optional(),
 });
 
 // Tuple typed against SimpleTypeId so a drift from types.ts fails the compile.

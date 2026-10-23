@@ -92,6 +92,14 @@ describe('scanControls', () => {
     expect(scanControls(document.body).map((r) => r.label)).toEqual(['customer_no', 'Feld'])
   })
 
+  it('excludes fields of components that sit in page chrome', () => {
+    setup('<header><x-host></x-host></header><input name="y">')
+    const host = document.querySelector('x-host')
+    if (!host) throw new Error('missing host')
+    host.attachShadow({ mode: 'open' }).innerHTML = '<input name="x">'
+    expect(scanControls(document.body).map((r) => r.locator.name)).toEqual(['y'])
+  })
+
   it('ignores the recorder overlay host', () => {
     setup('<form-filler-recorder><input name="x"></form-filler-recorder><input name="y">')
     expect(scanControls(document.body).map((r) => r.locator.name)).toEqual(['y'])

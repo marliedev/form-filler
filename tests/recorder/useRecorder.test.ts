@@ -11,6 +11,7 @@ import {
   useRecorder,
 } from '../../src/recorder/useRecorder'
 import { getTemplate, saveTemplate } from '../../src/storage/repository'
+import { q as deepQ, shadow } from '../dom/deepHelpers'
 
 const base: Template = { id: 't1', appId: 'app', name: 'Kunde', process: null, fields: [], lastMissing: [] }
 
@@ -286,5 +287,27 @@ describe('helpers', () => {
 describe('parseLines', () => {
   it('keeps one trimmed value per non-empty line', () => {
     expect(parseLines(' A \n\nB\n  ')).toEqual(['A', 'B'])
+  })
+})
+
+describe('useRecorder – shadow DOM', () => {
+  it('treats equally labelled fields in different hosts as different fields', () => {
+    document.body.innerHTML = '<wc-x id="a"></wc-x><wc-x id="b"></wc-x>'
+    const inA = deepQ<HTMLInputElement>('input', shadow(deepQ('#a'), '<label for="z">PLZ</label><input id="z" name="zip">'))
+    const inB = deepQ<HTMLInputElement>('input', shadow(deepQ('#b'), '<label for="z">PLZ</label><input id="z" name="zip">'))
+    const r = useRecorder(base)
+    expect(r.capture(inA)).toBe(true)
+    expect(r.pending.value?.rule.locator.scope).toEqual(['wc-x#a'])
+    expect(r.pending.value?.unlocatable).toBe(false)
+    const first = r.pending.value?.rule
+    if (!first) throw new Error('no pending rule')
+    r.accept(first)
+    expect(r.capture(inB)).toBe(true)
+    expect(r.pending.value?.isNew).toBe(true)
+    expect(r.pending.value?.rule.locator.scope).toEqual(['wc-x#b'])
+    const second = r.pending.value?.rule
+    if (!second) throw new Error('no pending rule')
+    r.accept(second)
+    expect(r.fields.value).toHaveLength(2)
   })
 })

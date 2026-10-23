@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { fillElement, nextFrame } from '../../src/dom/fill'
 import type { FormControl } from '../../src/dom/locator'
+import { q as deepQ, shadow } from './deepHelpers'
 
 function setup(html: string): void {
   document.body.innerHTML = html
@@ -370,5 +371,49 @@ describe('fillElement – combobox', () => {
 describe('nextFrame', () => {
   it('resolves', async () => {
     await expect(nextFrame()).resolves.toBeUndefined()
+  })
+})
+
+describe('fillElement – inside a shadow root', () => {
+  it('fills a radio group whose labels live in the shadow root', async () => {
+    setup('<x-host></x-host>')
+    const root = shadow(deepQ('x-host'), `
+      <label><input type="radio" name="role" value="participant"> Teilnehmer</label>
+      <input type="radio" name="role" value="manager" id="r-m"><label for="r-m">Lernmanager</label>`)
+    const first = deepQ<HTMLInputElement>('input', root)
+    const out = await fillElement(first, { kind: 'choice', mode: 'fixed', values: ['Lernmanager'] }, 'radiogroup')
+    expect(out).toEqual({ status: 'filled', shown: 'Lernmanager' })
+    expect(deepQ<HTMLInputElement>('#r-m', root).checked).toBe(true)
+  })
+
+  it('opens the listbox of a combobox through the shadow root', async () => {
+    setup('<x-host></x-host>')
+    const root = shadow(deepQ('x-host'), `
+      <div role="combobox" aria-controls="lb" tabindex="0"></div>
+      <ul id="lb" role="listbox"><li role="option">Österreich</li><li role="option">Deutschland</li></ul>`)
+    const option = deepQ('li:nth-child(2)', root)
+    option.addEventListener('click', () => option.setAttribute('aria-selected', 'true'))
+    const out = await fillElement(deepQ('[role="combobox"]', root), { kind: 'text', value: 'Deutschland' }, 'combobox')
+    expect(out).toEqual({ status: 'filled', shown: 'Deutschland' })
+  })
+})
+
+describe('fillElement – composed events', () => {
+  it('lets listeners on the shadow host see input, change and click', async () => {
+    setup('<x-host></x-host>')
+    const host = deepQ('x-host')
+    const root = shadow(host, `
+      <input name="t">
+      <select name="s"><option value="">Bitte wählen</option><option value="a">A</option></select>
+      <input type="checkbox" name="c">
+      <label><input type="radio" name="r" value="x"> X</label>`)
+    const seen = countEvents(host, 'input', 'change', 'click')
+    await fillElement(deepQ('input[name="t"]', root), { kind: 'text', value: 'Hallo' }, 'text')
+    await fillElement(deepQ('select', root), { kind: 'choice', mode: 'fixed', values: ['A'] }, 'select')
+    await fillElement(deepQ('input[name="c"]', root), { kind: 'checkbox', checked: true }, 'checkbox')
+    await fillElement(deepQ('input[name="r"]', root), { kind: 'choice', mode: 'fixed', values: ['X'] }, 'radiogroup')
+    expect(seen.input).toBeGreaterThanOrEqual(2)
+    expect(seen.change).toBeGreaterThanOrEqual(2)
+    expect(seen.click).toBeGreaterThanOrEqual(2)
   })
 })

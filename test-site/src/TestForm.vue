@@ -23,6 +23,22 @@ const model = reactive({
   billing: { street: '', zip: '', city: '' } as Address,
   contactFirstName: '',
   contactEmail: '',
+  costCenter: '',
+  poNumber: '',
+  delivery: { street: '', zip: '', city: '' } as Address,
+})
+
+/** Value of a web component; its input event is retargeted to the host. */
+function componentValue(event: Event): string {
+  const target = event.target as HTMLElement & { value?: string }
+  return target.value ?? ''
+}
+
+// The delivery frame (same origin) reports its values with postMessage.
+window.addEventListener('message', (event: MessageEvent) => {
+  if (event.origin !== location.origin) return
+  const data = event.data as { type?: string; value?: Partial<Address> } | null
+  if (data?.type === 'delivery' && data.value) Object.assign(model.delivery, data.value)
 })
 
 const countries: ComboOption[] = [
@@ -145,6 +161,25 @@ const roles = ['Teilnehmer', 'Lernmanager', 'Admin']
         >
       </fieldset>
 
+      <wc-text-field
+        name="cost_center"
+        label="Kostenstelle"
+        required
+        @input="model.costCenter = componentValue($event)"
+      />
+      <label for="po-number">Bestellnummer</label>
+      <wc-input
+        id="po-number"
+        name="po_number"
+        @input="model.poNumber = componentValue($event)"
+      />
+      <iframe
+        src="/frame.html"
+        name="delivery"
+        title="Lieferadresse"
+        class="frame"
+      />
+
       <label>
         <input
           v-model="model.billingDiffers"
@@ -223,4 +258,5 @@ input, select, textarea, .combo { font: inherit; padding: 0.4rem; border: 1px so
 .list li.active, .list li:hover { background: #dbe7ff; }
 .list li[aria-disabled='true'] { color: #595959; cursor: not-allowed; }
 pre { background: #f3f3f3; padding: 1rem; }
+.frame { width: 100%; height: 14rem; border: 1px solid #555; border-radius: 4px; }
 </style>

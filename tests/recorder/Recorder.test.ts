@@ -1,10 +1,11 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeBrowser } from 'wxt/testing/fake-browser'
 import type { Template } from '../../src/model/types'
 import Recorder from '../../src/recorder/Recorder.vue'
 import { useRecorder } from '../../src/recorder/useRecorder'
 import { getTemplate, saveTemplate } from '../../src/storage/repository'
+import { frame, frameDoc, q as deepQ, shadow } from '../dom/deepHelpers'
 
 const template: Template = { id: 't1', appId: 'app', name: 'Kunde', process: null, fields: [], lastMissing: [] }
 
@@ -23,6 +24,20 @@ async function mountOverlay(t: Template = template) {
   wrapper = mount(Recorder, { props: { recorder, host }, attachTo: host })
   await flushPromises()
   return { w: wrapper, recorder, host }
+}
+
+function rect(left: number, top: number, width: number, height: number): DOMRect {
+  return { x: left, y: top, left, top, width, height, right: left + width, bottom: top + height, toJSON: () => ({}) } as DOMRect
+}
+
+function focusIn(target: Element): void {
+  target.dispatchEvent(new FocusEvent('focusin', { bubbles: true, composed: true }))
+}
+
+function buttonByText(text: string): HTMLButtonElement {
+  const button = Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.trim() === text)
+  if (!button) throw new Error(`missing button ${text}`)
+  return button
 }
 
 function key(target: EventTarget, k: string): void {
@@ -211,5 +226,56 @@ describe('Recorder overlay', () => {
     await w.get('#ff-list').setValue('A\nB')
     await w.get('form').trigger('submit')
     expect(recorder.fields.value[0]?.config).toEqual({ type: 'list', values: ['A', 'B'] })
+  })
+})
+
+describe('Recorder overlay – shadow DOM and frames', () => {
+  it('opens the popover for a field inside a shadow root and positions its box by viewport rect', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<x-host></x-host>')
+    const inner = deepQ<HTMLInputElement>('input', shadow(deepQ('x-host'), '<label for="i">Bestellnummer</label><input id="i" name="po_number">'))
+    vi.spyOn(inner, 'getBoundingClientRect').mockReturnValue(rect(10, 20, 30, 10))
+    const { w } = await mountOverlay()
+    focusIn(inner)
+    await flushPromises()
+    expect(w.find('[role="dialog"]').exists()).toBe(true)
+    expect(w.text()).toContain('Bestellnummer')
+    buttonByText('Übernehmen').click()
+    await flushPromises()
+    const box = page('[data-testid="captured-box"]')
+    expect([box.style.left, box.style.top]).toEqual(['7px', '17px'])
+  })
+
+  it('listens in frames that load after the recorder started and offsets their boxes', async () => {
+    const { w } = await mountOverlay()
+    const f = await frame('<label for="zip">PLZ</label><input id="zip" name="zip">', 'name="delivery"')
+    const inner = deepQ<HTMLInputElement>('input', frameDoc(f))
+    vi.spyOn(f, 'getBoundingClientRect').mockReturnValue(rect(100, 50, 300, 200))
+    vi.spyOn(inner, 'getBoundingClientRect').mockReturnValue(rect(10, 20, 30, 10))
+    window.dispatchEvent(new Event('scroll'))
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    focusIn(inner)
+    await flushPromises()
+    expect(w.find('[role="dialog"]').exists()).toBe(true)
+    buttonByText('Übernehmen').click()
+    await flushPromises()
+    const box = page('[data-testid="captured-box"]')
+    expect([box.style.left, box.style.top]).toEqual(['107px', '67px'])
+    expect(w.text()).toContain('1 Feld')
+  })
+})
+
+describe('Recorder overlay – focus after accepting', () => {
+  it('returns focus to a field inside a shadow root instead of the bar', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<x-host></x-host>')
+    const root = shadow(deepQ('x-host'), '<label for="i">Bestellnummer</label><input id="i" name="po_number">')
+    const inner = deepQ<HTMLInputElement>('input', root)
+    vi.spyOn(inner, 'getBoundingClientRect').mockReturnValue(rect(10, 20, 30, 10))
+    await mountOverlay()
+    focusIn(inner)
+    await flushPromises()
+    buttonByText('Übernehmen').click()
+    await flushPromises()
+    expect(document.activeElement).not.toBe(buttonByText('Speichern'))
+    expect(root.activeElement).toBe(inner)
   })
 })

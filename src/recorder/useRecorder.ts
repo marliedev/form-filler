@@ -38,7 +38,7 @@ export interface TypeGroup {
   types: DataTypeMeta[]
 }
 
-const LOCATOR_KEYS = ['kind', 'name', 'id', 'label', 'ariaLabel', 'placeholder', 'inputType'] as const satisfies readonly (keyof FieldLocator)[]
+const LOCATOR_KEYS = ['kind', 'name', 'id', 'label', 'ariaLabel', 'placeholder', 'inputType', 'scope'] as const satisfies readonly (keyof FieldLocator)[]
 
 /** Field rules are plain JSON; unlike structuredClone this also copes with Vue's reactive proxies. */
 export function clone<T>(value: T): T {
@@ -46,11 +46,13 @@ export function clone<T>(value: T): T {
 }
 
 function sameLocator(a: FieldLocator, b: FieldLocator): boolean {
-  return LOCATOR_KEYS.every((key) => a[key] === b[key])
+  // JSON so the `scope` array compares by content.
+  return LOCATOR_KEYS.every((key) => JSON.stringify(a[key]) === JSON.stringify(b[key]))
 }
 
 function isNativeRadio(el: Element): el is HTMLInputElement {
-  return el instanceof HTMLInputElement && el.type === 'radio'
+  // Tag check instead of instanceof: elements inside a frame belong to another realm.
+  return el.localName === 'input' && (el as HTMLInputElement).type === 'radio'
 }
 
 /** Whether `locator` finds `el` again; for native radios any radio of the same group counts. */

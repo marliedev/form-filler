@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { describeElement, displayLabel, findElement, isRequired, listControls, normalizeLabel, type FormControl } from '../../src/dom/locator'
+import { frame, frameDoc, q as deepQ, shadow } from './deepHelpers'
 
 function setup(html: string): HTMLElement {
   document.body.innerHTML = html
@@ -197,5 +198,136 @@ describe('listControls', () => {
       <input name="gone" style="display:none">
     `)
     expect(listControls(document.body).map((el) => el.getAttribute('name') ?? el.getAttribute('aria-label'))).toEqual(['a', 'r', 'G', 's', 't', 'C'])
+  })
+})
+
+describe('deep lookup', () => {
+  const zipMarkup = '<label for="zip">PLZ</label><input id="zip" name="zip">'
+
+  it('describes a field inside a shadow root with its label from the same tree and its scope', () => {
+    setup('<wc-x id="h"></wc-x>')
+    const inner = deepQ<HTMLInputElement>('input', shadow(deepQ('wc-x'), '<label for="i">PLZ</label><input id="i" name="zip">'))
+    expect(describeElement(inner)).toEqual({ kind: 'text', name: 'zip', id: 'i', label: 'plz', inputType: 'text', scope: ['wc-x#h'] })
+  })
+
+  it('an old locator without scope prefers the main-document field over an equally named one in a frame', async () => {
+    setup(zipMarkup)
+    await frame(zipMarkup, 'name="delivery"')
+    const found = findElement(document, { kind: 'text', name: 'zip', id: 'zip', label: 'plz' })
+    expect(found.status).toBe('found')
+    if (found.status === 'found') expect(found.el.ownerDocument).toBe(document)
+  })
+
+  it('a locator recorded in a frame finds the frame field, not the main-document twin', async () => {
+    setup(zipMarkup)
+    const f = await frame(zipMarkup, 'name="delivery"')
+    const found = findElement(document, { kind: 'text', name: 'zip', id: 'zip', label: 'plz', scope: ['iframe:delivery'] })
+    expect(found.status).toBe('found')
+    if (found.status === 'found') expect(found.el.ownerDocument).toBe(frameDoc(f))
+  })
+
+  it('two identical hosts without id or name stay ambiguous', () => {
+    setup('<wc-x></wc-x><wc-x></wc-x>')
+    for (const host of Array.from(document.querySelectorAll('wc-x'))) shadow(host, '<input name="zip">')
+    expect(findElement(document, { kind: 'text', name: 'zip', scope: ['wc-x'] })).toEqual({ status: 'ambiguous', count: 2 })
+  })
+
+  it('treats fields in hidden frames and hidden hosts as invisible', async () => {
+    setup('<wc-x style="display:none"></wc-x>')
+    shadow(deepQ('wc-x'), '<input name="zip">')
+    expect(findElement(document, { kind: 'text', name: 'zip', scope: ['wc-x'] }).status).toBe('missing')
+    await frame('<input name="plz">', 'name="hidden" style="display:none"')
+    expect(findElement(document, { kind: 'text', name: 'plz', scope: ['iframe:hidden'] }).status).toBe('missing')
+  })
+
+  it('listControls includes shadow and frame fields', async () => {
+    setup('<input name="a"><wc-x></wc-x>')
+    shadow(deepQ('wc-x'), '<select name="b"></select>')
+    await frame('<textarea name="c"></textarea>', 'name="delivery"')
+    expect(listControls(document).map((el) => el.getAttribute('name'))).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('web component patterns', () => {
+  it('falls back to host attributes for name, label, placeholder and required', () => {
+    setup('<wc-text-field name="cost_center" label="Kostenstelle" placeholder="z. B. 4711" required></wc-text-field>')
+    const inner = deepQ<HTMLInputElement>('input', shadow(deepQ('wc-text-field'), '<input aria-label="Eingabe">'))
+    expect(describeElement(inner)).toEqual({
+      kind: 'text', name: 'cost_center', label: 'kostenstelle', ariaLabel: 'eingabe', placeholder: 'z. b. 4711', inputType: 'text', scope: ['wc-text-field'],
+    })
+    expect(isRequired(inner)).toBe(true)
+    expect(displayLabel(inner)).toBe('Kostenstelle')
+  })
+
+  it('uses a main-document label that points at the host', () => {
+    setup('<label for="po-number">Bestellnummer</label><wc-input id="po-number"></wc-input>')
+    const inner = deepQ<HTMLInputElement>('input', shadow(deepQ('wc-input'), '<input>'))
+    expect(describeElement(inner)).toEqual({ kind: 'text', label: 'bestellnummer', inputType: 'text', scope: ['wc-input#po-number'] })
+    expect(displayLabel(inner)).toBe('Bestellnummer')
+  })
+
+  it('refinds a host-named field whose inner input has only an aria-label', () => {
+    setup('<wc-text-field name="cost_center" label="Kostenstelle"></wc-text-field>')
+    const inner = deepQ<HTMLInputElement>('input', shadow(deepQ('wc-text-field'), '<input aria-label="Eingabe">'))
+    const found = findElement(document, describeElement(inner))
+    expect(found.status).toBe('found')
+    if (found.status === 'found') expect(found.el).toBe(inner)
+  })
+
+  it('lets the inner field’s own attributes win over the host’s', () => {
+    setup('<wc-text-field name="host_name" label="Vom Wirt" placeholder="Wirt"></wc-text-field>')
+    const root = shadow(deepQ('wc-text-field'), '<label for="i">Eigenes Label</label><input id="i" name="own" placeholder="Eigen">')
+    expect(describeElement(deepQ<HTMLInputElement>('input', root))).toEqual({
+      kind: 'text', name: 'own', id: 'i', label: 'eigenes label', placeholder: 'eigen', inputType: 'text', scope: ['wc-text-field'],
+    })
+  })
+})
+
+describe('review fixes – trees, place and overlay', () => {
+  const radio = '<label><input type="radio" name="anrede" value="h"> Herr</label><label><input type="radio" name="anrede" value="f"> Frau</label>'
+
+  it('lists a radio group per tree, not once per page', async () => {
+    setup(`${radio}<wc-a></wc-a><wc-b></wc-b>`)
+    shadow(deepQ('wc-a'), radio)
+    shadow(deepQ('wc-b'), radio)
+    await frame(radio, 'name="delivery"')
+    const where = (el: Element) => (el.ownerDocument !== document ? 'frame' : (el.getRootNode() as Node & { host?: Element }).host?.localName ?? 'main')
+    expect(listControls(document).map(where)).toEqual(['main', 'wc-a', 'wc-b', 'frame'])
+  })
+
+  it('finds the radio group of the frame a locator was recorded in', async () => {
+    setup(radio)
+    const f = await frame(radio, 'name="delivery"')
+    const found = findElement(document, { kind: 'radiogroup', name: 'anrede', scope: ['iframe:delivery'] })
+    expect(found.status).toBe('found')
+    if (found.status === 'found') expect(found.el.ownerDocument).toBe(frameDoc(f))
+  })
+
+  it('prefers candidates in the locator’s place even when a twin elsewhere matches better', async () => {
+    setup('<label for="e">E-Mail-Adresse</label><input id="e" name="email">')
+    await frame('<label for="e">E-Mail</label><input id="e" name="email">', 'name="newsletter"')
+    const relabelled = findElement(document, { kind: 'text', name: 'email', id: 'e', label: 'e-mail' })
+    expect(relabelled.status).toBe('found')
+    if (relabelled.status === 'found') expect(relabelled.el.ownerDocument).toBe(document)
+
+    setup('<input name="email">')
+    await frame('<label for="e">E-Mail</label><input id="e" name="email">', 'name="newsletter"')
+    const weak = findElement(document, { kind: 'text', name: 'email', id: 'e', label: 'e-mail' })
+    expect(weak.status).toBe('found')
+    if (weak.status === 'found') expect(weak.el.ownerDocument).toBe(document)
+  })
+
+  it('falls back to the best match anywhere when nothing sits in the locator’s place', async () => {
+    setup('')
+    const f = await frame('<label for="e">E-Mail</label><input id="e" name="email">', 'name="newsletter"')
+    const found = findElement(document, { kind: 'text', name: 'email', id: 'e', label: 'e-mail', scope: ['iframe:gone'] })
+    expect(found.status).toBe('found')
+    if (found.status === 'found') expect(found.el.ownerDocument).toBe(frameDoc(f))
+  })
+
+  it('ignores the controls of the recorder overlay', () => {
+    setup('<input name="a"><form-filler-recorder></form-filler-recorder>')
+    shadow(deepQ('form-filler-recorder'), '<select name="type"><option>x</option></select><input name="label">')
+    expect(listControls(document).map((el) => el.getAttribute('name'))).toEqual(['a'])
   })
 })
