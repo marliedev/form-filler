@@ -1,14 +1,17 @@
 import { fakerDE } from '@faker-js/faker'
 import { browser } from 'wxt/browser'
 import { getOrCreateDataset } from '../storage/datasetStore'
-import { getPrefs, getTemplate, saveTemplate, setPrefs } from '../storage/repository'
+import { getPrefs, getTemplate, listApps, listTemplates, saveTemplate, setPrefs } from '../storage/repository'
+import { matchApp } from './appMatch'
 import { recordFillResult } from './lastReport'
 import type { ContentMessage, FillMode, RecordStartResponse } from './messages'
 import { isProblem } from './reportSummary'
+import { chooseShortcutTemplate } from './shortcutTemplate'
 import type { FillReport } from './runFill'
 
 const CONTENT_SCRIPT = '/content-scripts/content.js'
 export const NO_LAST_TEMPLATE = 'Noch keine Vorlage genutzt – zuerst im Popup füllen.'
+export const NO_APP_TEMPLATE = 'Keine Vorlage für diese App – zuerst im Popup eine aufnehmen.'
 
 /** The content script guards itself against double registration, so injecting on every call is safe. */
 async function injectContentScript(tabId: number): Promise<void> {
@@ -81,16 +84,21 @@ export async function startRecording(tabId: number, templateId: string): Promise
 }
 
 /**
- * Keyboard shortcut: refill the active tab with the last used template. Without one (anymore)
- * the tab gets an error report and badge instead, so the shortcut never fails silently.
+ * Keyboard shortcut. On a page of a known app it fills the template that fits (see
+ * `chooseShortcutTemplate`), elsewhere the template used last. Without a candidate the tab gets
+ * an error report and badge instead, so the shortcut never fails silently.
  */
-export async function fillLastUsed(): Promise<FillReport | null> {
+export async function fillByShortcut(): Promise<FillReport | null> {
   const { mode, lastTemplateId } = await getPrefs()
   const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true })
   if (tab?.id === undefined) return null
-  if (lastTemplateId === null || !(await getTemplate(lastTemplateId))) {
-    await remember(tab.id, { templateId: lastTemplateId ?? '', filled: 0, total: 0, fields: [], error: NO_LAST_TEMPLATE })
+  const last = lastTemplateId === null ? null : ((await getTemplate(lastTemplateId)) ?? null)
+  const app = tab.url === undefined ? null : matchApp(tab.url, await listApps())
+  const chosen = app === null ? last : chooseShortcutTemplate(await listTemplates(app.id), last)
+  if (chosen === null) {
+    const error = app === null ? NO_LAST_TEMPLATE : NO_APP_TEMPLATE
+    await remember(tab.id, { templateId: lastTemplateId ?? '', filled: 0, total: 0, fields: [], error })
     return null
   }
-  return dispatchFill(tab.id, lastTemplateId, mode)
+  return dispatchFill(tab.id, chosen.id, mode)
 }

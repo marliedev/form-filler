@@ -540,10 +540,10 @@ const textInput = `w-full rounded-sm border border-muted bg-surface px-2.5 py-1.
       <p v-if="app">
         <template v-if="shortcut">
           <kbd class="rounded-sm border border-line px-1.5 font-body text-[11px] font-medium text-text">{{ shortcut }}</kbd>
-          füllt mit der zuletzt genutzten Vorlage.
+          füllt mit der passenden Vorlage dieser App, bei Prozessen mit dem nächsten Schritt.
         </template>
         <template v-else>
-          Tastenkürzel für „zuletzt genutzte Vorlage“ {{ SHORTCUTS_PAGE_HINT }} festlegen.
+          Tastenkürzel zum Füllen {{ SHORTCUTS_PAGE_HINT }} festlegen.
         </template>
       </p>
     </footer>
