@@ -38,11 +38,17 @@ beforeEach(async () => {
   fakeBrowser.reset()
   vi.restoreAllMocks()
   document.body.innerHTML = ''
+  vi.spyOn(fakeBrowser.runtime, 'getManifest').mockReturnValue({ version: '0.1.0' } as ReturnType<typeof fakeBrowser.runtime.getManifest>)
   await saveApp({ id: 'crm', name: 'CRM', urlPatterns: ['https://crm.example.com/*'] })
   await saveTemplate({ id: 't1', appId: 'crm', name: 'Kunde', process: { name: 'Kundenanlage', step: 1 }, fields: [], lastMissing: [] })
 })
 
 describe('popup App', () => {
+  it('shows the version of the installed build', async () => {
+    await mountApp()
+    expect(document.body.textContent).toContain('Form Filler 0.1.0')
+  })
+
   it('shows the detected app, its templates and the last report in the live status line', async () => {
     await recordFillResult(7, report)
     mockActiveTab('https://crm.example.com/x')

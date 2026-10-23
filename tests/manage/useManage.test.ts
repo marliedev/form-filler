@@ -143,6 +143,32 @@ describe('useManage – templates and apps', () => {
     expect((await getTemplate('t1'))?.name).toBe('Kunde')
   })
 
+  it('duplicateTemplate copies the template with fresh ids, names the copy and selects it', async () => {
+    await saveTemplate({ ...tpl, process: { name: 'Anlage', step: 1 }, lastMissing: ['a'] })
+    const m = await loaded()
+    expect(await m.duplicateTemplate('t1')).toBe(true)
+    const copy = m.selectedTemplate.value
+    expect(copy).not.toBeNull()
+    expect(copy?.id).not.toBe('t1')
+    expect(copy?.name).toBe('Kunde (Kopie)')
+    expect(copy?.appId).toBe('crm')
+    expect(copy?.process).toEqual({ name: 'Anlage', step: 1 })
+    expect(copy?.lastMissing).toEqual([])
+    expect(copy?.fields.map((f) => f.label)).toEqual(['A', 'B', 'C'])
+    expect(copy?.fields.map((f) => f.locator)).toEqual(tpl.fields.map((f) => f.locator))
+    expect(new Set(copy?.fields.map((f) => f.id)).size).toBe(3)
+    expect(copy?.fields.map((f) => f.id)).not.toContain('a')
+    expect((await listTemplates('crm')).map((t) => t.id)).toEqual(['t1', 't2', copy?.id])
+    expect(m.notice.value).toBe('Vorlage „Kunde (Kopie)“ angelegt.')
+  })
+
+  it('duplicateTemplate of an unknown template fails without writing', async () => {
+    const m = await loaded()
+    expect(await m.duplicateTemplate('nope')).toBe(false)
+    expect(m.error.value?.message).toBe('Vorlage nicht gefunden.')
+    expect((await listTemplates()).length).toBe(3)
+  })
+
   it('removeTemplate resets prefs.lastTemplateId pointing to it', async () => {
     await setPrefs({ lastTemplateId: 't1' })
     const m = await loaded()
