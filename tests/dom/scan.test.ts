@@ -30,6 +30,11 @@ describe('assignSlots', () => {
     expect(assignSlots(rules).map((r) => r.slot)).toEqual([null, 'A', 'A', 'A', 'B', 'B', '1', '1', '1', '2'])
   })
 
+  it('keeps a directly repeated type in the same slot (confirmation fields)', () => {
+    const rules = ['firstName', 'lastName', 'email', 'email', 'phone'].map((t) => rule(t as DataTypeConfig['type']))
+    expect(assignSlots(rules).map((r) => r.slot)).toEqual(['1', '1', '1', '1', '1'])
+  })
+
   it('does not mutate its input', () => {
     const rules = [rule('zip'), rule('zip')]
     assignSlots(rules)
@@ -63,6 +68,23 @@ describe('scanControls', () => {
       { kind: 'text', id: 'pw', label: 'passwort', inputType: 'password' },
     ])
     expect(new Set(rules.map((r) => r.id)).size).toBe(3)
+  })
+
+  it('falls back to a random option for choice controls whose suggestion yields free text, and to text for empty lists', () => {
+    setup(`
+      <label for="b">Branche</label><select id="b" name="industry"><option value="it">IT</option></select>
+      <label for="a">Anrede</label><select id="a" name="salutation"><option>Herr</option></select>
+      <fieldset><legend>Position</legend><label><input type="radio" name="role" value="x"> X</label></fieldset>
+      <label for="k">Kostenstelle</label><input id="k" name="cost_center">
+      <label for="l">Land</label><div id="l" role="combobox" aria-controls="list"></div>
+    `)
+    expect(scanControls(document.body).map((r) => r.config)).toEqual([
+      { type: 'choice', mode: 'random', values: [] },
+      { type: 'salutation' },
+      { type: 'choice', mode: 'random', values: [] },
+      { type: 'text' },
+      { type: 'country' },
+    ])
   })
 
   it('names unlabeled fields by their name attribute, else "Feld"', () => {

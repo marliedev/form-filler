@@ -24,11 +24,9 @@ test.describe('Schnellfüllen', () => {
     const report = await extension.quickFill(tabId)
 
     expect(report.error).toBeUndefined()
-    // Twelve fields are visible before the billing checkbox is ticked; the "Branche" select gets the
-    // industry suggestion, whose text never matches the page's own options.
-    expect(report.total).toBe(12)
-    expect(report.filled).toBe(11)
-    expect(report.fields.filter((f) => f.status !== 'filled').map((f) => [f.label, f.status])).toEqual([['Branche', 'failed']])
+    // Twelve fields are visible before the billing checkbox is ticked.
+    expect(report.fields.filter((f) => f.status !== 'filled')).toEqual([])
+    expect(report.filled).toBe(12)
     const m = await model(page)
     expect(m.company).not.toBe('')
     expect(m.customerNo).toMatch(/^TEST-\d{6}$/)
@@ -37,11 +35,11 @@ test.describe('Schnellfüllen', () => {
     expect(m.country).toBe('de')
     expect(m.address.zip).toMatch(/^\d{5}$/)
     expect(m.billingDiffers).toBe(true)
-    expect(m.industry).toBe('')
-    expect(await extension.badge(tabId)).toBe('1')
+    expect(['it', 'handel', 'bau']).toContain(m.industry)
+    expect(await extension.badge(tabId)).toBe('✓')
     const run = (await extension.session())[`quick:${tabId}`] as { fields: unknown[]; problems: string[]; url: string; title: string }
     expect(run.fields).toHaveLength(12)
-    expect(run.problems).toHaveLength(1)
+    expect(run.problems).toEqual([])
     expect(run.title).toBe('Musterformular')
   })
 })
