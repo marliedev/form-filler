@@ -80,7 +80,7 @@ export function resolveControl(target: Element): FormControl | null {
   return isSupported(target) ? target : null
 }
 
-function slotSequence(kind: SlotKind, index: number): string {
+export function slotSequence(kind: SlotKind, index: number): string {
   return kind === 'person' ? String(index + 1) : String.fromCharCode(65 + index)
 }
 

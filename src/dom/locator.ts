@@ -172,12 +172,13 @@ function score(el: Element, loc: FieldLocator): number {
   return total
 }
 
-export function findElement(root: ParentNode, loc: FieldLocator): FindResult {
+/** Visible supported controls in document order; a native radio group is represented by its first radio. */
+export function listControls(root: ParentNode): FormControl[] {
   // Radio names are only unique per form, so groups are tracked per form owner.
   const seenRadioGroups = new Map<HTMLFormElement | null, Set<string>>()
-  const candidates: FormControl[] = []
+  const controls: FormControl[] = []
   for (const el of Array.from(root.querySelectorAll<HTMLElement>(CANDIDATE_SELECTOR))) {
-    if (kindOf(el) !== loc.kind || !isVisible(el)) continue
+    if (kindOf(el) === null || !isVisible(el)) continue
     if (isNativeRadio(el)) {
       // An ARIA radiogroup wrapper is the group; its inner radios are not candidates.
       if (el.closest('[role="radiogroup"]')) continue
@@ -189,8 +190,13 @@ export function findElement(root: ParentNode, loc: FieldLocator): FindResult {
         names.add(el.name)
       }
     }
-    candidates.push(el)
+    controls.push(el)
   }
+  return controls
+}
+
+export function findElement(root: ParentNode, loc: FieldLocator): FindResult {
+  const candidates = listControls(root).filter((el) => kindOf(el) === loc.kind)
 
   let best = 0
   let top: FormControl[] = []

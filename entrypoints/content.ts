@@ -1,7 +1,9 @@
 import { fakerDE } from '@faker-js/faker'
 import { browser } from 'wxt/browser'
 import { defineContentScript } from 'wxt/utils/define-content-script'
+import { scanControls } from '../src/dom/scan'
 import { handleFillMessage } from '../src/fill/handleFillMessage'
+import type { ScanResponse } from '../src/fill/messages'
 import { startRecorder } from '../src/recorder/mountRecorder'
 
 declare global {
@@ -26,6 +28,15 @@ export default defineContentScript({
         void handleFillMessage(message, document, fakerDE).then(sendResponse)
       } else if (type === 'record:start' && typeof templateId === 'string') {
         void startRecorder(templateId).then(sendResponse)
+      } else if (type === 'scan') {
+        let response: ScanResponse
+        try {
+          response = { ok: true, fields: scanControls(document) }
+        } catch (e) {
+          response = { ok: false, error: e instanceof Error ? e.message : String(e) }
+        }
+        sendResponse(response)
+        return
       } else {
         return
       }

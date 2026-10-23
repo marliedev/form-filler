@@ -1,10 +1,12 @@
 import { fakerDE } from '@faker-js/faker'
 import { browser } from 'wxt/browser'
+import type { FieldRule, Template } from '../model/types'
 import { getOrCreateDataset } from '../storage/datasetStore'
+import { saveQuickRun } from '../storage/quickRunStore'
 import { getPrefs, getTemplate, listApps, listTemplates, saveTemplate, setPrefs } from '../storage/repository'
 import { matchApp } from './appMatch'
 import { recordFillResult } from './lastReport'
-import type { ContentMessage, FillMode, RecordStartResponse } from './messages'
+import type { ContentMessage, FillMode, RecordStartResponse, ScanResponse } from './messages'
 import { isProblem } from './reportSummary'
 import { chooseShortcutTemplate } from './shortcutTemplate'
 import type { FillReport } from './runFill'
@@ -12,6 +14,9 @@ import type { FillReport } from './runFill'
 const CONTENT_SCRIPT = '/content-scripts/content.js'
 export const NO_LAST_TEMPLATE = 'Noch keine Vorlage genutzt – zuerst im Popup füllen.'
 export const NO_APP_TEMPLATE = 'Keine Vorlage für diese App – zuerst im Popup eine aufnehmen.'
+export const NO_FIELDS_FOUND = 'Keine Formularfelder auf dieser Seite erkannt.'
+/** Id of the ad-hoc template a quick fill runs with; it is never stored. */
+export const QUICK_TEMPLATE_ID = 'quick'
 
 /** The content script guards itself against double registration, so injecting on every call is safe. */
 async function injectContentScript(tabId: number): Promise<void> {
@@ -47,16 +52,21 @@ async function remember(tabId: number, report: FillReport): Promise<void> {
   await recordFillResult(tabId, report).catch((e: unknown) => console.warn('Form Filler: Ergebnis nicht gespeichert', e))
 }
 
-async function runDispatch(tabId: number, templateId: string, mode: FillMode): Promise<FillReport> {
-  const template = await getTemplate(templateId)
-  if (!template) throw new Error('Vorlage nicht gefunden')
-
+/** Shared fill path of stored templates and quick fills: dataset, injection, fill message, answer check. */
+async function fillWithTemplate(tabId: number, template: Template, mode: FillMode): Promise<FillReport> {
   const dataset = await getOrCreateDataset(tabId, template, fakerDE)
   await injectContentScript(tabId)
   const message: ContentMessage = { type: 'fill', template, dataset, mode }
   const report: unknown = await browser.tabs.sendMessage(tabId, message)
   if (!isFillReport(report)) throw new Error('Die Seite hat nicht geantwortet')
+  return report
+}
 
+async function runDispatch(tabId: number, templateId: string, mode: FillMode): Promise<FillReport> {
+  const template = await getTemplate(templateId)
+  if (!template) throw new Error('Vorlage nicht gefunden')
+
+  const report = await fillWithTemplate(tabId, template, mode)
   await setPrefs({ lastTemplateId: template.id })
   if (report.error === undefined) await updateLastMissing(templateId, report, mode)
   return report
@@ -73,6 +83,50 @@ async function updateLastMissing(templateId: string, report: FillReport, mode: F
   const untried = new Set(mode === 'required' ? latest.fields.filter((f) => !f.required).map((f) => f.id) : [])
   const kept = latest.lastMissing.filter((id) => untried.has(id) && !problems.includes(id))
   await saveTemplate({ ...latest, lastMissing: [...kept, ...problems] })
+}
+
+function isScanResponse(value: unknown): value is ScanResponse {
+  if (typeof value !== 'object' || value === null) return false
+  const { ok, fields, error } = value as { ok?: unknown; fields?: unknown; error?: unknown }
+  return (ok === true && Array.isArray(fields)) || (ok === false && typeof error === 'string')
+}
+
+/** Asks the page for the rules the recorder would suggest for all of its form fields. */
+export async function scanPage(tabId: number): Promise<FieldRule[]> {
+  await injectContentScript(tabId)
+  const message: ContentMessage = { type: 'scan' }
+  const response: unknown = await browser.tabs.sendMessage(tabId, message)
+  if (!isScanResponse(response)) throw new Error('Die Seite hat nicht geantwortet')
+  if (!response.ok) throw new Error(response.error)
+  return response.fields
+}
+
+/**
+ * Fills the page without a stored template: scans it, fills with an ad-hoc template and keeps the
+ * run per tab so the popup can offer to save it. Touches neither templates nor lastTemplateId;
+ * failures land in the tab's report and badge like any other run.
+ */
+export async function quickFill(tabId: number, mode: FillMode, page: { url: string; title: string }): Promise<FillReport> {
+  let report: FillReport
+  try {
+    report = await runQuickFill(tabId, mode, page)
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e)
+    await remember(tabId, { templateId: QUICK_TEMPLATE_ID, filled: 0, total: 0, fields: [], error })
+    throw e
+  }
+  await remember(tabId, report)
+  return report
+}
+
+async function runQuickFill(tabId: number, mode: FillMode, page: { url: string; title: string }): Promise<FillReport> {
+  const fields = await scanPage(tabId)
+  if (fields.length === 0) throw new Error(NO_FIELDS_FOUND)
+  const template: Template = { id: QUICK_TEMPLATE_ID, appId: '', name: 'Schnellfüllen', process: null, fields, lastMissing: [] }
+  const report = await fillWithTemplate(tabId, template, mode)
+  const problems = report.fields.filter((f) => isProblem(f.status)).map((f) => f.fieldId)
+  await saveQuickRun(tabId, { fields, problems, url: page.url, title: page.title })
+  return report
 }
 
 export async function startRecording(tabId: number, templateId: string): Promise<void> {
