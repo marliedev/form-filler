@@ -1,6 +1,7 @@
 import { fakerDE } from '@faker-js/faker'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createDataset, ensureSlots, type Dataset } from '../../src/generators/dataset'
+import { createOwnership } from '../../src/fill/ownership'
 import { runFill } from '../../src/fill/runFill'
 import type { DataTypeConfig, FieldRule, Template } from '../../src/model/types'
 
@@ -142,5 +143,57 @@ describe('runFill', () => {
     expect(report.filled).toBe(2)
     expect(input('n').value).toBe(`Must · ${ds.runId}`)
     expect(input('free').value).toBe(`Mustermann GmbH · ${ds.runId}`)
+  })
+})
+
+describe('runFill – own values', () => {
+  it('keeps a field with a foreign value and reports it as kept', async () => {
+    document.body.innerHTML = '<input name="company"><input name="first">'
+    input('company').value = 'Kunde 4711'
+    const t = template([rule('company', { type: 'companyName' }), rule('first', { type: 'firstName' })])
+    const report = await runFill(document.body, t, ensureSlots(ds, t, fakerDE), 'all', fakerDE, createOwnership())
+    expect(input('company').value).toBe('Kunde 4711')
+    expect(report.fields[0]).toMatchObject({ status: 'kept', detail: 'Bereits ausgefüllt' })
+    expect(report.filled).toBe(1)
+    expect(report.total).toBe(2)
+  })
+
+  it('fills empty fields, HTML defaults and its own values', async () => {
+    document.body.innerHTML = '<input name="company" value="Vorbelegt"><input name="first">'
+    const t = template([rule('company', { type: 'companyName' }), rule('first', { type: 'firstName' })])
+    const own = createOwnership()
+    const first = await runFill(document.body, t, ensureSlots(ds, t, fakerDE), 'all', fakerDE, own)
+    expect(first.filled).toBe(2)
+    expect(input('company').value).toBe(ds.company.name)
+    fakerDE.seed(7)
+    const other = createDataset(fakerDE)
+    const second = await runFill(document.body, t, ensureSlots(other, t, fakerDE), 'all', fakerDE, own)
+    expect(second.filled).toBe(2)
+    expect(input('company').value).toBe(other.company.name)
+  })
+
+  it('fills a select without placeholder and a checkbox checked by the page, keeps a checkbox ticked by hand', async () => {
+    document.body.innerHTML = `
+      <select name="industry"><option value="it">IT</option><option value="bau">Bau</option></select>
+      <input type="checkbox" name="agb" checked><input type="checkbox" name="news">`
+    input('news').checked = true
+    const t = template([
+      rule('industry', { type: 'choice', mode: 'fixed', values: ['Bau'] }, { locator: { kind: 'select', name: 'industry' } }),
+      rule('agb', { type: 'checkbox', checked: false }, { locator: { kind: 'checkbox', name: 'agb' } }),
+      rule('news', { type: 'checkbox', checked: false }, { locator: { kind: 'checkbox', name: 'news' } }),
+    ])
+    const report = await runFill(document.body, t, ds, 'all', fakerDE, createOwnership())
+    expect(report.fields.map((f) => f.status)).toEqual(['filled', 'filled', 'kept'])
+    expect(document.querySelector<HTMLSelectElement>('select')?.value).toBe('bau')
+    expect(input('agb').checked).toBe(false)
+    expect(input('news').checked).toBe(true)
+  })
+
+  it('records before and written state for undo', async () => {
+    document.body.innerHTML = '<input name="company" value="alt">'
+    const t = template([rule('company', { type: 'companyName' })])
+    const own = createOwnership()
+    await runFill(document.body, t, ds, 'all', fakerDE, own)
+    expect(own.lastRun()).toMatchObject([{ fieldId: 'company', label: 'Feld company', kind: 'text', before: 'alt', written: ds.company.name }])
   })
 })

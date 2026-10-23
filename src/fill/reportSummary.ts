@@ -8,6 +8,7 @@ export const STATUS_TEXT: Record<FieldReport['status'], string> = {
   missing: 'nicht gefunden',
   ambiguous: 'mehrdeutig',
   failed: 'nicht befüllbar',
+  kept: 'bereits ausgefüllt',
 }
 
 const PROBLEMS: ProblemStatus[] = ['missing', 'ambiguous', 'failed']
@@ -29,5 +30,7 @@ export function summarizeReport(report: FillReport): string {
     const count = report.fields.filter((f) => f.status === status).length
     if (count > 0) parts.push(`${count} ${STATUS_TEXT[status]}`)
   }
+  const kept = report.fields.filter((f) => f.status === 'kept').length
+  if (kept > 0) parts.push(`${kept} ${STATUS_TEXT.kept}`)
   return parts.join(' · ')
 }

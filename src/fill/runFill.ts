@@ -1,6 +1,7 @@
 import type { Faker } from '@faker-js/faker'
-import { fillElement, nextFrame } from '../dom/fill'
+import { currentState, defaultState, fillElement, nextFrame } from '../dom/fill'
 import { findElement, type FormControl } from '../dom/locator'
+import { locatorKey, pageOwnership, type Ownership } from './ownership'
 import type { Dataset } from '../generators/dataset'
 import { applyRunId, resolveValue, type FieldValue } from '../generators/resolve'
 import type { FieldRule, Template } from '../model/types'
@@ -12,7 +13,7 @@ export type { ContentMessage, FillMode } from './messages'
 export interface FieldReport {
   fieldId: string
   label: string
-  status: 'filled' | 'skipped' | 'missing' | 'ambiguous' | 'failed'
+  status: 'filled' | 'skipped' | 'missing' | 'ambiguous' | 'failed' | 'kept'
   detail?: string
 }
 
@@ -39,7 +40,16 @@ function maxLengthOf(el: FormControl): number | null {
   return null
 }
 
-async function fillField(root: ParentNode, rule: FieldRule, ds: Dataset, f: Faker): Promise<FieldReport> {
+/** Fillable: empty, still the page's own default, or what Form Filler wrote last. Anything else is someone's input. */
+function isFillable(el: FormControl, rule: FieldRule, ownership: Ownership): boolean {
+  const kind = rule.locator.kind
+  const state = currentState(el, kind)
+  if (state === '') return true
+  const placeholder = kind === 'combobox' ? ownership.placeholderOf(el, state) : ''
+  return state === defaultState(el, kind, placeholder) || ownership.isOwn(el, locatorKey(rule.locator), state)
+}
+
+async function fillField(root: ParentNode, rule: FieldRule, ds: Dataset, f: Faker, ownership: Ownership): Promise<FieldReport> {
   const base = { fieldId: rule.id, label: rule.label }
   // Incomplete options (e.g. an empty list or fixed value) must surface as a problem, not as filled/skipped.
   const invalid = validateConfig(rule.config)
@@ -55,13 +65,19 @@ async function fillField(root: ParentNode, rule: FieldRule, ds: Dataset, f: Fake
       return { ...base, status: 'ambiguous', detail: `${found.count} passende Felder gefunden` }
     }
 
+    if (!isFillable(found.el, rule, ownership)) return { ...base, status: 'kept', detail: 'Bereits ausgefüllt' }
+
     if (rule.appendRunId && value.kind === 'text') {
       value = { kind: 'text', value: applyRunId(value.value, ds.runId, maxLengthOf(found.el)) }
     }
+    const before = currentState(found.el, rule.locator.kind)
     const outcome = await fillElement(found.el, value, rule.locator.kind, () => f.number.float({ min: 0, max: 0.999999 }))
-    return outcome.status === 'filled'
-      ? { ...base, status: 'filled' }
-      : { ...base, status: 'failed', detail: outcome.reason }
+    if (outcome.status !== 'filled') return { ...base, status: 'failed', detail: outcome.reason }
+    ownership.record(
+      { el: found.el, fieldId: rule.id, label: rule.label, kind: rule.locator.kind, before, written: currentState(found.el, rule.locator.kind) },
+      locatorKey(rule.locator),
+    )
+    return { ...base, status: 'filled' }
   } catch (e) {
     return { ...base, status: 'failed', detail: errorMessage(e) }
   }
@@ -72,9 +88,17 @@ async function fillField(root: ParentNode, rule: FieldRule, ds: Dataset, f: Fake
  * conditionally rendered fields (e.g. `v-if`) exist before they are looked up.
  * Every field ends up in the report; skipped fields do not count towards `total`.
  */
-export async function runFill(root: ParentNode, t: Template, ds: Dataset, mode: FillMode, f: Faker): Promise<FillReport> {
+export async function runFill(
+  root: ParentNode,
+  t: Template,
+  ds: Dataset,
+  mode: FillMode,
+  f: Faker,
+  ownership: Ownership = pageOwnership(),
+): Promise<FillReport> {
   const fields: FieldReport[] = []
   let processed = 0
+  ownership.beginRun()
   for (const rule of t.fields) {
     if (mode === 'required' && !rule.required) {
       fields.push({ fieldId: rule.id, label: rule.label, status: 'skipped', detail: 'Optional' })
@@ -82,7 +106,7 @@ export async function runFill(root: ParentNode, t: Template, ds: Dataset, mode: 
     }
     if (processed > 0) await nextFrame()
     processed++
-    fields.push(await fillField(root, rule, ds, f))
+    fields.push(await fillField(root, rule, ds, f, ownership))
   }
   return {
     templateId: t.id,
