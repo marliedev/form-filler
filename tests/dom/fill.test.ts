@@ -417,3 +417,58 @@ describe('fillElement – composed events', () => {
     expect(seen.click).toBeGreaterThanOrEqual(2)
   })
 })
+
+describe('fillElement – listbox button', () => {
+  /** A button that renders its options on click, like Headless UI or Nuxt UI selects; `where` receives the list. */
+  function listboxButton(where: () => Element): void {
+    setup(`
+      <div class="wrap">
+        <button id="topic" type="button" aria-haspopup="listbox" aria-expanded="false"><span id="topic-text">Anliegen auswählen</span></button>
+      </div>`)
+    const button = q('#topic')
+    button.addEventListener('click', () => {
+      if (button.getAttribute('aria-expanded') === 'true') return
+      button.setAttribute('aria-expanded', 'true')
+      const list = document.createElement('div')
+      for (const text of ['Allgemeine Anfrage', 'Presse', 'Sonstiges']) {
+        const option = document.createElement('label')
+        option.setAttribute('role', 'option')
+        option.setAttribute('aria-selected', 'false')
+        option.textContent = text
+        option.addEventListener('click', () => {
+          q('#topic-text').textContent = text
+          button.setAttribute('aria-expanded', 'false')
+          list.remove()
+        })
+        list.append(option)
+      }
+      where().append(list)
+    })
+  }
+
+  it('opens the options by click, picks one by text and reads the button back', async () => {
+    listboxButton(() => q('.wrap'))
+    const out = await fillElement(q('#topic'), { kind: 'choice', mode: 'fixed', values: ['Presse'] }, 'combobox')
+    expect(out).toEqual({ status: 'filled', shown: 'Presse' })
+    expect(q('#topic-text').textContent).toBe('Presse')
+    expect(q('#topic').getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('picks a random option when no value is fixed', async () => {
+    listboxButton(() => q('.wrap'))
+    const out = await fillElement(q('#topic'), { kind: 'choice', mode: 'random', values: [] }, 'combobox', seq(0.5))
+    expect(out).toEqual({ status: 'filled', shown: 'Presse' })
+  })
+
+  it('finds options rendered elsewhere on the page when the button has no aria-controls', async () => {
+    listboxButton(() => document.body)
+    const out = await fillElement(q('#topic'), { kind: 'text', value: 'Sonstiges' }, 'combobox')
+    expect(out).toEqual({ status: 'filled', shown: 'Sonstiges' })
+  })
+
+  it('reports a value that is not among the options', async () => {
+    listboxButton(() => q('.wrap'))
+    const out = await fillElement(q('#topic'), { kind: 'choice', mode: 'fixed', values: ['Beschwerde'] }, 'combobox')
+    expect(out).toEqual({ status: 'failed', reason: 'Wert „Beschwerde“ ist nicht in der Auswahl vorhanden' })
+  })
+})

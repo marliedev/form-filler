@@ -17,7 +17,7 @@ function isInert(el: FormControl): boolean {
   // Tag checks instead of instanceof: elements inside a frame belong to another realm.
   const tag = el.localName
   if (tag === 'input' || tag === 'textarea') return (el as HTMLInputElement).disabled || (el as HTMLInputElement).readOnly
-  if (tag === 'select') return (el as HTMLSelectElement).disabled
+  if (tag === 'select' || tag === 'button') return (el as HTMLSelectElement).disabled
   return false
 }
 

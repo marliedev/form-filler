@@ -1,5 +1,5 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import { describeElement, displayLabel, findElement, isRequired, type FormControl } from '../dom/locator'
+import { describeElement, displayLabel, findElement, isRequired, LISTBOX_BUTTON_SELECTOR, type FormControl } from '../dom/locator'
 import { suggestDataType } from '../dom/suggest'
 import { DATA_TYPES, slotKindFor, type DataTypeGroup, type DataTypeMeta, type SlotKind } from '../generators/catalog'
 import type { ControlKind, DataTypeConfig, FieldLocator, FieldRule, Template } from '../model/types'
@@ -77,7 +77,7 @@ function isSupported(el: Element): el is FormControl {
  * radios of an ARIA group resolve to the group, parts of an ARIA combobox to the combobox.
  */
 export function resolveControl(target: Element): FormControl | null {
-  const host = target.closest('[role="radiogroup"], [role="combobox"]')
+  const host = target.closest(`[role="radiogroup"], [role="combobox"], ${LISTBOX_BUTTON_SELECTOR}`)
   if (host && host !== target && isSupported(host)) return host
   return isSupported(target) ? target : null
 }

@@ -15,6 +15,7 @@ interface Model {
   industry: string
   role: string
   country: string
+  topic: string
   billingDiffers: boolean
   address: Address
   billing: Address
@@ -45,6 +46,7 @@ test.describe('Füllen', () => {
     expect(['it', 'handel', 'bau']).toContain(m.industry)
     expect(m.role).toBe('Lernmanager')
     expect(m.country).toBe('de')
+    expect(m.topic).toBe('Presse')
     expect(m.address.zip).toMatch(/^\d{5}$/)
     expect(m.address.city).not.toBe('')
     expect(m.billingDiffers).toBe(true)

@@ -9,7 +9,9 @@ export type FindResult =
   | { status: 'missing' }
   | { status: 'ambiguous'; count: number }
 
-const CANDIDATE_SELECTOR = 'input, select, textarea, [role="combobox"], [role="radiogroup"]'
+/** Buttons that open a list of options (Headless UI, Nuxt UI, Radix selects); handled like an ARIA combobox. */
+export const LISTBOX_BUTTON_SELECTOR = 'button[aria-haspopup="listbox"], [role="button"][aria-haspopup="listbox"]'
+const CANDIDATE_SELECTOR = `input, select, textarea, [role="combobox"], [role="radiogroup"], ${LISTBOX_BUTTON_SELECTOR}`
 const IGNORED_INPUT_TYPES = new Set(['button', 'submit', 'reset', 'hidden', 'file', 'image'])
 const MIN_SCORE = 3
 
@@ -25,6 +27,7 @@ function kindOf(el: Element): ControlKind | null {
   const role = el.getAttribute('role')
   if (role === 'combobox') return 'combobox'
   if (role === 'radiogroup') return 'radiogroup'
+  if (el.matches(LISTBOX_BUTTON_SELECTOR)) return 'combobox'
   const tag = el.tagName.toLowerCase()
   if (tag === 'select') return 'select'
   if (tag === 'textarea') return 'textarea'
@@ -262,7 +265,8 @@ export function findElement(root: ParentNode, loc: FieldLocator): FindResult {
 
 export function isRequired(el: FormControl): boolean {
   if ('required' in el && (el as HTMLInputElement).required === true) return true
-  if (el.getAttribute('aria-required') === 'true') return true
+  // Listbox buttons carry `required` as a plain attribute; buttons have no such property.
+  if (el.hasAttribute('required') || el.getAttribute('aria-required') === 'true') return true
   const host = hostOf(el)
   if (host && (host.hasAttribute('required') || host.getAttribute('aria-required') === 'true')) return true
   return rawLabel(el).trim().endsWith('*')
