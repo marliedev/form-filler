@@ -169,6 +169,14 @@ describe('useManage – templates and apps', () => {
     expect((await listTemplates()).length).toBe(3)
   })
 
+  it('duplicateTemplate drops the source marker so the copy is a local template', async () => {
+    await saveTemplate({ ...tpl, source: { templateId: 'src-1', fingerprint: 'fp' } })
+    const m = await loaded()
+    expect(await m.duplicateTemplate('t1')).toBe(true)
+    expect(m.selectedTemplate.value).not.toHaveProperty('source')
+    expect((await getTemplate('t1'))?.source).toEqual({ templateId: 'src-1', fingerprint: 'fp' })
+  })
+
   it('removeTemplate resets prefs.lastTemplateId pointing to it', async () => {
     await setPrefs({ lastTemplateId: 't1' })
     const m = await loaded()

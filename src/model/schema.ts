@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { stripAppSource, stripTemplateSource } from './source';
 import type { ExportFile, SimpleTypeId } from './types';
 
 const controlKind = z.enum(['text', 'textarea', 'select', 'radiogroup', 'checkbox', 'date', 'combobox']);
@@ -65,12 +66,14 @@ export const templateSchema = z.object({
   process: z.object({ name: z.string(), step: z.number() }).nullable(),
   fields: z.array(fieldRule),
   lastMissing: z.array(z.string()),
+  source: z.object({ templateId: z.string(), fingerprint: z.string() }).optional(),
 });
 
 const appDef = z.object({
   id: z.string(),
   name: z.string(),
   urlPatterns: z.array(z.string()),
+  source: z.object({ url: z.string(), appId: z.string().nullable() }).optional(),
 });
 
 const exportFile = z.object({
@@ -103,7 +106,8 @@ export function parseExport(json: string): ParseExportResult {
   return { ok: false, error: `Ungültige Export-Datei (${details}).` };
 }
 
+/** Sync markers stay local: an exported file must work as a source for others. */
 export function buildExport(apps: ExportFile['apps'], templates: ExportFile['templates']): string {
-  const file: ExportFile = { format: 'form-filler', version: 1, apps, templates };
+  const file: ExportFile = { format: 'form-filler', version: 1, apps: apps.map(stripAppSource), templates: templates.map(stripTemplateSource) };
   return JSON.stringify(file, null, 2);
 }

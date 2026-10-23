@@ -4,6 +4,7 @@ import { matchApp } from '../fill/appMatch'
 import { createId } from '../model/id'
 import { startRecording } from '../fill/dispatch'
 import { buildExport, parseExport } from '../model/schema'
+import { stripTemplateSource } from '../model/source'
 import type { AppDef, ExportFile, FieldRule, Template } from '../model/types'
 import { toUserError, type UserError } from '../popup/userError'
 import { slotFor } from '../recorder/useRecorder'
@@ -253,7 +254,7 @@ export function useManage(): ManageState {
         const source = await getTemplate(id)
         if (!source) return null
         const created: Template = {
-          ...source,
+          ...stripTemplateSource(source),
           id: createId(),
           name: `${source.name} (Kopie)`,
           fields: source.fields.map((field) => ({ ...structuredClone(field), id: createId() })),

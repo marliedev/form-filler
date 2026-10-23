@@ -52,6 +52,8 @@ export interface Template {
   fields: FieldRule[];
   /** FieldRule ids not found/filled on the last run. */
   lastMissing: string[];
+  /** Set on templates synced from the app's source: the template's id in the file and the fingerprint of that version. */
+  source?: { templateId: string; fingerprint: string };
 }
 
 /** `urlPatterns` use '*' as wildcard. */
@@ -59,6 +61,8 @@ export interface AppDef {
   id: string;
   name: string;
   urlPatterns: string[];
+  /** Address of the team's export file; `appId` is the matching app in that file, null until the first sync mapped it. */
+  source?: { url: string; appId: string | null };
 }
 
 export interface ExportFile {
