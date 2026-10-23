@@ -16,7 +16,7 @@ const props = defineProps<{
   app: AppDef
   template: Template
   busy: boolean
-  actions: Pick<ManageState, 'updateField' | 'removeField' | 'moveField' | 'saveTemplateMeta' | 'removeTemplate' | 'recordFields'>
+  actions: Pick<ManageState, 'updateField' | 'removeField' | 'moveField' | 'saveTemplateMeta' | 'removeTemplate' | 'duplicateTemplate' | 'recordFields'>
 }>()
 
 const uid = useId()
@@ -328,6 +328,13 @@ const labelClass = 'block text-xs font-medium text-muted'
           :disabled="!metaDirty"
         >
           Speichern
+        </button>
+        <button
+          type="button"
+          :class="secondaryButton"
+          @click="actions.duplicateTemplate(template.id)"
+        >
+          Duplizieren
         </button>
         <button
           type="button"

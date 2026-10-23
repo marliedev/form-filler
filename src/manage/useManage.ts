@@ -1,6 +1,7 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { browser } from 'wxt/browser'
 import { matchApp } from '../fill/appMatch'
+import { createId } from '../model/id'
 import { startRecording } from '../fill/dispatch'
 import { buildExport, parseExport } from '../model/schema'
 import type { AppDef, ExportFile, FieldRule, Template } from '../model/types'
@@ -49,6 +50,8 @@ export interface ManageState {
   removeApp(id: string): Promise<boolean>
   saveTemplateMeta(patch: Pick<Template, 'name' | 'process'>): Promise<boolean>
   removeTemplate(id: string): Promise<boolean>
+  /** Copies a template into the same app (fields with fresh ids, no missing markers) and selects the copy. */
+  duplicateTemplate(id: string): Promise<boolean>
   exportAll(): Promise<ExportDownload>
   exportApp(id: string): Promise<ExportDownload>
   /** `onConflict` is only asked when ids collide; null cancels. Resolves to the message shown to the user. */
@@ -243,6 +246,33 @@ export function useManage(): ManageState {
     }
   }
 
+  async function duplicateTemplate(id: string): Promise<boolean> {
+    resetStatus()
+    try {
+      const copy = await serialized(async () => {
+        const source = await getTemplate(id)
+        if (!source) return null
+        const created: Template = {
+          ...source,
+          id: createId(),
+          name: `${source.name} (Kopie)`,
+          fields: source.fields.map((field) => ({ ...structuredClone(field), id: createId() })),
+          lastMissing: [],
+        }
+        await saveTemplate(created)
+        await refresh()
+        return created
+      })
+      if (copy === null) return fail('Vorlage nicht gefunden.')
+      selectedTemplateId.value = copy.id
+      notice.value = `Vorlage „${copy.name}“ angelegt.`
+      return true
+    } catch (e) {
+      error.value = toUserError(e, 'Vorlage konnte nicht dupliziert werden.')
+      return false
+    }
+  }
+
   async function removeApp(id: string): Promise<boolean> {
     resetStatus()
     const name = apps.value.find((a) => a.id === id)?.name ?? ''
@@ -385,6 +415,6 @@ export function useManage(): ManageState {
   return {
     apps, selectedApp, templates, selectedTemplate, busy, error, notice,
     load, refresh, selectApp, selectTemplate, updateField, removeField, moveField,
-    saveApp, removeApp, saveTemplateMeta, removeTemplate, exportAll, exportApp, importFile, recordFields,
+    saveApp, removeApp, saveTemplateMeta, removeTemplate, duplicateTemplate, exportAll, exportApp, importFile, recordFields,
   }
 }
