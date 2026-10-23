@@ -1,8 +1,10 @@
 import type { Faker } from '@faker-js/faker'
 import plz from '../data/plz-de.json'
 import type { Template } from '../model/types'
+import { pickBank } from './banks'
 import { slotKindFor } from './catalog'
 import { createLeitwegId, createVatId } from './checksums'
+import { createLandline, createMobile } from './phone'
 
 export interface Address { street: string; houseNumber: string; zip: string; city: string; country: 'Deutschland'; line2: string }
 export interface Person { salutation: 'Herr' | 'Frau'; firstName: string; lastName: string; birthDate: string; jobTitle: string; email: string; phone: string; mobile: string }
@@ -15,10 +17,6 @@ const INDUSTRIES = [
   'Immobilien', 'Medien', 'Energie', 'Transport', 'Gastro', 'Textil', 'Pharma', 'Verpackung',
   'Sicherheitstechnik', 'Datentechnik', 'Gebäudeservice', 'Umwelttechnik', 'Fahrzeugtechnik',
   'Werbung', 'Agrar', 'Kältetechnik', 'Personal', 'Steuerberatung', 'Anlagenbau', 'Reinigung',
-]
-const BANKS = [
-  'Sparkasse Köln Bonn', 'Commerzbank', 'Deutsche Bank', 'Volksbank Rhein-Ruhr', 'Postbank',
-  'Stadtsparkasse München', 'Hamburger Sparkasse', 'Berliner Volksbank', 'DKB', 'ING-DiBa',
 ]
 const LINE2 = ['Hinterhaus', 'Gebäude 2', '2. Etage', 'Haus B', 'Eingang Nord', '3. OG', 'Aufgang C']
 const JOB_TITLES = [
@@ -64,7 +62,6 @@ function createPerson(f: Faker, domain: string): Person {
   const sex = f.person.sexType()
   const firstName = f.person.firstName(sex)
   const lastName = f.person.lastName(sex)
-  const area = f.string.numeric({ length: 3, allowLeadingZeros: false })
   return {
     salutation: sex === 'female' ? 'Frau' : 'Herr',
     firstName,
@@ -72,8 +69,8 @@ function createPerson(f: Faker, domain: string): Person {
     birthDate: f.date.birthdate({ mode: 'age', min: 25, max: 62 }).toISOString().slice(0, 10),
     jobTitle: pick(f, JOB_TITLES),
     email: `${slugify(firstName)}.${slugify(lastName)}@${domain}`,
-    phone: `0${area} ${digits(f, 7)}`,
-    mobile: `01${pick(f, ['51', '52', '57', '60', '62', '70', '75', '76'])} ${digits(f, 7)}`,
+    phone: createLandline(f),
+    mobile: createMobile(f),
   }
 }
 
@@ -81,6 +78,7 @@ function createCompany(f: Faker, lastName: string): Company {
   const industry = pick(f, INDUSTRIES)
   const legalForm = pick(f, LEGAL_FORMS)
   const rand = randFrom(f)
+  const bank = pickBank(f)
   return {
     name: `${lastName} ${industry} ${legalForm}`,
     legalForm,
@@ -89,11 +87,12 @@ function createCompany(f: Faker, lastName: string): Company {
     vatId: createVatId(rand),
     taxNumber: `${digits(f, 3)}/${digits(f, 4)}/${digits(f, 4)}`,
     tradeRegister: `HRB ${f.string.numeric({ length: { min: 4, max: 6 }, allowLeadingZeros: false })}`,
+    // The IBAN's bank code is random; forms check the checksum and the BIC's country, not the pairing.
     iban: f.finance.iban({ formatted: false, countryCode: 'DE' }),
-    bic: f.finance.bic(),
-    bankName: pick(f, BANKS),
+    bic: bank.bic,
+    bankName: bank.name,
     leitwegId: createLeitwegId(rand),
-    phone: `0${f.string.numeric({ length: 3, allowLeadingZeros: false })} ${digits(f, 7)}`,
+    phone: createLandline(f),
   }
 }
 

@@ -3,6 +3,8 @@ import { fakerDE } from '@faker-js/faker'
 import plz from '../../src/data/plz-de.json'
 import { createDataset, ensureSlots } from '../../src/generators/dataset'
 import { slotKindFor } from '../../src/generators/catalog'
+import { BANKS } from '../../src/generators/banks'
+import { LANDLINE_PATTERN, MOBILE_PATTERN } from '../../src/generators/phone'
 import type { FieldRule, Template } from '../../src/model/types'
 
 const pairs = new Set((plz as [string, string][]).map(([z, c]) => `${z}|${c}`))
@@ -79,6 +81,24 @@ describe('createDataset', () => {
     expect(c.taxNumber).toMatch(/^\d{3}\/\d{4}\/\d{4}$/)
     expect(c.tradeRegister).toMatch(/^HRB \d{4,6}$/)
     expect(c.leitwegId).toMatch(/^\d{8}-\d{10}-\d{2}$/)
+  })
+
+  it('pairs the BIC with its bank and keeps both German', () => {
+    for (let i = 0; i < 50; i++) {
+      const c = createDataset(fakerDE).company
+      expect(BANKS).toContainEqual({ name: c.bankName, bic: c.bic })
+      expect(c.bic.slice(4, 6)).toBe('DE')
+    }
+  })
+
+  it('uses drama numbers for every phone number', () => {
+    for (let i = 0; i < 50; i++) {
+      const ds = createDataset(fakerDE)
+      expect(ds.company.phone).toMatch(LANDLINE_PATTERN)
+      const p = must(ds.persons['1'])
+      expect(p.phone).toMatch(LANDLINE_PATTERN)
+      expect(p.mobile).toMatch(MOBILE_PATTERN)
+    }
   })
 
   it('is deterministic for a seeded faker', () => {

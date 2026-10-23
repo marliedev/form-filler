@@ -166,3 +166,5 @@ Manuelle Prüfungen im echten Browser: [docs/manual-test-checklist.md](docs/manu
 ## Datenquellen
 
 Die Postleitzahlen-Daten stammen von [GeoNames](https://www.geonames.org) und stehen unter [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). Details: [src/data/README.md](src/data/README.md).
+
+Telefon- und Mobilnummern stammen aus den Rufnummernblöcken, die die [Bundesnetzagentur für Medienproduktionen reserviert](https://www.bundesnetzagentur.de/DE/Fachthemen/Telekommunikation/Nummerierung/DramaNumbers/artikel.html) („Drama Numbers“). Sie sind keinem Anschluss zugeteilt, Testdaten erreichen also nie eine echte Person. BIC und Bankname sind echte Paare deutscher Banken; die IBAN hat eine gültige Prüfsumme, ihre Bankleitzahl ist zufällig.
