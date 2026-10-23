@@ -5,7 +5,7 @@
 import path from 'node:path'
 import { chromium, expect, test as base, type BrowserContext, type Page, type Worker } from 'playwright/test'
 import type { WxtBrowser } from 'wxt/browser'
-import type { FillMode } from '../../src/fill/messages'
+import type { FillMode, UndoResponse } from '../../src/fill/messages'
 import type { FillReport } from '../../src/fill/runFill'
 import type { AppDef, Template } from '../../src/model/types'
 
@@ -19,6 +19,7 @@ interface E2EApi {
   dispatchFill(tabId: number, templateId: string, mode: FillMode): Promise<FillReport>
   startRecording(tabId: number, templateId: string): Promise<void>
   quickFill(tabId: number, mode: FillMode, page: { url: string; title: string }): Promise<FillReport>
+  undoLastRun(tabId: number): Promise<UndoResponse>
 }
 type WorkerGlobal = { __formFillerE2E: E2EApi }
 
@@ -32,6 +33,10 @@ export interface Extension {
   record(tabId: number, templateId: string): Promise<void>
   /** Fills without a template, as the popup's "Ohne Vorlage füllen" would on the test site. */
   quickFill(tabId: number, mode?: FillMode): Promise<FillReport>
+  /** Takes the last run on the tab back, as the popup's "Rückgängig" would. */
+  undo(tabId: number): Promise<UndoResponse>
+  /** Drops the tab's datasets, as the popup's "Neuer Datensatz" would. */
+  newDataset(tabId: number): Promise<void>
   badge(tabId: number): Promise<string>
   local(): Promise<Record<string, unknown>>
   session(): Promise<Record<string, unknown>>
@@ -79,6 +84,13 @@ export const test = base.extend<{ context: BrowserContext; extension: Extension 
           (args) => (globalThis as unknown as WorkerGlobal).__formFillerE2E.quickFill(args.tabId, args.mode, args.page),
           { tabId, mode, page: { url: `${SITE_URL}/`, title: 'Musterformular' } },
         ),
+      undo: (tabId) => worker.evaluate((id) => (globalThis as unknown as WorkerGlobal).__formFillerE2E.undoLastRun(id), tabId),
+      newDataset: (tabId) =>
+        worker.evaluate(async (id) => {
+          const all = await chrome.storage.session.get(null)
+          const keys = Object.keys(all).filter((key) => key.startsWith(`ds:${id}:`))
+          if (keys.length > 0) await chrome.storage.session.remove(keys)
+        }, tabId),
       badge: (tabId) => worker.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId),
       local: () => worker.evaluate(() => chrome.storage.local.get(null)),
       session: () => worker.evaluate(() => chrome.storage.session.get(null)),
