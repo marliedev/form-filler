@@ -266,6 +266,30 @@ describe('usePopup', () => {
     expect(p.quickRun.value).toBeNull()
   })
 
+  it('createAppForCurrentPage stores app and template before the permission prompt is answered', async () => {
+    await saveQuickRun(7, { fields: [scanned], problems: [], url: 'https://new.example.com/form', title: 'Seite' })
+    mockActiveTab('https://new.example.com/form')
+    mockPermissionRequest(new Promise<boolean>(() => undefined))
+    mockPermissionContains(true)
+    const p = usePopup()
+    await p.load()
+    void p.createAppForCurrentPage('Neu', undefined, 'Formular')
+    await new Promise((r) => setTimeout(r, 0))
+    const app = (await listApps()).find((a) => a.name === 'Neu')
+    expect(app).toBeDefined()
+    expect((await listTemplates(app?.id)).map((t) => [t.name, t.fields])).toEqual([['Formular', [scanned]]])
+  })
+
+  it('hides a run whose template already exists and drops it from the session', async () => {
+    await saveQuickRun(7, { fields: [scanned], problems: [], url: 'https://crm.example.com/', title: 'Seite' })
+    await saveTemplate({ id: 'saved', appId: 'crm', name: 'Schon da', process: null, fields: [scanned], lastMissing: [] })
+    mockActiveTab('https://crm.example.com/')
+    const p = usePopup()
+    await p.load()
+    expect(p.quickRun.value).toBeNull()
+    expect(await getQuickRun(7)).toBeNull()
+  })
+
   it('chooseApp switches to another app and its templates', async () => {
     mockActiveTab('https://crm.example.com/')
     const p = usePopup()

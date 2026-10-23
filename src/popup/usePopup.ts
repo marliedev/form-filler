@@ -151,9 +151,21 @@ export function usePopup(): PopupState {
     }
   }
 
+  /** A template saved from the run keeps the run's field ids, which is how a finished offer is recognized. */
+  function alreadySaved(run: QuickRun): boolean {
+    const ids = run.fields.map((f) => f.id).join('\n')
+    return templates.value.some((t) => t.fields.map((f) => f.id).join('\n') === ids)
+  }
+
+  /** The tab's last quick run, but only on the page it ran on and only until it became a template. */
   async function loadQuickRun(tab: number): Promise<QuickRun | null> {
     const stored = await getQuickRun(tab)
-    return stored !== null && url.value !== null && samePage(stored.url, url.value) ? stored : null
+    if (stored === null || url.value === null || !samePage(stored.url, url.value)) return null
+    if (alreadySaved(stored)) {
+      await clearQuickRun(tab)
+      return null
+    }
+    return stored
   }
 
   function quickTemplate(appId: string, name: string, quick: QuickRun): Template {
@@ -270,8 +282,13 @@ export function usePopup(): PopupState {
       return false
     }
     const created: AppDef = { id: createId(), name: trimmed, urlPatterns: [origin] }
+    const quick = quickRun.value
+    const template = templateName.trim()
+    const withTemplate = quick !== null && template !== ''
     try {
       await saveApp(created)
+      // Saved before the prompt answers for the same reason as the app; a denial deletes both.
+      if (withTemplate) await saveTemplate(quickTemplate(created.id, template, quick))
       let granted: boolean
       try {
         granted = await pending
@@ -287,12 +304,8 @@ export function usePopup(): PopupState {
       }
       apps.value = await listApps()
       await selectApp(created, url.value !== null && matchApp(url.value, [created]) !== null)
-      const quick = quickRun.value
-      const template = templateName.trim()
-      if (quick !== null && template !== '' && tabId.value !== null) {
-        await saveTemplate(quickTemplate(created.id, template, quick))
-        templates.value = await listTemplates(created.id)
-        await clearQuickRun(tabId.value)
+      if (withTemplate) {
+        if (tabId.value !== null) await clearQuickRun(tabId.value)
         quickRun.value = null
         notice.value = `App „${trimmed}“ und Vorlage „${template}“ angelegt.`
       } else {
